@@ -221,6 +221,13 @@ class H(BaseHTTPRequestHandler):
                     pieza, _ = piezas.leer(b["id"])
                     datos_marca = marca.datos()
                     lanzar("escribir", lambda av: asistente.escribir_pieza(pieza, str(b.get("idea", ""))[:2000], datos_marca, av))
+                elif b.get("accion") == "rehacer":  # la nota del equipo sobre una foto -> el prompt de Flow nuevo de esa lámina
+                    nota = str(b.get("nota", "")).strip()[:1000]
+                    if len(nota) < 3:
+                        raise ValueError("Escribe qué hay que cambiar en la foto")
+                    pieza, _ = piezas.leer(b["id"])
+                    datos_marca = marca.datos()
+                    lanzar("rehacer", lambda av: asistente.rehacer_foto(pieza, int(b.get("lamina", 0)), nota, datos_marca, av))
                 else:
                     raise ValueError("Acción no válida")
                 self._json({"ok": True})

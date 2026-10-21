@@ -633,7 +633,7 @@ function pintarProps() {
       <div class="prop"><label>Tipo</label><select data-f="tipo"><option value="color">Color sólido</option><option value="degradado">Degradado</option><option value="imagen">Foto de fondo</option></select></div>
       <div class="prop"><label>Color</label>${colores("fcolor", f.color)}</div>
       ${f.tipo === "degradado" ? `<div class="prop"><label>Hacia</label>${colores("fcolor2", f.color2)}</div>` : ""}
-      ${f.tipo === "imagen" ? `<p class="muted">Toca una foto de la izquierda para ponerla de fondo.</p>${rango("fzoom", "Zoom", f.zoom || 1, 1, 3, 0.01)}${rango("fdx", "Mover ↔", f.dx || 0, -800, 800)}${rango("fdy", "Mover ↕", f.dy || 0, -800, 800)}` : ""}
+      ${f.tipo === "imagen" ? `<p class="muted">Toca una foto de la izquierda para ponerla de fondo.</p>${rango("fzoom", "Zoom", f.zoom || 1, 1, 3, 0.01)}${rango("fdx", "Mover ↔", f.dx || 0, -800, 800)}${rango("fdy", "Mover ↕", f.dy || 0, -800, 800)}${cajaRehacer()}` : ""}
       <p class="muted">Toca algo de la lámina para editarlo. Arrastra para moverlo, el punto de abajo agranda y el de arriba gira.</p>`;
     p.querySelector('[data-f="tipo"]').value = f.tipo || "color";
     return;
@@ -662,6 +662,7 @@ function pintarProps() {
       ${rango("w", "Tamaño", c.w, 60, 2400, 5)}${rango("sombra", "Sombra", c.sombra || 0, 0, 1, 0.05)}
       <div class="fila"><label class="fila" style="font-weight:600"><input type="checkbox" data-t="voltear" ${c.voltear ? "checked" : ""}> Voltear</label>
       ${c.src.tipo === "img" && !/_sinfondo/.test(c.src.f) ? `<button class="btn chico" data-acc="recortar">✂ Quitar fondo</button>` : ""}</div>
+      ${c.src.tipo === "img" ? cajaRehacer() : ""}
       ${comun}`;
   } else if (c.tipo === "garabato") {
     p.innerHTML = `<p class="etq">Garabato · ${esc(c.forma)}</p>
@@ -832,8 +833,17 @@ async function abrir(id) {
 function pintarGuion() {
   const g = C?.guion;
   $("clGuion").innerHTML = g ? g.laminas.map((l, i) => `<div class="guion-l"><b>${i + 1}. ${esc(l.titulo.replace(/\*/g, ""))}</b><span class="muted">${esc(l.texto || "")}</span>
-      <code>${esc(l.flow || "")}</code><button class="btn sec chico" data-copiar="${i}">Copiar prompt de Flow</button></div>`).join("")
+      <code>${esc(l.flow || "")}</code>${(l.notas || []).map(n => `<span class="muted" style="font-size:11px">✎ ${esc(n.fecha)}${n.quien ? " · " + esc(n.quien) : ""}: ${esc(n.nota)}</span>`).join("")}
+      <button class="btn sec chico" data-copiar="${i}">Copiar prompt de Flow</button></div>`).join("")
       + `<button class="btn chico" id="btnAplicar" style="margin-top:8px">Poner estos textos en las láminas</button>` : "";
+}
+async function esperarTrabajo() {  // Claude corre en segundo plano: se pregunta cada 1,5 s hasta que termina
+  for (;;) {
+    await new Promise(ok => setTimeout(ok, 1500));
+    const t = await api("/api/trabajo");
+    $("clEstado").textContent = t.mensaje || "";
+    if (!t.activo) { if (t.error) throw new Error(t.error); return t; }
+  }
 }
 async function escribirConClaude() {
   if (!C) return;
@@ -843,21 +853,42 @@ async function escribirConClaude() {
     if ($("clEstilo").value) C.estilo = $("clEstilo").value;
     await api("/api/pieza", { id: cid, datos: limpio(C) });
     await api("/api/claude", { accion: "escribir", id: cid, idea: $("clIdea").value });
-    for (;;) {
-      await new Promise(ok => setTimeout(ok, 1500));
-      const t = await api("/api/trabajo");
-      $("clEstado").textContent = t.mensaje || "";
-      if (!t.activo) {
-        if (t.error) throw new Error(t.error);
-        if (t.accion === "escribir" && t.resultado?.laminas) {
-          cambio(() => { C.guion = t.resultado; if (!$("copy").value.trim()) { C.copy = t.resultado.copy || ""; $("copy").value = C.copy; } });
-          pintarGuion();
-        }
-        break;
-      }
+    const t = await esperarTrabajo();
+    if (t.accion === "escribir" && t.resultado?.laminas) {
+      cambio(() => { C.guion = t.resultado; if (!$("copy").value.trim()) { C.copy = t.resultado.copy || ""; $("copy").value = C.copy; } });
+      pintarGuion();
     }
   } catch (e) { avisar("Claude: " + e.message, "err"); }
   $("btnClaude").disabled = false;
+}
+function cajaRehacer() {  // en una foto: qué está mal -> Claude reescribe el prompt de Flow de esta lámina
+  return `<div class="prop" style="margin-top:8px"><label>¿Qué está mal en esta foto?</label>
+    <textarea id="notaFoto" rows="2" placeholder="Ej.: sin frutas ni salmón, que se vea el polvo encima de las croquetas"></textarea>
+    <button class="btn chico" data-rehacer>✎ Rehacer foto</button>
+    <span class="muted" style="font-size:11px">Claude escribe el prompt nuevo de Flow con tu nota. La nota queda guardada en la pieza.</span></div>`;
+}
+async function rehacerFoto(boton) {
+  const nota = ($("notaFoto")?.value || "").trim(), n = actual;
+  if (nota.length < 3) return avisar("Escribe qué hay que cambiar en la foto", "err");
+  const capa = L().capas.find(x => x.id === sel), foto = capa?.src?.f || L().fondo.src?.f || "";
+  boton.disabled = true;
+  try {
+    await api("/api/pieza", { id: cid, datos: limpio(C) });
+    await api("/api/claude", { accion: "rehacer", id: cid, lamina: n, nota });
+    const t = await esperarTrabajo();
+    if (t.accion !== "rehacer" || !t.resultado?.flow) return;
+    cambio(() => {
+      C.guion = C.guion || { laminas: [], copy: C.copy || "" };
+      while (C.guion.laminas.length <= n) C.guion.laminas.push({ rol: "", titulo: "", texto: "", flow: "" });
+      const l = C.guion.laminas[n];
+      l.flow = t.resultado.flow;
+      (l.notas = l.notas || []).push({ fecha: new Date().toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }), quien: ESTADO.quien || "", nota, foto });
+    });
+    pintarGuion();
+    try { await navigator.clipboard.writeText(t.resultado.flow); } catch (e) {}
+    avisar(`Prompt nuevo de la lámina ${n + 1} copiado: pégalo en Flow. ${t.resultado.cambio || ""}`);
+  } catch (e) { avisar("Claude: " + e.message, "err"); }
+  finally { boton.disabled = false; }
 }
 function conCta(laminas) {  // todo carrusel termina con la lámina de CTA de la marca
   if (C.tipo === "post" || !laminas.length || laminas[laminas.length - 1].rol === "cta") return laminas;
@@ -1064,6 +1095,7 @@ document.addEventListener("click", async e => {
   }
   const q = t.closest("[data-quitar]"); if (q) { const c = L().capas.find(x => x.id === sel); if (c) cambio(() => c[q.dataset.quitar] = null); return pintarProps(); }
   const ac = t.closest("[data-acc]"); if (ac) return accion(ac.dataset.acc);
+  const rh = t.closest("[data-rehacer]"); if (rh) return rehacerFoto(rh);
   const cp = t.closest("[data-copiar]"); if (cp) { await navigator.clipboard.writeText(C.guion.laminas[+cp.dataset.copiar].flow || ""); return avisar("Prompt copiado: pégalo en Google Flow"); }
   if (t.id === "btnAplicar") return aplicarGuion();
   if (t.id === "btnLamina") { cambio(() => C.laminas.push({ fondo: { tipo: "color", color: L().fondo.color || PALETA[1] }, capas: [] })); actual = C.laminas.length - 1; sel = null; return todo(); }

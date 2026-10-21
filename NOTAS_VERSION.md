@@ -1,3 +1,7 @@
+Versión 0.8.0:
+- **Rehacer foto**: selecciona una foto (o la foto de fondo), escribe qué está mal («tiene arándanos, que se vea el polvo encima de las croquetas») y toca «✎ Rehacer foto». Claude escribe el prompt nuevo de Flow de esa lámina con tu nota y las reglas de la marca, y lo deja copiado para pegarlo en Flow.
+- La nota queda guardada en la pieza, con fecha y quién la escribió, y se ve debajo del prompt en «Escribir con Claude». Las notas anteriores de la misma foto también se respetan al rehacerla.
+
 Versión 0.7.0:
 - **Fondos variados**: al crear con IA, cada lámina trae su tipo de fondo: **escena** (la foto de Flow ocupa toda la lámina: parque, cielo, sala), **estudio** (pared de un color fuerte) o **color** (animal recortado sobre un color de la marca). Dos láminas seguidas no repiten fondo y todo carrusel lleva al menos una escena.
 - En una lámina de escena, el título lleva contorno y el texto una pastilla, para que se lean encima de la foto. Toca la foto de Flow a la izquierda para ponerla de fondo.

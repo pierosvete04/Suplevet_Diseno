@@ -122,6 +122,32 @@ Responde SOLO con JSON, sin texto antes ni después:
     return datos
 
 
+def rehacer_foto(pieza, n, nota, marca, avance=print):
+    """Reescribe el prompt de Flow de la lámina n con la nota del equipo (qué está mal en la foto). Devuelve {"flow", "cambio"}."""
+    laminas = (pieza.get("guion") or {}).get("laminas") or []
+    lam = laminas[n] if 0 <= n < len(laminas) else {}
+    antes = [x["nota"] for x in lam.get("notas", []) if x.get("nota")]
+    reglas = {k: marca.get(k) for k in CLAVES_MARCA if marca.get(k)}
+    prompt = f"""Hay que rehacer la foto de la lámina {n + 1} de {'un post' if pieza.get('tipo') == 'post' else 'un carrusel'} para Instagram.
+Lámina: {json.dumps({k: lam.get(k) for k in ('rol', 'titulo', 'texto', 'fondo') if lam.get(k)}, ensure_ascii=False)}
+Prompt de Google Flow con el que se hizo: {lam.get('flow') or '(no hay: escríbelo desde cero)'}
+Lo que está mal, según el equipo: {nota.strip()}
+{('Notas anteriores de esta misma foto (también valen): ' + ' | '.join(antes)) if antes else ''}
+Marca y reglas (respétalas al pie de la letra): {json.dumps(reglas, ensure_ascii=False)}
+{FOTOS}
+El prompt lleva el encuadre del formato: {ORIENTACION.get(pieza.get('formato', '4:5'), 'vertical 4:5')}.
+Escribe el prompt nuevo completo en inglés (no solo el cambio): corrige lo que dice el equipo y mantén lo que estaba bien.
+Responde SOLO con JSON, sin texto antes ni después: {{"flow": "…", "cambio": "qué cambiaste, en una frase en español"}}"""
+    texto = correr(prompt, avance=avance, max_turnos=10)
+    inicio, fin = texto.find("{"), texto.rfind("}")
+    if inicio < 0 or fin < 0:
+        raise RuntimeError("Claude no devolvió el prompt nuevo. Intenta de nuevo.")
+    datos = json.loads(texto[inicio:fin + 1])
+    if not str(datos.get("flow", "")).strip():
+        raise RuntimeError("Claude no devolvió el prompt nuevo. Intenta de nuevo.")
+    return datos
+
+
 def con_cta(laminas, marca):
     """Todo carrusel termina con la lámina de CTA de la marca: si Claude no la puso, se agrega."""
     if laminas and (laminas[-1].get("rol") == "cta"):
