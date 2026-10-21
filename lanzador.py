@@ -11,12 +11,13 @@ Por dentro es un servidor solo de esta PC (127.0.0.1) que se apaga al cerrar la 
 
 Si cambias este archivo o las librerías, sube LANZADOR_VERSION y el archivo LANZADOR_MINIMO.
 """
-LANZADOR_VERSION = "1.1.0"
+LANZADOR_VERSION = "1.1.1"
 
 # Imports explícitos para que PyInstaller empaquete lo que usa el código de app/ (que no analiza).
 import argparse, ctypes, glob, hashlib, http.server, io, json, mimetypes, re, runpy, secrets, shutil, socket  # noqa: E401,F401
 import socketserver, subprocess, sys, tempfile, threading, time, traceback, unicodedata, webbrowser  # noqa: E401,F401
 import difflib, http.cookies, urllib.parse, urllib.request, zipfile  # noqa: E401,F401
+import base64, datetime, getpass, platform, uuid, urllib.error  # noqa: E401,F401  (los usa el código de app/: si falta uno, la sala no arranca)
 import os
 from pathlib import Path
 

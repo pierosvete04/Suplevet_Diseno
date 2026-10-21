@@ -1,3 +1,6 @@
+Versión 0.2.2:
+- Arreglo: la sala no abría («No module named 'getpass'»). Faltaban piezas de Python en el instalador. Hay que pasar el instalador de esta versión.
+
 Versión 0.2.1:
 - La sala abre más rápido: la ventana aparece al instante con «Abriendo…» y la app carga apenas está lista (antes no se veía nada hasta que todo arrancaba). Para tenerlo hay que pasar una vez el instalador completo de esta versión; con «Actualizar ahora» todo sigue funcionando igual que antes.
 
