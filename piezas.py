@@ -46,7 +46,9 @@ def _limpio(texto, largo=60):
 
 
 def quien():
-    return nucleo.CONFIG.get("nombre") or getpass.getuser()
+    import cuenta
+    c = cuenta.estado()
+    return nucleo.CONFIG.get("nombre") or c.get("nombre") or c.get("email") or getpass.getuser()
 
 
 # ---------- Semanas ----------

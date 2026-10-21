@@ -108,19 +108,17 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <h1>Sala de diseño <span class="muted" id="version" style="font-weight:500"></span></h1>
   <span class="pastilla" id="estMarca"></span>
   <span style="flex:1"></span>
-  <span class="pastilla" id="estDrive"></span>
   <span class="pastilla" id="estClaude"></span>
   <button class="btn sec chico" id="btnTema" title="Claro / oscuro">◐</button>
   <button class="btn sec chico" id="btnConfig">⚙ Configuración</button>
+  <span id="cuentaChip"></span>
 </header>
 <div class="banda" id="bandaVersion" hidden><span id="textoVersion"></span><button class="btn chico" id="btnActualizar">Actualizar ahora</button></div>
 <dialog id="dlgConfig">
   <h2 style="margin-top:0">Configuración</h2>
   <div class="prop"><label>Tu nombre (para el aviso «lo está editando…»)</label><input type="text" id="cfgNombre"></div>
-  <p class="etq">Drive del proyecto (la base de datos de las salas)</p>
-  <p class="muted" id="cfgDriveTexto"></p>
-  <div class="fila"><input type="text" id="cfgLink" placeholder="Link de la carpeta del proyecto en Drive" style="flex:1"><button class="btn chico" id="btnConectar">Conectar</button></div>
-  <div class="fila" style="margin-top:6px"><button class="btn sec chico" id="btnUsarSala" hidden>Usar la conexión de la Sala de edición</button></div>
+  <p class="etq">Cuenta y dispositivos</p>
+  <div class="fila"><span class="muted">Tu cuenta de Google, los dispositivos donde se abrió y cerrar sesión.</span><button class="btn sec chico" id="btnCuenta">Abrir</button></div>
   <p class="etq" style="margin-top:12px">Claude</p>
   <div class="fila"><span class="muted" id="cfgClaude"></span><button class="btn sec chico" id="btnLoginClaude">Iniciar sesión en Claude</button></div>
   <p class="etq" style="margin-top:12px">Marca del proyecto</p>
@@ -220,6 +218,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 </div>
 <div class="aviso" id="aviso" hidden></div>
 
+<script src="/cuenta.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -918,8 +917,6 @@ function pintarCabeza() {
   $("version").textContent = "v" + d.version;
   $("estMarca").textContent = d.marca.tiene_marca ? (d.marca.nombre || "Marca") : "Sin marca";
   $("estMarca").className = "pastilla " + (d.marca.tiene_marca ? "ok" : "mal");
-  $("estDrive").textContent = d.drive.activo ? "Drive conectado" : "Drive sin conectar";
-  $("estDrive").className = "pastilla " + (d.drive.activo ? "ok" : "mal");
 }
 async function revisarClaude() {
   try { const c = await api("/api/claude"); $("estClaude").textContent = c.sesion ? "Claude listo" : (c.instalado ? "Claude sin sesión" : "Sin Claude");
@@ -935,15 +932,9 @@ async function revisarVersion(forzar) {
 function abrirConfig() {
   const d = ESTADO;
   $("cfgNombre").value = d.quien || "";
-  $("cfgLink").value = d.drive.link || "";
-  $("cfgDriveTexto").textContent = d.drive.activo ? "Conectado. Las tres salas de esta PC usan esta misma conexión." : "Pega el link de la carpeta del proyecto y toca Conectar: se abre Google para dar acceso una sola vez.";
-  $("btnUsarSala").hidden = !d.drive.de_la_sala;
   $("cfgMarca").textContent = d.marca.tiene_marca ? `${d.marca.nombre || "La marca"}: ${d.marca.colores.length} colores, ${d.marca.logos.length} logos y ${d.marca.productos.length} productos en _MARCA.` : "Este proyecto aún no tiene _MARCA en su Drive.";
   revisarClaude();
   $("dlgConfig").showModal();
-}
-async function enDrive(cuerpo, aviso) {
-  try { await api("/api/drive", cuerpo); avisar(aviso); await cargarLista(); abrirConfig(); } catch (e) { avisar(e.message, "err"); }
 }
 $("btnConfig").onclick = abrirConfig;
 $("btnCerrarConfig").onclick = async () => {
@@ -951,8 +942,7 @@ $("btnCerrarConfig").onclick = async () => {
   if (n && n !== ESTADO.quien) await api("/api/nombre", { nombre: n }).catch(() => {});
   $("dlgConfig").close(); cargarLista();
 };
-$("btnConectar").onclick = () => { avisar("Se abrió Google en el navegador: entra con la cuenta del proyecto y acepta."); enDrive({ accion: "conectar", link: $("cfgLink").value }, "Drive conectado"); };
-$("btnUsarSala").onclick = () => enDrive({ accion: "usar_sala" }, "Listo: la Sala de diseño usa la misma conexión que la Sala de edición");
+$("btnCuenta").onclick = () => { $("dlgConfig").close(); Cuenta.abrirPanel(); };
 $("btnLoginClaude").onclick = async () => { try { await api("/api/claude", { accion: "login" }); avisar("Se abrió una ventana para entrar a Claude"); } catch (e) { avisar(e.message, "err"); } };
 $("btnMarcaBase").onclick = async () => { try { await api("/api/marca_base", { nombre: $("cfgMarcaNombre").value }); await cargarLista(); abrirConfig(); avisar("Se creó _MARCA en el Drive del proyecto"); } catch (e) { avisar(e.message, "err"); } };
 $("btnCarpeta").onclick = () => cid && api("/api/abrir_carpeta", { id: cid }).catch(e => avisar(e.message, "err"));
@@ -998,6 +988,8 @@ $("btnPedir").onclick = async () => {
   await Promise.all(['400 40px "Bebas"', '500 40px "DM Sans"', '700 40px "DM Sans"', '900 40px "DM Sans"', '40px "Archivo Black"', '40px "Lilita"', '40px "Anton"']
     .map(f => document.fonts.load(f).catch(() => null)));
   miniaturas();
+  await Cuenta.iniciar({ app: "Sala de diseño", letra: "D", fondo: "linear-gradient(135deg,#7c3aed,#ec4899 60%,#f59e0b)",
+                         lugar: $("cuentaChip"), alVolver: () => location.reload() });
   try {
     await cargarLista();
     await abrirPrimero();

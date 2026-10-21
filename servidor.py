@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import actualizador
 import asistente
 import conexion
+import cuenta
 import marca
 import nucleo
 import piezas
@@ -66,7 +67,7 @@ def al_cerrar_ventana():
 
 def estado():
     sem = piezas.semana_actual()
-    return {"version": nucleo.VERSION, "drive": conexion.estado(), "marca": marca.datos(), "quien": piezas.quien(),
+    return {"version": nucleo.VERSION, "drive": conexion.estado(), "cuenta": cuenta.estado(), "marca": marca.datos(), "quien": piezas.quien(),
             "semana": sem, "semanas": piezas.semanas(), "piezas": piezas.listar(sem), "formatos": piezas.FORMATOS,
             "recortador": {"listo": recorte.modelo_listo(), **recorte.ESTADO_MODELO}}
 
@@ -116,6 +117,8 @@ class H(BaseHTTPRequestHandler):
         try:
             if u.path == "/":
                 self._bytes((nucleo.RAIZ / "app.html").read_bytes(), "text/html; charset=utf-8")
+            elif u.path == "/cuenta.js":
+                self._bytes((nucleo.RAIZ / "cuenta.js").read_bytes(), "text/javascript; charset=utf-8")
             elif u.path.startswith("/fuentes/"):
                 self._archivo(FUENTES, unquote(u.path[len("/fuentes/"):]))
             elif u.path.startswith("/marca/"):
@@ -139,7 +142,12 @@ class H(BaseHTTPRequestHandler):
                 self._json(actualizador.revisar(forzar="forzar" in q))
             elif u.path == "/api/latido":
                 LATIDO["ultimo"] = time.time()
-                self._json({"ok": True})
+                cuenta.latido()
+                self._json({"ok": True, "cuenta": cuenta.estado()})
+            elif u.path == "/api/cuenta":
+                self._json(cuenta.estado())
+            elif u.path == "/api/dispositivos":
+                self._json({"dispositivos": cuenta.dispositivos(), "dias_nuevo": cuenta.DIAS_NUEVO})
             else:
                 self.send_error(404)
         except Exception as e:
@@ -220,16 +228,18 @@ class H(BaseHTTPRequestHandler):
                     return {"piezas": hechas}
                 lanzar("pedido", hacer)
                 self._json({"ok": True})
-            elif u.path == "/api/drive":
-                b = self._cuerpo()
-                if b.get("accion") == "conectar":
-                    conexion.conectar(str(b.get("link", "")))
-                elif b.get("accion") == "usar_sala":
-                    conexion.usar_llave_de_la_sala()
-                elif b.get("accion") == "desconectar":
-                    conexion.desconectar()
+            elif u.path == "/api/entrar":  # entrar con Google (se abre el navegador una vez)
+                e = cuenta.entrar(str(self._cuerpo().get("link", "")))
                 piezas.sincronizar(forzar=True)
-                self._json({"ok": True, "drive": conexion.estado()})
+                self._json({"ok": True, "cuenta": e})
+            elif u.path == "/api/salir":
+                cuenta.cerrar_sesion()
+                self._json({"ok": True})
+            elif u.path == "/api/cerrar_dispositivo":
+                cuenta.cerrar_en(str(self._cuerpo()["id"]))
+                self._json({"ok": True})
+            elif u.path == "/api/cerrar_otros":
+                self._json({"ok": True, "cerrados": cuenta.cerrar_en_todas_menos_esta()})
             elif u.path == "/api/marca_base":
                 marca.crear_base(str(self._cuerpo().get("nombre", ""))[:60])
                 self._json({"ok": True, "marca": marca.datos()})
@@ -253,4 +263,6 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     print(f"Sala de diseño en http://localhost:{PUERTO}", flush=True)
+    cuenta.iniciar("Sala de diseño", nucleo.VERSION)
+    cuenta.latido(forzar=True)
     ThreadingHTTPServer(("127.0.0.1", PUERTO), H).serve_forever()

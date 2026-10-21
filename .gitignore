@@ -5,6 +5,7 @@
 !/.github/
 !/*.py
 !/app.html
+!/cuenta.js
 !/fuentes/
 !/instalador/
 !/config.json
