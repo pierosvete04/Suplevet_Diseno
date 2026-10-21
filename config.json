@@ -1,0 +1,10 @@
+{
+  "actualizaciones": {
+    "repo": "pierosvete04/Suplevet_Diseno"
+  },
+  "semana_base": {
+    "numero": 3,
+    "lunes": "2026-10-19",
+    "nota": "La semana del lunes 2026-10-19 es la S03 de la estrategia; de ahí se cuenta. Cada proyecto puede cambiarlo en datos/config.local.json."
+  }
+}

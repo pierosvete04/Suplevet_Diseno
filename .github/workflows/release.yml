@@ -1,0 +1,75 @@
+# Al subir un tag vX.Y.Z arma la Sala de diseño para Windows y publica el release:
+#   SalaDiseno-Instalador-vX.Y.Z.exe  instalador (lo que se le pasa a alguien nuevo)
+#   app-vX.Y.Z.zip                    solo el código: lo que baja «Actualizar ahora»
+#   SalaDiseno-vX.Y.Z.zip             la carpeta completa, por si no se quiere instalar
+name: Release Sala de diseño
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Revisar que VERSION coincide con el tag
+        shell: bash
+        run: |
+          test "v$(tr -d '\r\n' < VERSION)" = "${GITHUB_REF_NAME}" || { echo "VERSION no coincide con el tag ${GITHUB_REF_NAME}"; exit 1; }
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
+
+      - name: Armar SalaDiseno.exe
+        shell: bash
+        run: |
+          set -o pipefail
+          # Se arma desde una carpeta que solo tiene el lanzador: el código de la sala va aparte (app/) y se actualiza solo.
+          mkdir -p _exe && cp lanzador.py instalador/icono.ico _exe/ && cd _exe
+          pyinstaller lanzador.py --icon icono.ico --distpath ../dist --noconfirm --onedir --windowed --name SalaDiseno \
+            --collect-all onnxruntime --collect-all webview --collect-all clr_loader --collect-all pythonnet 2>&1 | tee ../pyinstaller.log || {
+            awk '/failed with:/{n=NR} {l[NR]=$0} END{for(i=n+1;i<=n+12 && i<=NR;i++) print l[i]}' ../pyinstaller.log | grep -v '^\s*$' | head -n 9 | while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+            exit 1
+          }
+
+      - name: Copiar el código y empaquetar
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $app = "dist/SalaDiseno/app"
+          New-Item -ItemType Directory -Force $app | Out-Null
+          Copy-Item *.py,app.html,config.json,VERSION,LANZADOR_MINIMO,README.md,NOTAS_VERSION.md -Destination $app
+          Copy-Item fuentes -Destination $app -Recurse
+          Remove-Item "$app/lanzador.py"
+          Compress-Archive -Path "$app/*" -DestinationPath "app-$tag.zip"
+          Compress-Archive -Path dist/SalaDiseno -DestinationPath "SalaDiseno-$tag.zip"
+          $min = (Get-Content LANZADOR_MINIMO -Raw).Trim()
+          (Get-Content NOTAS_VERSION.md -Raw) + "`n`nlanzador minimo: $min" | Set-Content notas.md -Encoding utf8
+
+      - name: Armar el instalador (.exe)
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc "/DVersion=$v" "/DOrigen=..\dist\SalaDiseno" "instalador\SalaDiseno.iss"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            SalaDiseno-Instalador-${{ github.ref_name }}.exe
+            app-${{ github.ref_name }}.zip
+            SalaDiseno-${{ github.ref_name }}.zip
+          body_path: notas.md

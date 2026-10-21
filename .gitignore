@@ -1,0 +1,16 @@
+# Lista blanca: solo el código de la sala va a GitHub. datos/ (configuración, copia de Drive) es de cada PC.
+/*
+!/.gitignore
+!/.gitattributes
+!/.github/
+!/*.py
+!/app.html
+!/fuentes/
+!/instalador/
+!/config.json
+!/VERSION
+!/LANZADOR_MINIMO
+!/NOTAS_VERSION.md
+!/README.md
+!/requirements-build.txt
+__pycache__/
