@@ -1,5 +1,7 @@
-Versión 0.3.0:
+Versión 0.3.1:
 - Arreglo de fondo del error «No module named 'getpass'»: el código ya no usa esa pieza, así que «Actualizar ahora» funciona aunque tengas instalado un instalador viejo.
+
+Versión 0.3.0:
 - **Entrar con Google**: al abrir, si no hay sesión, aparece la pantalla «Entrar con Google» (con el link de la carpeta del proyecto). La sesión queda abierta hasta que alguien toque «Cerrar sesión», y es una sola para las tres apps de la PC: si entras en una, ya entraste en todas.
 - Arriba a la derecha está tu cuenta (foto y nombre). Ahí: **Dispositivos y seguridad**: las PCs donde se abrió tu cuenta, con qué apps, la primera y la última vez, las nuevas marcadas, y «Cerrar sesión ahí» o «Cerrar sesión en todos los demás» (esa PC la cierra sola en máximo 10 minutos).
 - El candado de verdad sigue siendo Drive: solo entra quien tenga compartida la carpeta del proyecto.
