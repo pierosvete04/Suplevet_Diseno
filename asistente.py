@@ -97,7 +97,7 @@ def escribir_pieza(pieza, idea, marca, avance=print):
     """{"laminas": [{"rol", "titulo", "texto", "flow"}], "copy"} para una pieza (carrusel o post)."""
     n = len(pieza.get("laminas", [])) or (4 if pieza.get("tipo") != "post" else 1)
     tipo = "un post de una sola imagen" if pieza.get("tipo") == "post" else f"un carrusel de {n} láminas"
-    reglas = {k: marca.get(k) for k in ("nombre", "evitar", "obligatorio", "cierres", "cta", "notas_para_claude") if marca.get(k)}
+    reglas = {k: marca.get(k) for k in CLAVES_MARCA if marca.get(k)}
     prompt = f"""Escribe {tipo} para Instagram ({pieza.get('formato', '4:5')}).
 Tema: {pieza.get('titulo', '')}
 {('Idea del equipo: ' + idea.strip()) if idea.strip() else ''}
@@ -108,11 +108,10 @@ Reglas generales: palabras simples, portada de 8 palabras como máximo, una idea
 y textos de 20 palabras como máximo.
 Si es un carrusel, la ÚLTIMA lámina es SIEMPRE el CTA (rol «cta»): invita a escribir y usa el «cta» de la marca (título corto,
 texto y la acción). En un post, el CTA va al final del copy.
-Para cada lámina escribe el prompt de Google Flow de su foto en inglés: un solo animal o persona, sin texto,
-sin productos ni empaques (el producto real se pone después), fondo liso o fácil de recortar.
+{FOTOS}
 Marca con *asteriscos* la palabra que va resaltada en el título.
 Responde SOLO con JSON, sin texto antes ni después:
-{{"laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}"""
+{{"laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}"""
     texto = correr(prompt, avance=avance)
     inicio, fin = texto.find("{"), texto.rfind("}")
     if inicio < 0 or fin < 0:
@@ -132,6 +131,17 @@ def con_cta(laminas, marca):
                        "flow": "", "accion": cta.get("boton", "")}]
 
 
+CLAVES_MARCA = ("nombre", "evitar", "obligatorio", "cierres", "cta", "notas_para_claude", "direccion_visual")
+FOTOS = """Para cada lámina elige su «fondo» y escribe el prompt de Google Flow de su foto en inglés:
+- «escena»: la foto ocupa toda la lámina, con un lugar real (parque, pasto, cielo, sala, cocina); deja una zona limpia para el título.
+- «estudio»: el animal contra una pared lisa de un color fuerte.
+- «color»: el animal solo, fácil de recortar; va sobre un color de la marca.
+Dos láminas seguidas nunca llevan el mismo fondo y todo carrusel lleva al menos una «escena».
+Siempre hay un perro o un gato (alterna los dos y cambia de raza); sin texto ni logos, sin productos ni empaques
+(el producto real se pone después). Di el ángulo con palabras (fisheye close-up, low angle from the ground, top-down)
+y no uses «--ar». Si la marca trae «direccion_visual», síguela."""
+
+
 ORIENTACION = {"4:5": "vertical 4:5", "1:1": "square 1:1", "9:16": "tall vertical 9:16 (story), leave the top and bottom 15% clean"}
 
 
@@ -139,7 +149,7 @@ def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referenc
     """Un pedido libre («3 posts 1:1 sobre omega 3», «una historia 9:16 con esto: …») -> las piezas a crear.
     videos: los ángulos de los videos de la semana (del brief), para que las piezas los acompañen.
     Devuelve {"piezas": [{tipo, formato, dia, titulo, nivel, publico, estilo, laminas: [{rol, titulo, texto, flow}], copy}]}."""
-    reglas = {k: marca.get(k) for k in ("nombre", "evitar", "obligatorio", "cierres", "cta", "notas_para_claude") if marca.get(k)}
+    reglas = {k: marca.get(k) for k in CLAVES_MARCA if marca.get(k)}
     base = ""
     if videos:
         base = "Videos de esta semana (las piezas deben acompañarlos, con el mismo tema y nivel):\n" + json.dumps(videos, ensure_ascii=False)
@@ -165,12 +175,12 @@ textos de 20 palabras como máximo (en 9:16, 12 como máximo).
 Todo carrusel termina SIEMPRE con una lámina de CTA (rol «cta») que invita a escribir, con el «cta» de la marca.
 En un post de una sola imagen, el CTA va al final del copy.
 Marca con *asteriscos* la palabra resaltada del título.
-Para cada lámina escribe el prompt de Google Flow de su foto en inglés, con el encuadre del formato
-({json.dumps(ORIENTACION)}): un solo animal o persona, sin texto, sin productos ni empaques (el producto real se pone después),
-fondo liso de un color de la marca o fácil de recortar.
+{FOTOS}
+El prompt de Flow lleva el encuadre del formato: {json.dumps(ORIENTACION)}.
+Si son varias piezas, sus portadas llevan fondos distintos entre sí.
 Responde SOLO con JSON, sin texto antes ni después:
 {{"piezas": [{{"tipo": "carrusel", "formato": "4:5", "dia": "", "titulo": "…", "nivel": "TOFU | MOFU | BOFU", "publico": "…", "estilo": "…",
-  "laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
+  "laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
     avance("Claude está leyendo el pedido…")
     respuesta = correr(prompt, avance=avance, max_turnos=25)
     inicio, fin = respuesta.find("{"), respuesta.rfind("}")

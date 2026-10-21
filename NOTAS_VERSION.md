@@ -1,3 +1,10 @@
+Versión 0.7.0:
+- **Fondos variados**: al crear con IA, cada lámina trae su tipo de fondo: **escena** (la foto de Flow ocupa toda la lámina: parque, cielo, sala), **estudio** (pared de un color fuerte) o **color** (animal recortado sobre un color de la marca). Dos láminas seguidas no repiten fondo y todo carrusel lleva al menos una escena.
+- En una lámina de escena, el título lleva contorno y el texto una pastilla, para que se lean encima de la foto. Toca la foto de Flow a la izquierda para ponerla de fondo.
+- Los prompts de Flow alternan **perro y gato**, cambian de raza y de ángulo (ojo de pez, desde el suelo, desde arriba).
+- La sala lee la nueva «direccion_visual» de _MARCA/marca.json (la guía completa está en _MARCA/direccion_visual.md, con fotos de ejemplo en _MARCA/referencias).
+- Arreglo: un «\n» escrito a mano en un texto ya no aparece en la lámina; parte la línea.
+
 Versión 0.6.0:
 - La **Configuración** tiene el mismo diseño en las tres apps (menú a la izquierda, secciones a la derecha), con **Cuenta y dispositivos** y **Buscar actualizaciones**.
 - Todo carrusel termina **siempre** con la lámina de **CTA** de la marca (título, texto, el botón con la acción y la foto real del producto). Si Claude no la pone, la sala la agrega. El texto del CTA está en _MARCA/marca.json → «cta» y se ve en la pestaña Marca.

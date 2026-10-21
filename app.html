@@ -436,7 +436,7 @@ async function api(ruta, cuerpo) {
 // ---------- Dibujar ----------
 function partir(ctx, texto, ancho) {
   const lineas = [];
-  for (const parrafo of texto.split("\n")) {
+  for (const parrafo of texto.replace(/\\n/g, "\n").split("\n")) {  // «\n» escrito a mano también parte la línea
     let linea = "";
     for (const p of parrafo.split(" ")) {
       const prueba = linea ? linea + " " + p : p;
@@ -466,7 +466,7 @@ function dibujarTexto(ctx, c) {
   ctx.textBaseline = "middle";
   if ("letterSpacing" in ctx) ctx.letterSpacing = (c.espaciado || 0) + "px";
   if (c.curva) {  // una sola línea en arco (radio = curva; negativo = hacia abajo)
-    const plano = texto.replace(/\*/g, "").replace(/\n/g, " ");
+    const plano = texto.replace(/\*/g, "").replace(/\\n|\n/g, " ");
     const r = Math.abs(c.curva), signo = Math.sign(c.curva);
     const anchos = [...plano].map(ch => ctx.measureText(ch).width);
     const total = anchos.reduce((a, b) => a + b, 0);
@@ -874,7 +874,9 @@ function aplicarGuion() {
   cambio(() => g.laminas.forEach((l, i) => {
     if (!C.laminas[i]) C.laminas.push({ fondo: { tipo: "color", color: PALETA[i % 4] }, capas: [] });
     if (!C.laminas[i].capas.length && i > 0) C.laminas[i].fondo.color = PALETA[i % Math.min(4, PALETA.length)];
-    const lam = C.laminas[i], oscuro = esOscuro(lam.fondo.color), tinta = MARCA.texto_oscuro, acento = PALETA[3] || tinta;
+    // «escena»: la foto de Flow va de fondo a toda la lámina (se elige después tocándola a la izquierda)
+    if (!C.laminas[i].capas.length && l.fondo === "escena") C.laminas[i].fondo = { tipo: "imagen", color: MARCA.texto_oscuro };
+    const lam = C.laminas[i], foto = lam.fondo.tipo === "imagen", oscuro = esOscuro(lam.fondo.color), tinta = MARCA.texto_oscuro, acento = PALETA[3] || tinta;
     const pon = (rol, base) => {
       let c = lam.capas.find(x => x.rol === rol);
       if (!c) { c = { id: nuevoId(), rol, ...base }; lam.capas.push(c); }
@@ -884,8 +886,10 @@ function aplicarGuion() {
     const yT = H * (historia ? 0.2 : cuadrado ? 0.17 : (i === 0 ? 0.19 : 0.16)), tamT = (i === 0 ? 150 : 120) * (cuadrado ? 0.85 : 1);
     const yX = yT + tamT * 1.7 + (historia ? 40 : 0);
     pon("titulo", { tipo: "texto", fuente: "Bebas", tam: tamT, mayus: true, x: W / 2, y: yT, ancho: 940, espaciado: 2,
-                    color: oscuro ? MARCA.texto_claro : tinta, acento: oscuro ? acento : MARCA.texto_claro, fondoAcento: oscuro ? null : tinta, alinear: "center" });
-    if (l.texto) pon("texto", { tipo: "texto", fuente: "DM Sans", peso: 700, tam: historia ? 50 : 44, x: W / 2, y: yX, ancho: 860, interlineado: 1.3, color: oscuro ? MARCA.texto_claro : tinta, acento: PALETA[4] || acento, alinear: "center" });
+                    color: oscuro ? MARCA.texto_claro : tinta, acento: oscuro ? acento : MARCA.texto_claro, fondoAcento: oscuro ? null : tinta, alinear: "center",
+                    ...(foto ? { contorno: 12, colorContorno: tinta } : {}) });  // sobre una foto, el contorno lo hace legible
+    if (l.texto) pon("texto", { tipo: "texto", fuente: "DM Sans", peso: 700, tam: historia ? 50 : 44, x: W / 2, y: yX, ancho: 860, interlineado: 1.3, color: oscuro ? MARCA.texto_claro : tinta, acento: PALETA[4] || acento, alinear: "center",
+                                ...(foto ? { pastilla: tinta } : {}) });
     if (l.rol === "cta") {  // la lámina final: el botón con la acción y el producto real
       const accion = l.accion || (MARCA.cta || {}).boton;
       if (accion && !lam.capas.find(x => x.rol === "accion"))
