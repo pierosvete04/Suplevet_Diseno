@@ -12,7 +12,7 @@ Esta sala es la única que escribe en DISEÑO/. Lee _SEMANAS/ (brief de la estra
 El número de semana sigue a la estrategia: la del lunes 19/10/2026 es la S03 (ver config.json → semana_base).
 """
 import datetime as dt
-import getpass
+import os
 import json
 import re
 import time
@@ -48,7 +48,7 @@ def _limpio(texto, largo=60):
 def quien():
     import cuenta
     c = cuenta.estado()
-    return nucleo.CONFIG.get("nombre") or c.get("nombre") or c.get("email") or getpass.getuser()
+    return nucleo.CONFIG.get("nombre") or c.get("nombre") or c.get("email") or os.environ.get("USERNAME") or "equipo"
 
 
 # ---------- Semanas ----------
