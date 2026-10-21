@@ -205,6 +205,21 @@ class H(BaseHTTPRequestHandler):
                 else:
                     raise ValueError("Acción no válida")
                 self._json({"ok": True})
+            elif u.path == "/api/pedido":  # un pedido libre: Claude decide las piezas y la sala las crea en la semana
+                b = self._cuerpo()
+                texto = str(b.get("texto", "")).strip()[:8000]
+                if len(texto) < 5:
+                    raise ValueError("Escribe qué quieres que se haga")
+                videos = piezas.videos_de_la_semana() if b.get("videos") else None
+                semana, datos_marca = piezas.semana_actual(), marca.datos()
+
+                def hacer(av):
+                    r = asistente.resolver_pedido(texto, datos_marca, semana, videos, av)
+                    hechas = piezas.crear_desde_pedido(texto, r, semana)
+                    piezas.subir()
+                    return {"piezas": hechas}
+                lanzar("pedido", hacer)
+                self._json({"ok": True})
             elif u.path == "/api/drive":
                 b = self._cuerpo()
                 if b.get("accion") == "conectar":

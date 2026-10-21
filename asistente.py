@@ -115,3 +115,47 @@ Responde SOLO con JSON, sin texto antes ni después:
     if inicio < 0 or fin < 0:
         raise RuntimeError("Claude no devolvió la pieza. Intenta de nuevo.")
     return json.loads(texto[inicio:fin + 1])
+
+
+ORIENTACION = {"4:5": "vertical 4:5", "1:1": "square 1:1", "9:16": "tall vertical 9:16 (story), leave the top and bottom 15% clean"}
+
+
+def resolver_pedido(texto, marca, semana="", videos=None, avance=print):
+    """Un pedido libre («3 posts 1:1 sobre omega 3», «una historia 9:16 con esto: …») -> las piezas a crear.
+    videos: los ángulos de los videos de la semana (del brief), para que las piezas los acompañen.
+    Devuelve {"piezas": [{tipo, formato, dia, titulo, nivel, publico, estilo, laminas: [{rol, titulo, texto, flow}], copy}]}."""
+    reglas = {k: marca.get(k) for k in ("nombre", "evitar", "obligatorio", "cierres", "notas_para_claude") if marca.get(k)}
+    base = ""
+    if videos:
+        base = "Videos de esta semana (las piezas deben acompañarlos, con el mismo tema y nivel):\n" + json.dumps(videos, ensure_ascii=False)
+    prompt = f"""Eres diseñador de contenido para redes. Este es el pedido del equipo, tal cual lo escribió:
+---
+{texto.strip()}
+---
+Semana: {semana}
+{base}
+Marca y reglas (respétalas al pie de la letra): {json.dumps(reglas, ensure_ascii=False)}
+
+Decide qué piezas hacer según el pedido:
+- tipo «carrusel» (4 a 8 láminas) o «post» (1 lámina). Una historia es un post 9:16; varias historias seguidas son un carrusel 9:16.
+- formato «4:5» (feed, el de siempre), «1:1» (post cuadrado) o «9:16» (historia). Si el pedido no lo dice, 4:5.
+- Si el pedido trae su propio contenido, úsalo tal cual (ordénalo y acórtalo, no inventes datos nuevos).
+- Si pide un día (lunes, martes…), ponlo en «dia» como LUN, MAR, MIE, JUE, VIE, SAB o DOM; si no, vacío.
+Reglas de escritura: palabras simples, portada de 8 palabras como máximo, una idea por lámina, títulos de 2 a 6 palabras,
+textos de 20 palabras como máximo (en 9:16, 12 como máximo). La última lámina cierra con uno de los cierres de la marca.
+Marca con *asteriscos* la palabra resaltada del título.
+Para cada lámina escribe el prompt de Google Flow de su foto en inglés, con el encuadre del formato
+({json.dumps(ORIENTACION)}): un solo animal o persona, sin texto, sin productos ni empaques (el producto real se pone después),
+fondo liso de un color de la marca o fácil de recortar.
+Responde SOLO con JSON, sin texto antes ni después:
+{{"piezas": [{{"tipo": "carrusel", "formato": "4:5", "dia": "", "titulo": "…", "nivel": "TOFU | MOFU | BOFU", "publico": "…", "estilo": "…",
+  "laminas": [{{"rol": "portada | idea | señal | cierre", "titulo": "…", "texto": "…", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
+    avance("Claude está leyendo el pedido…")
+    respuesta = correr(prompt, avance=avance, max_turnos=25)
+    inicio, fin = respuesta.find("{"), respuesta.rfind("}")
+    if inicio < 0 or fin < 0:
+        raise RuntimeError("Claude no devolvió las piezas. Intenta de nuevo.")
+    datos = json.loads(respuesta[inicio:fin + 1])
+    if not datos.get("piezas"):
+        raise RuntimeError("Claude no encontró ninguna pieza en el pedido. Escríbelo con más detalle.")
+    return datos

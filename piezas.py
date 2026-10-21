@@ -182,7 +182,7 @@ def listar(rel=None):
         except (FileNotFoundError, ValueError):
             continue
         out.append({"id": c.name, "titulo": p.get("titulo", c.name), "tipo": p.get("tipo", "carrusel"), "dia": p.get("dia", ""),
-                    "laminas": len(p.get("laminas", [])), "estilo": p.get("estilo", ""), "nivel": p.get("nivel", ""),
+                    "laminas": len(p.get("laminas", [])), "formato": p.get("formato", "4:5"), "estilo": p.get("estilo", ""), "nivel": p.get("nivel", ""),
                     "publico": p.get("publico", ""), "exportado": any((c / "FINAL").glob("L*.png")),
                     "editando": _editando(c)})
     orden = {d: i for i, d in enumerate(DIAS)}
@@ -236,6 +236,37 @@ def nueva(titulo, tipo="carrusel", laminas=None, dia="", rel=None, nivel="", pub
     (c / "Flow").mkdir(parents=True, exist_ok=True)
     (c / "pieza.json").write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
     return pid, datos
+
+
+def crear_desde_pedido(texto, resultado, rel=None):
+    """Crea las piezas que propuso Claude (con sus textos y prompts de Flow) y anota el pedido en pedidos.json."""
+    rel = rel or semana_actual()
+    hechas = []
+    for p in resultado.get("piezas", []):
+        laminas = p.get("laminas") or []
+        tipo = "post" if p.get("tipo") == "post" or len(laminas) == 1 else "carrusel"
+        pid, datos = nueva(p.get("titulo") or "Pieza", tipo=tipo, laminas=max(1, len(laminas)), dia=p.get("dia", ""), rel=rel,
+                           nivel=p.get("nivel", ""), publico=p.get("publico", ""), estilo=p.get("estilo", ""), formato=p.get("formato", "4:5"))
+        datos["guion"] = {"laminas": laminas, "copy": p.get("copy", "")}
+        datos["copy"] = p.get("copy", "")
+        datos["pedido"] = texto.strip()[:500]
+        (semana_dir(rel) / pid / "pieza.json").write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
+        hechas.append(pid)
+    registro = semana_dir(rel) / "pedidos.json"
+    try:
+        lista = json.loads(registro.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        lista = []
+    lista.append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "quien": quien(), "pedido": texto.strip(), "piezas": hechas})
+    registro.write_text(json.dumps(lista, ensure_ascii=False, indent=1), encoding="utf-8")
+    return hechas
+
+
+def videos_de_la_semana(rel=None):
+    """Los ángulos de los videos que trae el brief de la semana (para piezas que acompañen a los videos)."""
+    codigo = Path(rel or semana_actual()).name.split(" ")[0]
+    brief = brief_de(codigo) or {}
+    return [{k: c.get(k) for k in ("id", "nivel", "publico", "angulo")} for c in brief.get("cuerpos", [])]
 
 
 def ruta_imagen(pid):

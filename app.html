@@ -128,6 +128,14 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <div class="fila"><input type="text" id="cfgMarcaNombre" placeholder="Nombre de la marca" style="flex:1"><button class="btn sec chico" id="btnMarcaBase">Crear _MARCA de base</button></div>
   <div class="fila" style="margin-top:14px;justify-content:flex-end"><button class="btn chico" id="btnCerrarConfig">Listo</button></div>
 </dialog>
+<dialog id="dlgPedido">
+  <h2 style="margin-top:0">✦ Pedido</h2>
+  <p class="muted" style="margin-top:0">Escribe lo que quieres, como se lo dirías a un diseñador. Puedes pegar tu propio contenido: Claude lo ordena y arma las piezas con sus textos, el prompt de Flow de cada foto y el copy.</p>
+  <textarea id="pedTexto" rows="9" placeholder="Ej.: Hazme 3 posts 1:1 sobre los beneficios del omega 3 para el martes.&#10;Ej.: Una historia 9:16 para el sábado con este texto: …&#10;Ej.: Un carrusel de 6 láminas con este contenido: …"></textarea>
+  <label class="fila" style="margin-top:8px;font-weight:600"><input type="checkbox" id="pedVideos"> Basarse en los videos de esta semana (los ángulos del brief)</label>
+  <p class="muted" id="pedEstado" style="min-height:18px"></p>
+  <div class="fila" style="justify-content:flex-end"><button class="btn sec chico" id="btnPedCerrar">Cerrar</button><button class="btn" id="btnPedir">Pedir a Claude</button></div>
+</dialog>
 <div class="app">
   <aside>
     <div>
@@ -139,12 +147,14 @@ main { display: flex; flex-direction: column; overflow: hidden; }
         <div class="prop"><label>Brief de la semana (opcional)</label><input type="file" id="semBrief" accept=".json"></div>
         <button class="btn chico" id="btnCrearSemana">Crear semana</button>
       </div>
+      <button class="btn" id="btnPedido" style="width:100%;margin-top:10px">✦ Pedido</button>
       <p class="etq" style="margin-top:12px">Piezas de la semana</p>
       <div id="avisoEditando"></div>
       <div class="lista-c" id="listaC"></div>
       <div class="fila" style="margin-top:8px">
         <select id="nuevoDia" style="width:auto"><option value="">Día</option><option>LUN</option><option>MAR</option><option>MIE</option><option>JUE</option><option>VIE</option><option>SAB</option><option>DOM</option></select>
         <select id="nuevoTipo" style="flex:1"><option value="carrusel">Carrusel</option><option value="post">Post</option></select>
+        <select id="nuevoFormato" style="width:auto" title="Formato"><option value="4:5">4:5 feed</option><option value="1:1">1:1</option><option value="9:16">9:16 historia</option></select>
       </div>
       <div class="fila" style="margin-top:6px">
         <input type="text" id="nuevoTitulo" placeholder="Tema de la pieza nueva" style="flex:1">
@@ -611,7 +621,7 @@ async function quitarFondo(nombre) {
 // ---------- Carruseles ----------
 function pintarLista() {
   $("listaC").innerHTML = lista.map(c => `<button class="${c.id === cid ? "activa" : ""}" data-c-id="${esc(c.id)}">${c.dia ? `<b>${esc(c.dia)}</b> · ` : ""}${esc(c.titulo)}
-    <small>${c.laminas} láminas${c.estilo ? " · estilo " + esc(c.estilo) : ""}${c.nivel ? " · " + esc(c.nivel) : ""}${c.exportado ? " · ✓ exportado" : ""}</small></button>`).join("")
+    <small>${c.tipo === "post" ? "Post" : c.laminas + " láminas"} · ${esc(c.formato || "4:5")}${c.estilo ? " · estilo " + esc(c.estilo) : ""}${c.nivel ? " · " + esc(c.nivel) : ""}${c.exportado ? " · ✓ exportado" : ""}</small></button>`).join("")
     || `<p class="muted">Aún no hay carruseles en esta semana.</p>`;
 }
 let semana = "";
@@ -639,6 +649,7 @@ async function abrir(id) {
   $("avisoEditando").innerHTML = d.editando ? `<div class="editando">⚠ ${esc(d.editando.quien)} la abrió a las ${esc(d.editando.hora)}. Si los dos guardan, queda lo último.</div>` : "";
   try { localStorage.setItem("pieza_abierta", id); } catch (e) {}
   todo();
+  if (C.guion?.laminas?.length && C.laminas.every(l => !l.capas.length)) aplicarGuion();
 }
 
 // ---------- Claude ----------
@@ -676,15 +687,19 @@ function aplicarGuion() {
   const g = C.guion; if (!g) return;
   cambio(() => g.laminas.forEach((l, i) => {
     if (!C.laminas[i]) C.laminas.push({ fondo: { tipo: "color", color: PALETA[i % 4] }, capas: [] });
+    if (!C.laminas[i].capas.length && i > 0) C.laminas[i].fondo.color = PALETA[i % Math.min(4, PALETA.length)];
     const lam = C.laminas[i], oscuro = esOscuro(lam.fondo.color), tinta = MARCA.texto_oscuro, acento = PALETA[3] || tinta;
     const pon = (rol, base) => {
       let c = lam.capas.find(x => x.rol === rol);
       if (!c) { c = { id: nuevoId(), rol, ...base }; lam.capas.push(c); }
       c.texto = rol === "titulo" ? l.titulo : (l.texto || "");
     };
-    pon("titulo", { tipo: "texto", fuente: "Bebas", tam: i === 0 ? 150 : 120, mayus: true, x: W / 2, y: i === 0 ? 260 : 220, ancho: 940, espaciado: 2,
+    const historia = H / W > 1.6, cuadrado = H / W < 1.1;
+    const yT = H * (historia ? 0.2 : cuadrado ? 0.17 : (i === 0 ? 0.19 : 0.16)), tamT = (i === 0 ? 150 : 120) * (cuadrado ? 0.85 : 1);
+    const yX = yT + tamT * 1.7 + (historia ? 40 : 0);
+    pon("titulo", { tipo: "texto", fuente: "Bebas", tam: tamT, mayus: true, x: W / 2, y: yT, ancho: 940, espaciado: 2,
                     color: oscuro ? MARCA.texto_claro : tinta, acento: oscuro ? acento : MARCA.texto_claro, fondoAcento: oscuro ? null : tinta, alinear: "center" });
-    if (l.texto) pon("texto", { tipo: "texto", fuente: "DM Sans", peso: 700, tam: 44, x: W / 2, y: i === 0 ? 470 : 420, ancho: 860, interlineado: 1.3, color: oscuro ? MARCA.texto_claro : tinta, acento: PALETA[4] || acento, alinear: "center" });
+    if (l.texto) pon("texto", { tipo: "texto", fuente: "DM Sans", peso: 700, tam: historia ? 50 : 44, x: W / 2, y: yX, ancho: 860, interlineado: 1.3, color: oscuro ? MARCA.texto_claro : tinta, acento: PALETA[4] || acento, alinear: "center" });
   }));
   sel = null; pintarProps();
   avisar("Textos puestos. Ahora agrega las fotos de Flow y acomoda.");
@@ -860,7 +875,7 @@ $("btnClaude").onclick = escribirConClaude;
 $("btnNuevo").onclick = async () => {
   const titulo = $("nuevoTitulo").value.trim();
   if (!titulo) return $("nuevoTitulo").focus();
-  try { const d = await api("/api/pieza_nueva", { titulo, tipo: $("nuevoTipo").value, dia: $("nuevoDia").value }); $("nuevoTitulo").value = ""; await cargarLista(); await abrir(d.id); }
+  try { const d = await api("/api/pieza_nueva", { titulo, tipo: $("nuevoTipo").value, dia: $("nuevoDia").value, formato: $("nuevoFormato").value }); $("nuevoTitulo").value = ""; await cargarLista(); await abrir(d.id); }
   catch (e) { avisar(e.message, "err"); }
 };
 $("selSemana").onchange = async e => {
@@ -951,6 +966,32 @@ const latir = () => fetch("/api/latido").catch(() => {});
 setInterval(latir, 60000); latir();
 addEventListener("pagehide", () => navigator.sendBeacon("/api/adios"));
 document.documentElement.style.setProperty("--alto-cabeza", ($("cabeza").offsetHeight + 1) + "px");
+
+// ---------- Pedido ----------
+$("btnPedido").onclick = () => { $("pedEstado").textContent = ""; $("dlgPedido").showModal(); $("pedTexto").focus(); };
+$("btnPedCerrar").onclick = () => $("dlgPedido").close();
+$("btnPedir").onclick = async () => {
+  const texto = $("pedTexto").value.trim();
+  if (texto.length < 5) return $("pedTexto").focus();
+  $("btnPedir").disabled = true;
+  try {
+    await api("/api/pedido", { texto, videos: $("pedVideos").checked });
+    for (;;) {
+      await new Promise(ok => setTimeout(ok, 1500));
+      const t = await api("/api/trabajo");
+      $("pedEstado").textContent = t.mensaje || "";
+      if (t.activo) continue;
+      if (t.error) throw new Error(t.error);
+      const hechas = t.resultado?.piezas || [];
+      await cargarLista();
+      if (hechas[0]) await abrir(hechas[0]);
+      $("pedTexto").value = ""; $("dlgPedido").close();
+      avisar(`Listo: ${hechas.length} pieza(s) creadas en la semana. Genera sus fotos con los prompts de Flow.`);
+      break;
+    }
+  } catch (e) { $("pedEstado").textContent = "No se pudo: " + e.message; }
+  $("btnPedir").disabled = false;
+};
 
 // ---------- Inicio ----------
 (async () => {

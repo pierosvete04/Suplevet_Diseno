@@ -1,3 +1,8 @@
+Versión 0.2.0:
+- **✦ Pedido**: escribe lo que quieres como se lo dirías a un diseñador («3 posts 1:1 sobre omega 3 para el martes», «una historia 9:16 con este texto: …») o pega tu propio contenido. Claude decide las piezas, escribe sus textos, el prompt de Flow de cada foto y el copy, y quedan creadas y maquetadas en la semana. Cada pedido queda anotado en pedidos.json de la semana.
+- «Basarse en los videos de esta semana»: las piezas acompañan los ángulos de los videos del brief.
+- Formato al crear una pieza: 4:5 (feed), 1:1 (cuadrado) o 9:16 (historia). Los textos se acomodan solos al formato; en 9:16 respetan la zona segura de las historias.
+
 Versión 0.1.0 (primera versión):
 - Sala de diseño: carruseles y posts de 1080×1350 (4:5), 1080×1080 o 1080×1920, ordenados por mes y semana de lunes a domingo (S03 · 19-25 OCT).
 - Fotos de Flow: arrastrarlas, quitarles el fondo con ✂ (sin internet; la primera vez baja el recortador, 170 MB) y armar encima textos con *palabra* resaltada, garabatos a mano, formas, el producto real y los logos.
