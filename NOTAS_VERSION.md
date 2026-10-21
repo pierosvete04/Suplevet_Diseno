@@ -1,3 +1,7 @@
+Versión 0.6.0:
+- La **Configuración** tiene el mismo diseño en las tres apps (menú a la izquierda, secciones a la derecha), con **Cuenta y dispositivos** y **Buscar actualizaciones**.
+- Todo carrusel termina **siempre** con la lámina de **CTA** de la marca (título, texto, el botón con la acción y la foto real del producto). Si Claude no la pone, la sala la agrega. El texto del CTA está en _MARCA/marca.json → «cta» y se ve en la pestaña Marca.
+
 Versión 0.5.0:
 - Arreglo: «Iniciar sesión en Claude» decía que no estaba instalado. La app de escritorio de Claude movió su Claude Code a otra carpeta; la sala ya lo encuentra.
 - **Configuración** es una página (pestaña), no una ventana encima: tu cuenta, dispositivos y seguridad, Claude, tu nombre, la marca y la versión. Tocar tu foto arriba lleva ahí.

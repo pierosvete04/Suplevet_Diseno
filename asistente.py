@@ -97,7 +97,7 @@ def escribir_pieza(pieza, idea, marca, avance=print):
     """{"laminas": [{"rol", "titulo", "texto", "flow"}], "copy"} para una pieza (carrusel o post)."""
     n = len(pieza.get("laminas", [])) or (4 if pieza.get("tipo") != "post" else 1)
     tipo = "un post de una sola imagen" if pieza.get("tipo") == "post" else f"un carrusel de {n} láminas"
-    reglas = {k: marca.get(k) for k in ("nombre", "evitar", "obligatorio", "cierres", "notas_para_claude") if marca.get(k)}
+    reglas = {k: marca.get(k) for k in ("nombre", "evitar", "obligatorio", "cierres", "cta", "notas_para_claude") if marca.get(k)}
     prompt = f"""Escribe {tipo} para Instagram ({pieza.get('formato', '4:5')}).
 Tema: {pieza.get('titulo', '')}
 {('Idea del equipo: ' + idea.strip()) if idea.strip() else ''}
@@ -105,17 +105,31 @@ Nivel del embudo: {pieza.get('nivel') or 'elige tú'} · Público: {pieza.get('p
 Marca y reglas (respétalas al pie de la letra): {json.dumps(reglas, ensure_ascii=False)}
 
 Reglas generales: palabras simples, portada de 8 palabras como máximo, una idea por lámina, títulos de 2 a 6 palabras
-y textos de 20 palabras como máximo. La última lámina cierra con uno de los cierres de la marca.
+y textos de 20 palabras como máximo.
+Si es un carrusel, la ÚLTIMA lámina es SIEMPRE el CTA (rol «cta»): invita a escribir y usa el «cta» de la marca (título corto,
+texto y la acción). En un post, el CTA va al final del copy.
 Para cada lámina escribe el prompt de Google Flow de su foto en inglés: un solo animal o persona, sin texto,
 sin productos ni empaques (el producto real se pone después), fondo liso o fácil de recortar.
 Marca con *asteriscos* la palabra que va resaltada en el título.
 Responde SOLO con JSON, sin texto antes ni después:
-{{"laminas": [{{"rol": "portada | idea | señal | cierre", "titulo": "…", "texto": "…", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}"""
+{{"laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}"""
     texto = correr(prompt, avance=avance)
     inicio, fin = texto.find("{"), texto.rfind("}")
     if inicio < 0 or fin < 0:
         raise RuntimeError("Claude no devolvió la pieza. Intenta de nuevo.")
-    return json.loads(texto[inicio:fin + 1])
+    datos = json.loads(texto[inicio:fin + 1])
+    if pieza.get("tipo") != "post":
+        datos["laminas"] = con_cta(datos.get("laminas", []), marca)
+    return datos
+
+
+def con_cta(laminas, marca):
+    """Todo carrusel termina con la lámina de CTA de la marca: si Claude no la puso, se agrega."""
+    if laminas and (laminas[-1].get("rol") == "cta"):
+        return laminas
+    cta = marca.get("cta") or {}
+    return laminas + [{"rol": "cta", "titulo": cta.get("titulo", "¿Te interesa?"), "texto": cta.get("texto", "Escríbenos y te asesoramos"),
+                       "flow": "", "accion": cta.get("boton", "")}]
 
 
 ORIENTACION = {"4:5": "vertical 4:5", "1:1": "square 1:1", "9:16": "tall vertical 9:16 (story), leave the top and bottom 15% clean"}
@@ -125,7 +139,7 @@ def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referenc
     """Un pedido libre («3 posts 1:1 sobre omega 3», «una historia 9:16 con esto: …») -> las piezas a crear.
     videos: los ángulos de los videos de la semana (del brief), para que las piezas los acompañen.
     Devuelve {"piezas": [{tipo, formato, dia, titulo, nivel, publico, estilo, laminas: [{rol, titulo, texto, flow}], copy}]}."""
-    reglas = {k: marca.get(k) for k in ("nombre", "evitar", "obligatorio", "cierres", "notas_para_claude") if marca.get(k)}
+    reglas = {k: marca.get(k) for k in ("nombre", "evitar", "obligatorio", "cierres", "cta", "notas_para_claude") if marca.get(k)}
     base = ""
     if videos:
         base = "Videos de esta semana (las piezas deben acompañarlos, con el mismo tema y nivel):\n" + json.dumps(videos, ensure_ascii=False)
@@ -147,14 +161,16 @@ Decide qué piezas hacer según el pedido:
 - Si el pedido trae su propio contenido, úsalo tal cual (ordénalo y acórtalo, no inventes datos nuevos).
 - Si pide un día (lunes, martes…), ponlo en «dia» como LUN, MAR, MIE, JUE, VIE, SAB o DOM; si no, vacío.
 Reglas de escritura: palabras simples, portada de 8 palabras como máximo, una idea por lámina, títulos de 2 a 6 palabras,
-textos de 20 palabras como máximo (en 9:16, 12 como máximo). La última lámina cierra con uno de los cierres de la marca.
+textos de 20 palabras como máximo (en 9:16, 12 como máximo).
+Todo carrusel termina SIEMPRE con una lámina de CTA (rol «cta») que invita a escribir, con el «cta» de la marca.
+En un post de una sola imagen, el CTA va al final del copy.
 Marca con *asteriscos* la palabra resaltada del título.
 Para cada lámina escribe el prompt de Google Flow de su foto en inglés, con el encuadre del formato
 ({json.dumps(ORIENTACION)}): un solo animal o persona, sin texto, sin productos ni empaques (el producto real se pone después),
 fondo liso de un color de la marca o fácil de recortar.
 Responde SOLO con JSON, sin texto antes ni después:
 {{"piezas": [{{"tipo": "carrusel", "formato": "4:5", "dia": "", "titulo": "…", "nivel": "TOFU | MOFU | BOFU", "publico": "…", "estilo": "…",
-  "laminas": [{{"rol": "portada | idea | señal | cierre", "titulo": "…", "texto": "…", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
+  "laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
     avance("Claude está leyendo el pedido…")
     respuesta = correr(prompt, avance=avance, max_turnos=25)
     inicio, fin = respuesta.find("{"), respuesta.rfind("}")
@@ -163,4 +179,7 @@ Responde SOLO con JSON, sin texto antes ni después:
     datos = json.loads(respuesta[inicio:fin + 1])
     if not datos.get("piezas"):
         raise RuntimeError("Claude no encontró ninguna pieza en el pedido. Escríbelo con más detalle.")
+    for p in datos["piezas"]:
+        if p.get("tipo") != "post" and len(p.get("laminas") or []) > 1:
+            p["laminas"] = con_cta(p.get("laminas", []), marca)
     return datos

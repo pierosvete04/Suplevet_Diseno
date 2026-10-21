@@ -100,6 +100,27 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .guion-l b { display: block; }
 .guion-l code { display: block; font: 11px var(--mono); color: var(--muted); white-space: pre-wrap; margin: 4px 0; max-height: 70px; overflow: auto; }
 .vacio { padding: 40px; text-align: center; color: var(--muted); }
+/* Configuración: el mismo diseño en las tres apps (menú a la izquierda, secciones a la derecha) */
+.conf { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: start; }
+.conf-menu { position: sticky; top: 0; display: grid; gap: 2px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--tarjeta); }
+.conf-tit { display: flex; gap: 10px; align-items: center; padding: 4px 6px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.conf-tit small { display: block; color: var(--muted); font-size: 11.5px; }
+.conf-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--surface2); border: 1px solid var(--line2); font-size: 16px; }
+.conf-menu a { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 13px; }
+.conf-menu a:hover { background: var(--surface2); color: var(--ink); }
+.conf-menu a.activo { background: var(--surface2); color: var(--ink); box-shadow: inset 3px 0 0 var(--accent); }
+.conf-menu a .punto-estado { margin-left: auto; }
+.punto-estado { width: 8px; height: 8px; border-radius: 50%; background: var(--line2); flex: none; }
+.punto-estado.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); } .punto-estado.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.conf-cuerpo { display: grid; gap: 16px; min-width: 0; }
+.conf-sec { scroll-margin-top: 12px; padding: 16px 18px; }
+.conf-cab { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.conf-cab > div:first-child { flex: 1 1 320px; } .conf-cab h2 { margin: 0 0 2px; font-size: 16px; } .conf-cab p { margin: 0; font-size: 12.5px; }
+.estado-grande { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--line); font-size: 13.5px; }
+.estado-grande:empty { display: none; }
+.estado-grande b.dato { font: 600 13px var(--mono); color: var(--accent2); padding: 2px 8px; border-radius: 7px; background: var(--bg2); border: 1px solid var(--line2); }
+@media (max-width: 860px) { .conf { grid-template-columns: 1fr; } .conf-menu { position: static; grid-auto-flow: column; overflow-x: auto; } .conf-tit { display: none; } }
+
 .pestanas { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .pestanas button { border: 0; background: none; padding: 10px 14px 9px; border-bottom: 2px solid transparent; font: 600 13px var(--f); color: var(--muted); cursor: pointer; }
 .pestanas button:hover { color: var(--ink); }
@@ -230,27 +251,47 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <p class="etq" style="margin-top:16px">Productos reales</p><div class="marca-fotos" id="mProductos"></div>
   <p class="etq" style="margin-top:16px">Logos</p><div class="marca-fotos" id="mLogos"></div>
   <div class="dos-col" style="margin-top:16px"><div><p class="etq">Evitar</p><ul id="mEvitar"></ul><p class="etq">Obligatorio</p><ul id="mOblig"></ul></div>
-    <div><p class="etq">Cierres</p><ul id="mCierres"></ul><p class="etq">Notas para Claude</p><p id="mNotas" class="muted"></p></div></div>
+    <div><p class="etq">CTA final de los carruseles (siempre la última lámina)</p><p id="mCta"></p><p class="etq">Cierres</p><ul id="mCierres"></ul><p class="etq">Notas para Claude</p><p id="mNotas" class="muted"></p></div></div>
 </section>
 <section class="vista" id="v-config" hidden>
-  <div class="dos-col">
-    <div>
-      <h2>Tu cuenta</h2>
-      <p class="sub">Con qué cuenta de Google entraste, en qué PCs se abrió y cerrar sesión. Es la misma sesión de las tres apps.</p>
-      <div class="caja" id="cfgCuenta"></div>
-    </div>
-    <div>
-      <h2>Claude</h2>
-      <p class="sub">Claude escribe las piezas (textos, prompts de Flow y copy). Usa la app de escritorio de Claude de esta PC, con tu suscripción.</p>
-      <div class="caja"><div class="fila"><span id="cfgClaude" class="muted"></span><span style="flex:1"></span><button class="btn sec chico" id="btnLoginClaude">Iniciar sesión en Claude</button></div></div>
-      <h2 style="margin-top:20px">Tu nombre</h2>
-      <p class="sub">Sale en el aviso «lo está editando…» cuando otra persona abre la misma pieza.</p>
-      <div class="caja fila"><input type="text" id="cfgNombre" style="flex:1"><button class="btn chico" id="btnGuardarNombre">Guardar</button></div>
-      <h2 style="margin-top:20px">Marca del proyecto</h2>
-      <p class="sub" id="cfgMarca"></p>
-      <div class="caja fila"><input type="text" id="cfgMarcaNombre" placeholder="Nombre de la marca" style="flex:1"><button class="btn sec chico" id="btnMarcaBase">Crear _MARCA de base</button></div>
-      <h2 style="margin-top:20px">Versión</h2>
-      <div class="caja fila"><span id="cfgVersion" class="muted"></span><span style="flex:1"></span><button class="btn sec chico" id="btnBuscarVersion">Buscar actualizaciones</button></div>
+  <div class="conf">
+    <aside class="conf-menu" aria-label="Secciones de configuración">
+      <div class="conf-tit"><span class="conf-ico">⚙</span><div><b>Configuración</b><small>De esta PC</small></div></div>
+      <a href="#confCuenta" class="activo">👤 Cuenta y dispositivos <span class="punto-estado ok"></span></a>
+      <a href="#confClaude">✦ Claude <span class="punto-estado" id="confPClaude"></span></a>
+      <a href="#confMarca">🎨 Marca del proyecto <span class="punto-estado" id="confPMarca"></span></a>
+      <a href="#confNombre">✎ Tu nombre</a>
+      <a href="#confAct">⟳ Actualizaciones <span class="punto-estado" id="confPAct"></span></a>
+    </aside>
+    <div class="conf-cuerpo">
+      <section class="caja conf-sec" id="confCuenta">
+        <div class="conf-cab"><div><h2>Cuenta y dispositivos</h2>
+          <p class="muted">Con qué cuenta de Google entraste, en qué PCs se abrió y cerrar sesión. Es la misma sesión de las tres apps.</p></div></div>
+        <div id="cfgCuenta"></div>
+      </section>
+      <section class="caja conf-sec" id="confClaude">
+        <div class="conf-cab"><div><h2>Claude</h2>
+          <p class="muted">Escribe las piezas (textos, prompts de Flow y copy). Usa la app de escritorio de Claude de esta PC, con tu suscripción.</p></div>
+          <button class="btn sec" id="btnLoginClaude">Iniciar sesión en Claude</button></div>
+        <div class="estado-grande" id="cfgClaude"></div>
+      </section>
+      <section class="caja conf-sec" id="confMarca">
+        <div class="conf-cab"><div><h2>Marca del proyecto</h2>
+          <p class="muted">La sala no trae ninguna marca adentro: lee _MARCA del Drive del proyecto (colores, productos, logos, reglas y el CTA final de los carruseles). Se ve completa en la pestaña Marca.</p></div></div>
+        <div class="estado-grande" id="cfgMarca"></div>
+        <div class="fila" style="margin-top:10px"><input type="text" id="cfgMarcaNombre" placeholder="Nombre de la marca (proyecto nuevo)" style="flex:1;max-width:360px"><button class="btn sec chico" id="btnMarcaBase">Crear _MARCA de base</button></div>
+      </section>
+      <section class="caja conf-sec" id="confNombre">
+        <div class="conf-cab"><div><h2>Tu nombre</h2>
+          <p class="muted">Sale en el aviso «lo está editando…» cuando otra persona abre la misma pieza.</p></div></div>
+        <div class="fila"><input type="text" id="cfgNombre" style="flex:1;max-width:360px"><button class="btn chico" id="btnGuardarNombre">Guardar</button></div>
+      </section>
+      <section class="caja conf-sec" id="confAct">
+        <div class="conf-cab"><div><h2>Actualizaciones del sistema</h2>
+          <p class="muted">Versión instalada: <b id="actVersion">—</b></p></div>
+          <button class="btn sec" id="actBuscar">Buscar actualizaciones</button></div>
+        <div class="estado-grande" id="actResultado"></div>
+      </section>
     </div>
   </div>
 </section>
@@ -818,8 +859,18 @@ async function escribirConClaude() {
   } catch (e) { avisar("Claude: " + e.message, "err"); }
   $("btnClaude").disabled = false;
 }
+function conCta(laminas) {  // todo carrusel termina con la lámina de CTA de la marca
+  if (C.tipo === "post" || !laminas.length || laminas[laminas.length - 1].rol === "cta") return laminas;
+  const cta = MARCA.cta || {};
+  return [...laminas, { rol: "cta", titulo: cta.titulo || "¿Te interesa?", texto: cta.texto || "Escríbenos y te asesoramos", flow: "", accion: cta.boton || "" }];
+}
 function aplicarGuion() {
   const g = C.guion; if (!g) return;
+  g.laminas = conCta(g.laminas);
+  cambio(() => {  // las láminas vacías que sobran se quitan: el CTA tiene que ser la última
+    while (C.laminas.length > g.laminas.length && !C.laminas[C.laminas.length - 1].capas.length) C.laminas.pop();
+    actual = Math.min(actual, C.laminas.length - 1);
+  }, true);
   cambio(() => g.laminas.forEach((l, i) => {
     if (!C.laminas[i]) C.laminas.push({ fondo: { tipo: "color", color: PALETA[i % 4] }, capas: [] });
     if (!C.laminas[i].capas.length && i > 0) C.laminas[i].fondo.color = PALETA[i % Math.min(4, PALETA.length)];
@@ -835,6 +886,15 @@ function aplicarGuion() {
     pon("titulo", { tipo: "texto", fuente: "Bebas", tam: tamT, mayus: true, x: W / 2, y: yT, ancho: 940, espaciado: 2,
                     color: oscuro ? MARCA.texto_claro : tinta, acento: oscuro ? acento : MARCA.texto_claro, fondoAcento: oscuro ? null : tinta, alinear: "center" });
     if (l.texto) pon("texto", { tipo: "texto", fuente: "DM Sans", peso: 700, tam: historia ? 50 : 44, x: W / 2, y: yX, ancho: 860, interlineado: 1.3, color: oscuro ? MARCA.texto_claro : tinta, acento: PALETA[4] || acento, alinear: "center" });
+    if (l.rol === "cta") {  // la lámina final: el botón con la acción y el producto real
+      const accion = l.accion || (MARCA.cta || {}).boton;
+      if (accion && !lam.capas.find(x => x.rol === "accion"))
+        lam.capas.push({ id: nuevoId(), rol: "accion", tipo: "texto", texto: accion, fuente: "Bebas", tam: cuadrado ? 56 : 64, mayus: true, x: W / 2, y: H * (historia ? 0.8 : 0.9),
+                         ancho: 900, espaciado: 2, color: oscuro ? tinta : MARCA.texto_claro, pastilla: oscuro ? MARCA.texto_claro : tinta, alinear: "center" });
+      const prod = (MARCA.productos || [])[0];
+      if (prod && !lam.capas.find(x => x.rol === "producto"))
+        lam.capas.splice(0, 0, { id: nuevoId(), rol: "producto", tipo: "imagen", src: { tipo: "marca", f: prod }, x: W / 2, y: H * (cuadrado ? 0.6 : 0.58), w: cuadrado ? 340 : 420, sombra: 0.8, rot: 4 });
+    }
   }));
   sel = null; pintarProps();
   avisar("Textos puestos. Ahora agrega las fotos de Flow y acomoda.");
@@ -1083,6 +1143,7 @@ function pintarCabeza() {
 }
 async function revisarClaude() {
   try { const c = await api("/api/claude"); $("estClaude").textContent = c.sesion ? "Claude listo" : (c.instalado ? "Claude sin sesión" : "Sin Claude");
+    if ($("confPClaude")) $("confPClaude").className = "punto-estado " + (c.sesion ? "ok" : "warn");
     $("estClaude").className = "pastilla " + (c.sesion ? "ok" : "mal"); $("cfgClaude").textContent = $("estClaude").textContent; } catch (e) {}
 }
 async function revisarVersion(forzar) {
@@ -1097,15 +1158,34 @@ function pintarConfig() {
   Cuenta.pintarEn($("cfgCuenta"));
   $("cfgNombre").value = d.quien || "";
   $("cfgMarca").textContent = d.marca.tiene_marca ? `${d.marca.nombre || "La marca"}: ${d.marca.colores.length} colores, ${d.marca.logos.length} logos y ${d.marca.productos.length} productos en _MARCA del Drive.` : "Este proyecto aún no tiene _MARCA en su Drive.";
-  $("cfgVersion").textContent = `Sala de diseño v${d.version}`;
+  $("actVersion").textContent = d.version;
+  $("confPMarca").className = "punto-estado " + (d.marca.tiene_marca ? "ok" : "warn");
   revisarClaude();
 }
+async function buscarActualizaciones() {
+  $("actResultado").innerHTML = "Buscando…";
+  try {
+    const v = await api("/api/version?forzar=1");
+    $("confPAct").className = "punto-estado " + (v.nueva ? "warn" : "ok");
+    $("actResultado").innerHTML = v.error ? esc(v.error)
+      : v.nueva ? `Hay una versión nueva: <b class="dato">${esc(v.nueva)}</b>${v.requiere_completa ? ' · esta trae cambios grandes: baja el <a href="' + esc(v.url_completa) + '" target="_blank" rel="noopener">instalador completo</a>' : ' <button class="btn chico" id="actAhora">Actualizar ahora</button>'}`
+      : `Tienes la última versión <b class="dato">${esc(v.actual)}</b>`;
+    $("bandaVersion").hidden = !v.nueva;
+    if (v.nueva) $("textoVersion").textContent = `Hay una versión nueva de la Sala de diseño: ${v.nueva}`;
+  } catch (e) { $("actResultado").textContent = "No pude revisar: " + e.message; }
+}
+$("actBuscar").onclick = buscarActualizaciones;
+document.addEventListener("click", e => {
+  if (e.target.id === "actAhora") return $("btnActualizar").click();
+  const a = e.target.closest(".conf-menu a");
+  if (a) { document.querySelectorAll(".conf-menu a").forEach(x => x.classList.toggle("activo", x === a)); }
+});
 $("btnConfig").onclick = () => irA("config");
 $("btnGuardarNombre").onclick = async () => {
   const n = $("cfgNombre").value.trim();
   try { await api("/api/nombre", { nombre: n }); avisar("Guardado"); await cargarLista(); } catch (e) { avisar(e.message, "err"); }
 };
-$("btnBuscarVersion").onclick = async () => { await revisarVersion(true); avisar($("bandaVersion").hidden ? "Ya tienes la última versión" : $("textoVersion").textContent); };
+
 $("btnLoginClaude").onclick = async () => { try { await api("/api/claude", { accion: "login" }); avisar("Se abrió una ventana para entrar a Claude"); } catch (e) { avisar(e.message, "err"); } };
 $("btnMarcaBase").onclick = async () => { try { await api("/api/marca_base", { nombre: $("cfgMarcaNombre").value }); await cargarLista(); pintarConfig(); avisar("Se creó _MARCA en el Drive del proyecto"); } catch (e) { avisar(e.message, "err"); } };
 $("btnCarpeta").onclick = () => cid && api("/api/abrir_carpeta", { id: cid }).catch(e => avisar(e.message, "err"));
@@ -1287,6 +1367,8 @@ function pintarMarcaVista() {
   const lista = l => (l || []).map(x => `<li>${esc(x)}</li>`).join("") || '<li class="muted">—</li>';
   $("mEvitar").innerHTML = lista(m.evitar); $("mOblig").innerHTML = lista(m.obligatorio); $("mCierres").innerHTML = lista(m.cierres);
   $("mNotas").textContent = m.notas_para_claude || "—";
+  const cta = m.cta || {};
+  $("mCta").innerHTML = `<b>${esc(cta.titulo || "—")}</b><br>${esc(cta.texto || "")}${cta.boton ? `<br><span class="insignia">${esc(cta.boton)}</span>` : ""}`;
 }
 document.addEventListener("click", e => {
   const pes = e.target.closest("#pestanas button"); if (pes) return irA(pes.dataset.vista);

@@ -23,6 +23,7 @@ NEUTRA = {
     "evitar": [],
     "obligatorio": [],
     "cierres": ["Guárdalo y compártelo"],
+    "cta": {"titulo": "¿Te interesa?", "texto": "Escríbenos y te asesoramos", "boton": "Escríbenos"},
     "notas_para_claude": "",
 }
 EXT = (".png", ".webp", ".jpg", ".jpeg")
