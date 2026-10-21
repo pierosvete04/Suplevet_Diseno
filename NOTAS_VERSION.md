@@ -1,3 +1,10 @@
+Versión 0.5.0:
+- Arreglo: «Iniciar sesión en Claude» decía que no estaba instalado. La app de escritorio de Claude movió su Claude Code a otra carpeta; la sala ya lo encuentra.
+- **Configuración** es una página (pestaña), no una ventana encima: tu cuenta, dispositivos y seguridad, Claude, tu nombre, la marca y la versión. Tocar tu foto arriba lleva ahí.
+- Al abrir, la sala va sola a **la semana de hoy**. Cuando empieza una semana nueva se crea sola, y si la estrategia dejó su brief en _SEMANAS, se crean sus piezas día por día.
+- **Videos**: el filtro muestra todas las producciones del Drive; las que aún no tienen videos terminados lo dicen.
+- **Editor**: doble clic sobre un texto de la lámina para escribir ahí mismo. En el panel, «★ Resaltar lo seleccionado» marca la palabra resaltada (es lo que hacían los *asteriscos*).
+
 Versión 0.4.0:
 - La sala ahora tiene pestañas, como la Sala de edición: **Inicio** (la semana día por día, con lo exportado, lo que falta y los últimos pedidos), **Biblioteca** (todo lo creado en todas las semanas, con filtros por tema, mes, semana, fechas, tipo, formato, nivel y estado), **✦ Crear con IA**, **Videos**, **Editor** y **Marca**.
 - **Videos**: los videos terminados de la Sala de edición (V.FINALES de cada producción), con su miniatura. «✦ Crear posts» los usa de referencia: Claude lee el video y el guion de su producción y lleva ese mensaje a carruseles y posts.

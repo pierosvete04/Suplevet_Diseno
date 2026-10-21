@@ -117,7 +117,7 @@ def brief_de(codigo):
     return None
 
 
-def crear_semana(fecha_iso, tema="", plan=None):
+def crear_semana(fecha_iso, tema="", plan=None, elegir=True):
     """Crea (o reusa) la semana de esa fecha. Con plan (o con brief en _SEMANAS) crea una pieza por día que falte."""
     lunes = lunes_de(dt.date.fromisoformat(fecha_iso))
     if plan is None:
@@ -139,7 +139,8 @@ def crear_semana(fecha_iso, tema="", plan=None):
             if dia and dia not in hechos:
                 nueva(c.get("tema") or "Carrusel", tipo=c.get("tipo", "carrusel"), dia=dia, rel=rel, nivel=c.get("nivel", ""),
                       publico=c.get("publico", ""), estilo=c.get("estilo", ""))
-    nucleo.guardar_config({"semana": rel})
+    if elegir:
+        nucleo.guardar_config({"semana": rel})
     return rel
 
 
@@ -326,6 +327,8 @@ def sincronizar(forzar=False):
         marca.bajar()
         conexion.bajar(SEMANAS_ESTRATEGIA)
         conexion.bajar(CARPETA)
+        # si llegó el brief de esta semana, se crean las piezas que falten (sin cambiar la semana que se está viendo)
+        crear_semana(dt.date.today().isoformat(), elegir=False)
     conexion.en_segundo_plano(tarea)
 
 

@@ -105,3 +105,18 @@ def contexto(ruta):
 
 def ver_en_drive(ruta):
     return f"https://drive.google.com/file/d/{_video(ruta)['id']}/view"
+
+
+_prods = {"t": 0, "datos": []}
+
+
+def producciones():
+    """Todas las carpetas de producción del Drive (P01 …, «DD MM SESIÓN»), tengan o no videos terminados."""
+    if _prods["datos"] and time.time() - _prods["t"] < 600:
+        return _prods["datos"]
+    if not cuenta.estado()["conectado"]:
+        return []
+    nombres = [n.rstrip("/") for n in cuenta.rc("lsf", f"{cuenta.REMOTO}:", "--dirs-only", timeout=60).splitlines()]
+    out = sorted(n for n in nombres if re.match(r"^P\d+", n, re.I) or "SESI" in n.upper())
+    _prods.update(t=time.time(), datos=out)
+    return out

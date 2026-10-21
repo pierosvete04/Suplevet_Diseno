@@ -159,20 +159,9 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <button data-vista="videos" aria-selected="false">Videos</button>
   <button data-vista="editor" aria-selected="false">Editor</button>
   <button data-vista="marca" aria-selected="false">Marca</button>
+  <button data-vista="config" aria-selected="false">Configuración</button>
 </nav>
 <div class="banda" id="bandaVersion" hidden><span id="textoVersion"></span><button class="btn chico" id="btnActualizar">Actualizar ahora</button></div>
-<dialog id="dlgConfig">
-  <h2 style="margin-top:0">Configuración</h2>
-  <div class="prop"><label>Tu nombre (para el aviso «lo está editando…»)</label><input type="text" id="cfgNombre"></div>
-  <p class="etq">Cuenta y dispositivos</p>
-  <div class="fila"><span class="muted">Tu cuenta de Google, los dispositivos donde se abrió y cerrar sesión.</span><button class="btn sec chico" id="btnCuenta">Abrir</button></div>
-  <p class="etq" style="margin-top:12px">Claude</p>
-  <div class="fila"><span class="muted" id="cfgClaude"></span><button class="btn sec chico" id="btnLoginClaude">Iniciar sesión en Claude</button></div>
-  <p class="etq" style="margin-top:12px">Marca del proyecto</p>
-  <p class="muted" id="cfgMarca"></p>
-  <div class="fila"><input type="text" id="cfgMarcaNombre" placeholder="Nombre de la marca" style="flex:1"><button class="btn sec chico" id="btnMarcaBase">Crear _MARCA de base</button></div>
-  <div class="fila" style="margin-top:14px;justify-content:flex-end"><button class="btn chico" id="btnCerrarConfig">Listo</button></div>
-</dialog>
 <dialog id="dlgPedido">
   <h2 style="margin-top:0">✦ Pedido</h2>
   <p class="muted" style="margin-top:0">Escribe lo que quieres, como se lo dirías a un diseñador. Puedes pegar tu propio contenido: Claude lo ordena y arma las piezas con sus textos, el prompt de Flow de cada foto y el copy.</p>
@@ -242,6 +231,28 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <p class="etq" style="margin-top:16px">Logos</p><div class="marca-fotos" id="mLogos"></div>
   <div class="dos-col" style="margin-top:16px"><div><p class="etq">Evitar</p><ul id="mEvitar"></ul><p class="etq">Obligatorio</p><ul id="mOblig"></ul></div>
     <div><p class="etq">Cierres</p><ul id="mCierres"></ul><p class="etq">Notas para Claude</p><p id="mNotas" class="muted"></p></div></div>
+</section>
+<section class="vista" id="v-config" hidden>
+  <div class="dos-col">
+    <div>
+      <h2>Tu cuenta</h2>
+      <p class="sub">Con qué cuenta de Google entraste, en qué PCs se abrió y cerrar sesión. Es la misma sesión de las tres apps.</p>
+      <div class="caja" id="cfgCuenta"></div>
+    </div>
+    <div>
+      <h2>Claude</h2>
+      <p class="sub">Claude escribe las piezas (textos, prompts de Flow y copy). Usa la app de escritorio de Claude de esta PC, con tu suscripción.</p>
+      <div class="caja"><div class="fila"><span id="cfgClaude" class="muted"></span><span style="flex:1"></span><button class="btn sec chico" id="btnLoginClaude">Iniciar sesión en Claude</button></div></div>
+      <h2 style="margin-top:20px">Tu nombre</h2>
+      <p class="sub">Sale en el aviso «lo está editando…» cuando otra persona abre la misma pieza.</p>
+      <div class="caja fila"><input type="text" id="cfgNombre" style="flex:1"><button class="btn chico" id="btnGuardarNombre">Guardar</button></div>
+      <h2 style="margin-top:20px">Marca del proyecto</h2>
+      <p class="sub" id="cfgMarca"></p>
+      <div class="caja fila"><input type="text" id="cfgMarcaNombre" placeholder="Nombre de la marca" style="flex:1"><button class="btn sec chico" id="btnMarcaBase">Crear _MARCA de base</button></div>
+      <h2 style="margin-top:20px">Versión</h2>
+      <div class="caja fila"><span id="cfgVersion" class="muted"></span><span style="flex:1"></span><button class="btn sec chico" id="btnBuscarVersion">Buscar actualizaciones</button></div>
+    </div>
+  </div>
 </section>
 <div class="app" id="v-editor" hidden>
   <aside>
@@ -591,7 +602,9 @@ function pintarProps() {
     <button class="btn sec chico" data-acc="duplicar">Duplicar</button><button class="btn sec chico" data-acc="borrar" style="color:var(--err)">Borrar</button></div>`;
   if (c.tipo === "texto") {
     p.innerHTML = `<p class="etq">Texto</p>
-      <div class="prop"><label>Qué dice <span class="muted">*palabra* = resaltada</span></label><textarea data-t="texto" rows="3">${esc(c.texto)}</textarea></div>
+      <div class="prop"><label>Qué dice</label><textarea data-t="texto" id="textoCapa" rows="3">${esc(c.texto)}</textarea>
+        <div class="fila"><button class="btn sec chico" data-acc="resaltar" title="Selecciona una palabra en el cuadro de arriba y toca aquí">★ Resaltar lo seleccionado</button><button class="btn sec chico" data-acc="quitarResaltado">Quitar resaltados</button></div>
+        <span class="muted" style="font-size:11px">Las palabras entre asteriscos (por ejemplo *pulgas*) salen resaltadas, con el color o la caja de abajo. También puedes hacer doble clic sobre el texto en la lámina.</span></div>
       <div class="fila"><select data-t="fuente" style="flex:1">${Object.keys(FUENTES).map(f => `<option ${f === c.fuente ? "selected" : ""}>${f}</option>`).join("")}</select>
         <select data-t="alinear" style="width:auto"><option value="center">Centro</option><option value="left">Izquierda</option><option value="right">Derecha</option></select>
         <label class="fila" style="font-weight:600"><input type="checkbox" data-t="mayus" ${c.mayus ? "checked" : ""}> MAYÚS</label></div>
@@ -859,6 +872,24 @@ function local(c, p) {
   return { x: dx * Math.cos(a) - dy * Math.sin(a), y: dx * Math.sin(a) + dy * Math.cos(a) };
 }
 let arrastre = null;
+// doble clic sobre un texto de la lámina: se escribe ahí mismo
+$("lienzo").addEventListener("dblclick", e => {
+  if (!C) return;
+  const p = punto(e);
+  const c = [...L().capas].reverse().find(c => c.tipo === "texto" && c._b && !c.oculta && (q => Math.abs(q.x) <= c._b.w / 2 && Math.abs(q.y) <= c._b.h / 2)(local(c, p)));
+  if (!c) return;
+  sel = c.id; pintar(); pintarProps();
+  const r = $("lienzo").getBoundingClientRect(), k = r.width / W;
+  const ed = document.createElement("textarea");
+  ed.value = c.texto;
+  Object.assign(ed.style, { position: "fixed", left: (r.left + (c.x - c._b.w / 2) * k) + "px", top: (r.top + (c.y - c._b.h / 2) * k) + "px",
+    width: Math.max(160, c._b.w * k) + "px", height: Math.max(60, c._b.h * k + 20) + "px", zIndex: 40, font: `600 ${Math.max(13, c.tam * k * 0.6)}px var(--f)`,
+    background: "var(--surface)", color: "var(--ink)", border: "2px solid var(--accent)", borderRadius: "8px", padding: "6px" });
+  document.body.appendChild(ed); ed.focus(); ed.select();
+  const listo = () => { if (!ed.isConnected) return; const v = ed.value; ed.remove(); if (v !== c.texto) cambio(() => c.texto = v); pintarProps(); };
+  ed.addEventListener("blur", listo);
+  ed.addEventListener("keydown", ev => { if (ev.key === "Escape") { ed.value = c.texto; ed.blur(); } if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) ed.blur(); });
+});
 $("lienzo").addEventListener("pointerdown", e => {
   if (!C) return;
   const p = punto(e);
@@ -921,6 +952,15 @@ function accion(a) {
   if (a === "arriba" && i < capas.length - 1) cambio(() => { capas.splice(i, 1); capas.splice(i + 1, 0, c); });
   if (a === "abajo" && i > 0) cambio(() => { capas.splice(i, 1); capas.splice(i - 1, 0, c); });
   if (a === "recortar") quitarFondo(c.src.f).catch(e => avisar("No pude quitar el fondo: " + e.message, "err"));
+  if (a === "resaltar" || a === "quitarResaltado") {
+    const ta = $("textoCapa"); if (!ta) return;
+    if (a === "quitarResaltado") { cambio(() => c.texto = c.texto.replace(/\*/g, "")); }
+    else {
+      const i = ta.selectionStart, f = ta.selectionEnd;
+      if (i === f) return avisar("Primero selecciona con el mouse la palabra que quieres resaltar", "err");
+      cambio(() => c.texto = c.texto.slice(0, i) + "*" + c.texto.slice(i, f).replace(/\*/g, "") + "*" + c.texto.slice(f));
+    }
+  }
   pintarProps();
 }
 
@@ -1052,22 +1092,22 @@ async function revisarVersion(forzar) {
     if (v.nueva) $("textoVersion").textContent = `Hay una versión nueva de la Sala de diseño: ${v.nueva}`;
   } catch (e) {}
 }
-function abrirConfig() {
+function pintarConfig() {
   const d = ESTADO;
+  Cuenta.pintarEn($("cfgCuenta"));
   $("cfgNombre").value = d.quien || "";
-  $("cfgMarca").textContent = d.marca.tiene_marca ? `${d.marca.nombre || "La marca"}: ${d.marca.colores.length} colores, ${d.marca.logos.length} logos y ${d.marca.productos.length} productos en _MARCA.` : "Este proyecto aún no tiene _MARCA en su Drive.";
+  $("cfgMarca").textContent = d.marca.tiene_marca ? `${d.marca.nombre || "La marca"}: ${d.marca.colores.length} colores, ${d.marca.logos.length} logos y ${d.marca.productos.length} productos en _MARCA del Drive.` : "Este proyecto aún no tiene _MARCA en su Drive.";
+  $("cfgVersion").textContent = `Sala de diseño v${d.version}`;
   revisarClaude();
-  $("dlgConfig").showModal();
 }
-$("btnConfig").onclick = abrirConfig;
-$("btnCerrarConfig").onclick = async () => {
+$("btnConfig").onclick = () => irA("config");
+$("btnGuardarNombre").onclick = async () => {
   const n = $("cfgNombre").value.trim();
-  if (n && n !== ESTADO.quien) await api("/api/nombre", { nombre: n }).catch(() => {});
-  $("dlgConfig").close(); cargarLista();
+  try { await api("/api/nombre", { nombre: n }); avisar("Guardado"); await cargarLista(); } catch (e) { avisar(e.message, "err"); }
 };
-$("btnCuenta").onclick = () => { $("dlgConfig").close(); Cuenta.abrirPanel(); };
+$("btnBuscarVersion").onclick = async () => { await revisarVersion(true); avisar($("bandaVersion").hidden ? "Ya tienes la última versión" : $("textoVersion").textContent); };
 $("btnLoginClaude").onclick = async () => { try { await api("/api/claude", { accion: "login" }); avisar("Se abrió una ventana para entrar a Claude"); } catch (e) { avisar(e.message, "err"); } };
-$("btnMarcaBase").onclick = async () => { try { await api("/api/marca_base", { nombre: $("cfgMarcaNombre").value }); await cargarLista(); abrirConfig(); avisar("Se creó _MARCA en el Drive del proyecto"); } catch (e) { avisar(e.message, "err"); } };
+$("btnMarcaBase").onclick = async () => { try { await api("/api/marca_base", { nombre: $("cfgMarcaNombre").value }); await cargarLista(); pintarConfig(); avisar("Se creó _MARCA en el Drive del proyecto"); } catch (e) { avisar(e.message, "err"); } };
 $("btnCarpeta").onclick = () => cid && api("/api/abrir_carpeta", { id: cid }).catch(e => avisar(e.message, "err"));
 $("btnActualizar").onclick = async () => {
   $("btnActualizar").disabled = true; $("textoVersion").textContent = "Bajando la versión nueva…";
@@ -1115,7 +1155,8 @@ const proporcion = f => ({ "1:1": "1/1", "9:16": "9/16" }[f] || "4/5");
 function irA(v) {
   vista = v;
   document.querySelectorAll("#pestanas button").forEach(b => b.setAttribute("aria-selected", b.dataset.vista === v));
-  ["inicio", "biblioteca", "crear", "videos", "editor", "marca"].forEach(n => $("v-" + n).hidden = n !== v);
+  ["inicio", "biblioteca", "crear", "videos", "editor", "marca", "config"].forEach(n => $("v-" + n).hidden = n !== v);
+  if (v === "config") pintarConfig();
   if (v === "inicio") pintarInicio();
   if (v === "biblioteca") cargarBiblioteca();
   if (v === "crear") pintarCrear();
@@ -1217,8 +1258,11 @@ $("crPedir").onclick = async () => {
 async function cargarVideos(forzar) {
   if (!VIDEOS || forzar) {
     $("vRejilla").innerHTML = '<p class="muted">Cargando videos de Drive…</p>';
-    try { VIDEOS = (await api("/api/videos" + (forzar ? "?forzar=1" : ""))).videos; } catch (e) { $("vRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
-    $("vProduccion").innerHTML = '<option value="">Todas las producciones</option>' + [...new Set(VIDEOS.map(v => v.produccion))].map(p => `<option>${esc(p)}</option>`).join("");
+    let r; try { r = await api("/api/videos" + (forzar ? "?forzar=1" : "")); } catch (e) { $("vRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    VIDEOS = r.videos;
+    const conVideos = new Set(VIDEOS.map(v => v.produccion));
+    const prods = [...new Set([...(r.producciones || []), ...conVideos])].sort();
+    $("vProduccion").innerHTML = '<option value="">Todas las producciones</option>' + prods.map(p => `<option value="${esc(p)}">${esc(p)}${conVideos.has(p) ? ` (${VIDEOS.filter(v => v.produccion === p).length})` : " · sin videos terminados"}</option>`).join("");
   }
   pintarVideos();
 }
@@ -1229,7 +1273,7 @@ function pintarVideos() {
   $("vRejilla").innerHTML = l.map((v, i) => `<div class="ficha" style="cursor:default">
     <div class="mini" style="aspect-ratio:9/16"><img src="/video_mini?ruta=${encodeURIComponent(v.ruta)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'marcador',textContent:'Sin miniatura'}))"><span class="chip">${esc(v.mb)} MB</span></div>
     <div class="info"><b>${esc(v.nombre)}</b><small>${esc(v.sesion)} · ${esc(v.fecha)}</small>
-      <div class="fila" style="margin-top:6px"><button class="btn chico" data-usar-video="${(VIDEOS || []).indexOf(v)}">✦ Crear posts</button><a class="btn sec chico" href="${esc(v.ver)}" target="_blank" rel="noopener">Ver</a></div></div></div>`).join("") || '<p class="muted">No encontré videos terminados.</p>';
+      <div class="fila" style="margin-top:6px"><button class="btn chico" data-usar-video="${(VIDEOS || []).indexOf(v)}">✦ Crear posts</button><a class="btn sec chico" href="${esc(v.ver)}" target="_blank" rel="noopener">Ver</a></div></div></div>`).join("") || (prod ? `<p class="muted">«${esc(prod)}» todavía no tiene videos terminados en Drive (su carpeta V.FINALES está vacía o no existe). Cuando la Sala de edición los exporte, aparecen aquí.</p>` : '<p class="muted">No encontré videos terminados.</p>');
 }
 $("vBuscar").addEventListener("input", pintarVideos); $("vProduccion").addEventListener("input", pintarVideos);
 $("vRecargar").onclick = () => cargarVideos(true);
@@ -1263,7 +1307,7 @@ document.addEventListener("click", e => {
     .map(f => document.fonts.load(f).catch(() => null)));
   miniaturas();
   await Cuenta.iniciar({ app: "Sala de diseño", letra: "D", fondo: "linear-gradient(135deg,#7c3aed,#ec4899 60%,#f59e0b)",
-                         lugar: $("cuentaChip"), alVolver: () => location.reload() });
+                         lugar: $("cuentaChip"), alVolver: () => location.reload(), alAbrirCuenta: () => irA("config") });
   try {
     await cargarLista();
     await abrirPrimero();

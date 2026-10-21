@@ -22,7 +22,8 @@ def encontrar():
     candidatos = [shutil.which("claude"), str(Path.home() / ".local" / "bin" / "claude.exe")]
     appdata, local = os.environ.get("APPDATA", ""), os.environ.get("LOCALAPPDATA", "")
     patrones = [os.path.join(appdata, "Claude", "claude-code", "*", "*", "claude.exe"),
-                os.path.join(local, "Packages", "Claude_*", "LocalCache", "Roaming", "Claude", "claude-code", "*", "*", "claude.exe")]
+                os.path.join(local, "Packages", "Claude_*", "LocalCache", "Roaming", "Claude", "claude-code", "*", "*", "claude.exe"),
+                os.path.join(local, "Claude-Data", "*", "claude-code", "*", "*", "claude.exe")]  # app de escritorio desde 2026-10
     candidatos += sorted((p for pat in patrones for p in glob.glob(pat)), key=os.path.getmtime, reverse=True)
     candidatos.append(os.path.join(appdata, "npm", "claude.cmd"))
     return next((c for c in candidatos if c and os.path.isfile(c)), None)

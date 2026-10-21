@@ -133,7 +133,7 @@ class H(BaseHTTPRequestHandler):
                 ruta = piezas.archivo(q["rel"][0], q["id"][0], q["f"][0])
                 self._archivo(ruta.parent, ruta.name)
             elif u.path == "/api/videos":  # los videos terminados de la Sala de edición (solo lectura)
-                self._json({"videos": videos_edicion.listar(forzar="forzar" in q)})
+                self._json({"videos": videos_edicion.listar(forzar="forzar" in q), "producciones": videos_edicion.producciones()})
             elif u.path == "/video_mini":
                 ruta = videos_edicion.miniatura(q["ruta"][0])
                 self._archivo(ruta.parent, ruta.name)
@@ -283,5 +283,9 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     print(f"Sala de diseño en http://localhost:{PUERTO}", flush=True)
     cuenta.iniciar("Sala de diseño", nucleo.VERSION)
+    try:  # al abrir, la sala va a la semana de hoy (si no existe, la crea; con el brief, sus piezas)
+        piezas.crear_semana(time.strftime("%Y-%m-%d"))
+    except Exception as e:
+        print("Semana:", e, flush=True)
     cuenta.latido(forzar=True)
     ThreadingHTTPServer(("127.0.0.1", PUERTO), H).serve_forever()
