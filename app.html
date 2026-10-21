@@ -57,7 +57,7 @@ input[type=color] { width: 30px; height: 26px; padding: 0; border: 1px solid var
 .muted { color: var(--muted); }
 .etq { font: 600 10.5px var(--mono); letter-spacing: .03em; color: var(--accent2); text-transform: uppercase; margin: 0 0 6px; }
 .fila { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.app { display: grid; grid-template-columns: 250px 1fr 300px; height: calc(100vh - var(--alto-cabeza, 47px)); }
+.app { display: grid; grid-template-columns: 250px 1fr 300px; height: calc(100vh - var(--alto-cabeza, 47px) - var(--alto-pestanas, 41px)); }
 aside { background: var(--surface); border-right: 1px solid var(--line); overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; }
 aside.der { border-right: 0; border-left: 1px solid var(--line); }
 .caja { background: var(--tarjeta); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
@@ -66,7 +66,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .barra .sep { width: 1px; height: 22px; background: var(--line2); margin: 0 4px; }
 .lienzo-zona { flex: 1; display: grid; place-items: center; overflow: hidden; padding: 14px;
   background: repeating-conic-gradient(var(--surface2) 0 25%, var(--bg) 0 50%) 0 0/24px 24px; }
-#lienzo { height: 100%; max-height: calc(100vh - 190px); max-width: 100%; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.45); touch-action: none; cursor: default; background: #fff; }
+#lienzo { height: 100%; max-height: calc(100vh - 230px); max-width: 100%; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.45); touch-action: none; cursor: default; background: #fff; }
 .tira { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); background: var(--surface); overflow-x: auto; align-items: center; }
 .mini { position: relative; flex: none; border: 2px solid transparent; border-radius: 7px; padding: 0; background: none; cursor: pointer; line-height: 0; }
 .mini canvas { width: 64px; height: 80px; border-radius: 5px; }
@@ -100,6 +100,45 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .guion-l b { display: block; }
 .guion-l code { display: block; font: 11px var(--mono); color: var(--muted); white-space: pre-wrap; margin: 4px 0; max-height: 70px; overflow: auto; }
 .vacio { padding: 40px; text-align: center; color: var(--muted); }
+.pestanas { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.pestanas button { border: 0; background: none; padding: 10px 14px 9px; border-bottom: 2px solid transparent; font: 600 13px var(--f); color: var(--muted); cursor: pointer; }
+.pestanas button:hover { color: var(--ink); }
+.pestanas button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); }
+.vista { height: calc(100vh - var(--alto-cabeza, 47px) - var(--alto-pestanas, 41px)); overflow: auto; padding: 18px 22px; }
+.vista h2 { font: 700 18px var(--fd); margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 14px; }
+.filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.filtros select, .filtros input { width: auto; }
+.rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.ficha { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--tarjeta); cursor: pointer; text-align: left; padding: 0; color: inherit; display: flex; flex-direction: column; }
+.ficha:hover { border-color: var(--accent); }
+.ficha .mini { position: relative; background: var(--surface2); display: grid; place-items: center; overflow: hidden; }
+.ficha .mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ficha .mini .marcador { padding: 14px; text-align: center; color: var(--muted); font: 600 13px var(--fd); }
+.ficha .mini .chip { position: absolute; left: 8px; top: 8px; font: 700 10px var(--mono); background: rgba(4,6,11,.75); color: #fff; padding: 2px 7px; border-radius: 99px; }
+.ficha .info { padding: 9px 11px 11px; display: grid; gap: 3px; }
+.ficha .info b { font-size: 13px; line-height: 1.3; }
+.ficha .info small { color: var(--muted); }
+.insignias { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+.insignia { font: 600 10px var(--mono); padding: 1px 6px; border-radius: 99px; border: 1px solid var(--line2); color: var(--muted); }
+.insignia.ok { color: var(--ok); border-color: var(--ok); } .insignia.warn { color: var(--warn); border-color: var(--warn); }
+.dias7 { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 10px; }
+.dia7 { border: 1px solid var(--line); border-radius: 12px; padding: 8px; min-height: 160px; background: var(--tarjeta); }
+.dia7 h4 { margin: 0 0 6px; font: 700 12px var(--mono); color: var(--accent2); }
+.dia7 .ficha { margin-bottom: 8px; }
+.cifras { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 18px; }
+.cifra { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; background: var(--tarjeta); min-width: 130px; }
+.cifra b { display: block; font: 700 22px var(--fd); }
+.dos-col { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.refvideo { display: flex; gap: 10px; align-items: center; border: 1px solid var(--line2); border-radius: 10px; padding: 8px; margin-top: 8px; }
+.refvideo img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+.historial-p { border-top: 1px solid var(--line); padding: 8px 0; }
+.historial-p q { display: block; color: var(--ink); }
+.marca-colores { display: flex; gap: 10px; flex-wrap: wrap; }
+.marca-colores div { text-align: center; font: 11px var(--mono); color: var(--muted); }
+.marca-colores span { display: block; width: 64px; height: 64px; border-radius: 12px; border: 1px solid var(--line2); margin-bottom: 4px; }
+.marca-fotos { display: flex; gap: 10px; flex-wrap: wrap; }
+.marca-fotos img { height: 110px; border-radius: 10px; border: 1px solid var(--line); background: repeating-conic-gradient(#d9dee8 0 25%, #fff 0 50%) 0 0/12px 12px; padding: 6px; }
 </style>
 </head>
 <body>
@@ -113,6 +152,14 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <button class="btn sec chico" id="btnConfig">⚙ Configuración</button>
   <span id="cuentaChip"></span>
 </header>
+<nav class="pestanas" id="pestanas" role="tablist">
+  <button data-vista="inicio" aria-selected="true">Inicio</button>
+  <button data-vista="biblioteca" aria-selected="false">Biblioteca</button>
+  <button data-vista="crear" aria-selected="false">✦ Crear con IA</button>
+  <button data-vista="videos" aria-selected="false">Videos</button>
+  <button data-vista="editor" aria-selected="false">Editor</button>
+  <button data-vista="marca" aria-selected="false">Marca</button>
+</nav>
 <div class="banda" id="bandaVersion" hidden><span id="textoVersion"></span><button class="btn chico" id="btnActualizar">Actualizar ahora</button></div>
 <dialog id="dlgConfig">
   <h2 style="margin-top:0">Configuración</h2>
@@ -134,7 +181,69 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <p class="muted" id="pedEstado" style="min-height:18px"></p>
   <div class="fila" style="justify-content:flex-end"><button class="btn sec chico" id="btnPedCerrar">Cerrar</button><button class="btn" id="btnPedir">Pedir a Claude</button></div>
 </dialog>
-<div class="app">
+<section class="vista" id="v-inicio">
+  <h2 id="iniTitulo">Esta semana</h2>
+  <p class="sub" id="iniSub"></p>
+  <div class="cifras" id="iniCifras"></div>
+  <div class="dias7" id="iniDias"></div>
+  <div class="dos-col" style="margin-top:22px">
+    <div><h2 style="font-size:15px">Últimos pedidos</h2><div id="iniPedidos" class="muted">—</div></div>
+    <div><h2 style="font-size:15px">Atajos</h2>
+      <div class="fila"><button class="btn" data-ir="crear">✦ Crear con IA</button><button class="btn sec" data-ir="videos">Crear a partir de un video</button><button class="btn sec" data-ir="biblioteca">Ver la biblioteca</button></div></div>
+  </div>
+</section>
+<section class="vista" id="v-biblioteca" hidden>
+  <h2>Biblioteca</h2>
+  <p class="sub">Todo lo que se creó en la Sala de diseño, de todas las semanas. Toca una pieza para abrirla en el editor.</p>
+  <div class="filtros">
+    <input type="search" id="bBuscar" placeholder="Buscar por tema o texto" style="min-width:220px">
+    <select id="bMes"><option value="">Todos los meses</option></select>
+    <select id="bSemana"><option value="">Todas las semanas</option></select>
+    <label class="muted">Desde <input type="date" id="bDesde"></label>
+    <label class="muted">Hasta <input type="date" id="bHasta"></label>
+    <select id="bTipo"><option value="">Carruseles y posts</option><option value="carrusel">Solo carruseles</option><option value="post">Solo posts</option></select>
+    <select id="bFormato"><option value="">Todos los formatos</option><option>4:5</option><option>1:1</option><option>9:16</option></select>
+    <select id="bNivel"><option value="">Todos los niveles</option><option>TOFU</option><option>MOFU</option><option>BOFU</option></select>
+    <select id="bEstado"><option value="">Cualquier estado</option><option value="exportado">Exportadas</option><option value="borrador">Sin exportar</option><option value="sinfotos">Sin fotos</option></select>
+    <span class="muted" id="bCuenta"></span>
+  </div>
+  <div class="rejilla" id="bRejilla"></div>
+</section>
+<section class="vista" id="v-crear" hidden>
+  <div class="dos-col">
+    <div>
+      <h2>✦ Crear con IA</h2>
+      <p class="sub">Escribe lo que quieres como se lo dirías a un diseñador, o pega tu propio contenido. Claude arma las piezas (textos, prompts de Flow y copy) y quedan maquetadas en la semana.</p>
+      <textarea id="crTexto" rows="9" placeholder="Ej.: Hazme un carrusel de 6 láminas y 2 posts 1:1 sobre los beneficios del omega 3 para el martes.&#10;Ej.: Una historia 9:16 para el sábado con este texto: …"></textarea>
+      <p class="etq" style="margin-top:12px">Usar como referencia</p>
+      <div class="fila">
+        <label class="fila"><input type="radio" name="crRef" value="" checked> Nada</label>
+        <label class="fila"><input type="radio" name="crRef" value="semana"> Los videos de esta semana (brief)</label>
+        <label class="fila"><input type="radio" name="crRef" value="video"> Un video de la Sala de edición</label>
+      </div>
+      <div id="crVideo"></div>
+      <div class="fila" style="margin-top:12px"><span class="muted">Se crea en la semana</span><b id="crSemana"></b><span style="flex:1"></span><button class="btn" id="crPedir">✦ Pedir a Claude</button></div>
+      <p class="muted" id="crEstado" style="min-height:18px"></p>
+    </div>
+    <div><h2 style="font-size:15px">Pedidos anteriores</h2><div id="crHistorial" class="muted">—</div></div>
+  </div>
+</section>
+<section class="vista" id="v-videos" hidden>
+  <h2>Videos de la Sala de edición</h2>
+  <p class="sub">Los videos terminados (V.FINALES) de cada producción. Úsalos de referencia para crear posts y carruseles con el mismo mensaje.</p>
+  <div class="filtros"><input type="search" id="vBuscar" placeholder="Buscar video" style="min-width:200px"><select id="vProduccion"><option value="">Todas las producciones</option></select><button class="btn sec chico" id="vRecargar">Actualizar lista</button><span class="muted" id="vCuenta"></span></div>
+  <div class="rejilla" id="vRejilla"><p class="muted">Cargando videos de Drive…</p></div>
+</section>
+<section class="vista" id="v-marca" hidden>
+  <h2 id="mNombre">Marca</h2>
+  <p class="sub">Lo que la sala lee de la carpeta _MARCA del Drive del proyecto. Para cambiarlo, edita marca.json o agrega fotos en _MARCA/logos y _MARCA/productos.</p>
+  <p class="etq">Colores</p><div class="marca-colores" id="mColores"></div>
+  <p class="etq" style="margin-top:16px">Productos reales</p><div class="marca-fotos" id="mProductos"></div>
+  <p class="etq" style="margin-top:16px">Logos</p><div class="marca-fotos" id="mLogos"></div>
+  <div class="dos-col" style="margin-top:16px"><div><p class="etq">Evitar</p><ul id="mEvitar"></ul><p class="etq">Obligatorio</p><ul id="mOblig"></ul></div>
+    <div><p class="etq">Cierres</p><ul id="mCierres"></ul><p class="etq">Notas para Claude</p><p id="mNotas" class="muted"></p></div></div>
+</section>
+<div class="app" id="v-editor" hidden>
   <aside>
     <div>
       <p class="etq">Semana</p>
@@ -525,9 +634,23 @@ function guardarLuego() {
   $("guardado").textContent = "Guardando…";
   clearTimeout(tGuardar);
   tGuardar = setTimeout(async () => {
-    try { C.copy = $("copy").value; await api("/api/pieza", { id: cid, datos: limpio(C) }); $("guardado").textContent = "Guardado"; }
+    try { C.copy = $("copy").value; await api("/api/pieza", { id: cid, datos: limpio(C) }); $("guardado").textContent = "Guardado"; guardarMiniatura(); }
     catch (e) { $("guardado").textContent = ""; avisar("No se guardó: " + e.message, "err"); }
   }, 600);
+}
+let tMini;
+function guardarMiniatura() {  // la lámina 1 en chico, para la biblioteca y el inicio
+  clearTimeout(tMini);
+  tMini = setTimeout(async () => {
+    if (!C) return;
+    try {
+      await esperarImagenes();
+      const cv = document.createElement("canvas"); cv.width = 360; cv.height = Math.round(360 * H / W);
+      const cx = cv.getContext("2d"); cx.scale(360 / W, 360 / W); dibujarLamina(cx, C.laminas[0], false);
+      const b = await new Promise(ok => cv.toBlob(ok, "image/png"));
+      await fetch(`/api/miniatura?id=${encodeURIComponent(cid)}&rel=${encodeURIComponent(semana)}`, { method: "POST", body: b });
+    } catch (e) {}
+  }, 1500);
 }
 function cambio(fn, sinHistoria) { if (!sinHistoria) recordar(); fn(); pintar(); pintarTira(); guardarLuego(); }
 function todo() { pintar(); pintarTira(); pintarProps(); pintarLista(); pintarFotos(); $("copy").value = C?.copy || ""; pintarGuion(); }
@@ -958,7 +1081,7 @@ addEventListener("pagehide", () => navigator.sendBeacon("/api/adios"));
 document.documentElement.style.setProperty("--alto-cabeza", ($("cabeza").offsetHeight + 1) + "px");
 
 // ---------- Pedido ----------
-$("btnPedido").onclick = () => { $("pedEstado").textContent = ""; $("dlgPedido").showModal(); $("pedTexto").focus(); };
+$("btnPedido").onclick = () => irA("crear");
 $("btnPedCerrar").onclick = () => $("dlgPedido").close();
 $("btnPedir").onclick = async () => {
   const texto = $("pedTexto").value.trim();
@@ -983,6 +1106,157 @@ $("btnPedir").onclick = async () => {
   $("btnPedir").disabled = false;
 };
 
+// ---------- Vistas ----------
+let vista = "inicio", BIB = null, VIDEOS = null, refVideo = null;
+const MESES_C = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "set", "oct", "nov", "dic"];
+const DIAS_C = { LUN: "Lunes", MAR: "Martes", MIE: "Miércoles", JUE: "Jueves", VIE: "Viernes", SAB: "Sábado", DOM: "Domingo" };
+const fechaCorta = f => { if (!f) return ""; const [a, m, d] = f.split("-"); return `${+d} ${MESES_C[+m - 1]}`; };
+const proporcion = f => ({ "1:1": "1/1", "9:16": "9/16" }[f] || "4/5");
+function irA(v) {
+  vista = v;
+  document.querySelectorAll("#pestanas button").forEach(b => b.setAttribute("aria-selected", b.dataset.vista === v));
+  ["inicio", "biblioteca", "crear", "videos", "editor", "marca"].forEach(n => $("v-" + n).hidden = n !== v);
+  if (v === "inicio") pintarInicio();
+  if (v === "biblioteca") cargarBiblioteca();
+  if (v === "crear") pintarCrear();
+  if (v === "videos") cargarVideos();
+  if (v === "marca") pintarMarcaVista();
+  if (v === "editor") { pintar(); pintarTira(); }
+  try { localStorage.setItem("diseno_vista", v); } catch (e) {}
+}
+function ficha(p, extra = "") {
+  const mini = p.miniatura ? `<img src="/archivo?rel=${encodeURIComponent(p.rel)}&id=${encodeURIComponent(p.id)}&f=${encodeURIComponent(p.miniatura)}&v=${encodeURIComponent(p.actualizado || "")}" alt="" loading="lazy">`
+    : `<div class="marcador">${esc(p.titulo)}</div>`;
+  return `<button class="ficha" data-abrir-rel="${esc(p.rel)}" data-abrir-id="${esc(p.id)}" ${extra}>
+    <div class="mini" style="aspect-ratio:${proporcion(p.formato)}">${mini}<span class="chip">${p.tipo === "post" ? "Post" : p.laminas + " láminas"} · ${esc(p.formato)}</span></div>
+    <div class="info"><b>${esc(p.titulo)}</b><small>${p.dia ? DIAS_C[p.dia] + " " : ""}${fechaCorta(p.fecha)} · ${esc(p.semana.split(" · ").slice(0, 2).join(" · "))}</small>
+      <div class="insignias">${p.nivel ? `<span class="insignia">${esc(p.nivel)}</span>` : ""}${p.exportado ? '<span class="insignia ok">Exportada</span>' : '<span class="insignia">Borrador</span>'}${p.con_fotos ? "" : '<span class="insignia warn">Sin fotos</span>'}</div></div></button>`;
+}
+async function abrirDesdeFicha(rel, id) {
+  try {
+    if (rel !== semana) { await api("/api/semana", { accion: "elegir", rel }); await cargarLista(); }
+    await abrir(id); irA("editor");
+  } catch (e) { avisar(e.message, "err"); }
+}
+// Biblioteca
+async function cargarBiblioteca(forzar) {
+  if (!BIB || forzar) {
+    $("bRejilla").innerHTML = '<p class="muted">Cargando…</p>';
+    try { BIB = await api("/api/biblioteca"); } catch (e) { $("bRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    const meses = [...new Set(BIB.semanas.map(s => s.mes))];
+    $("bMes").innerHTML = '<option value="">Todos los meses</option>' + meses.map(m => `<option>${esc(m)}</option>`).join("");
+    $("bSemana").innerHTML = '<option value="">Todas las semanas</option>' + BIB.semanas.map(s => `<option value="${esc(s.rel)}">${esc(s.semana)}</option>`).join("");
+  }
+  pintarBiblioteca();
+}
+function pintarBiblioteca() {
+  if (!BIB) return;
+  const q = $("bBuscar").value.trim().toLowerCase(), mes = $("bMes").value, sem = $("bSemana").value, desde = $("bDesde").value, hasta = $("bHasta").value;
+  const tipo = $("bTipo").value, fmt = $("bFormato").value, niv = $("bNivel").value, est = $("bEstado").value;
+  const l = BIB.piezas.filter(p => (!q || (p.titulo + " " + p.pedido + " " + p.semana).toLowerCase().includes(q)) && (!mes || p.mes === mes) && (!sem || p.rel === sem)
+    && (!desde || p.fecha >= desde) && (!hasta || p.fecha <= hasta) && (!tipo || p.tipo === tipo) && (!fmt || p.formato === fmt) && (!niv || p.nivel === niv)
+    && (!est || (est === "exportado" ? p.exportado : est === "borrador" ? !p.exportado : !p.con_fotos)));
+  $("bCuenta").textContent = `${l.length} de ${BIB.piezas.length} piezas`;
+  $("bRejilla").innerHTML = l.map(p => ficha(p)).join("") || '<p class="muted">Nada con esos filtros.</p>';
+}
+["bBuscar", "bMes", "bSemana", "bDesde", "bHasta", "bTipo", "bFormato", "bNivel", "bEstado"].forEach(id => $(id).addEventListener("input", pintarBiblioteca));
+// Inicio
+async function pintarInicio() {
+  try { BIB = await api("/api/biblioteca"); } catch (e) { return; }
+  const deSemana = BIB.piezas.filter(p => p.rel === semana);
+  $("iniTitulo").textContent = (semana.split("/")[1] || "Esta semana");
+  $("iniSub").textContent = deSemana.length ? "Lo que sale cada día de esta semana. Toca una pieza para abrirla." : "Esta semana aún no tiene piezas: pídelas en ✦ Crear con IA.";
+  const n = (f) => deSemana.filter(f).length;
+  $("iniCifras").innerHTML = [["Piezas", deSemana.length], ["Exportadas", n(p => p.exportado)], ["Sin exportar", n(p => !p.exportado)], ["Sin fotos", n(p => !p.con_fotos)], ["En toda la biblioteca", BIB.piezas.length]]
+    .map(([t, v]) => `<div class="cifra"><b>${v}</b><span class="muted">${t}</span></div>`).join("");
+  $("iniDias").innerHTML = Object.keys(DIAS_C).map(d => `<div class="dia7"><h4>${DIAS_C[d]}</h4>${deSemana.filter(p => p.dia === d).map(p => ficha(p)).join("") || '<p class="muted" style="margin:0">—</p>'}</div>`).join("")
+    + (deSemana.some(p => !p.dia) ? `<div class="dia7"><h4>Sin día</h4>${deSemana.filter(p => !p.dia).map(p => ficha(p)).join("")}</div>` : "");
+  $("iniPedidos").innerHTML = historialPedidos(5);
+}
+function historialPedidos(max) {
+  const ps = (BIB?.pedidos || []).slice(0, max);
+  return ps.length ? ps.map(p => `<div class="historial-p"><q>${esc(p.pedido.length > 220 ? p.pedido.slice(0, 220) + "…" : p.pedido)}</q>
+    <small class="muted">${esc(p.fecha)} · ${esc(p.quien || "")} · ${p.piezas.length} pieza(s) · ${esc(p.semana.split(" · ").slice(0, 2).join(" · "))}</small></div>`).join("") : '<p class="muted">Aún no hay pedidos.</p>';
+}
+// Crear con IA
+function pintarCrear() {
+  $("crSemana").textContent = semana.split("/")[1] || "";
+  const sel = document.querySelector('input[name="crRef"]:checked').value;
+  $("crVideo").innerHTML = sel !== "video" ? "" : refVideo
+    ? `<div class="refvideo"><img src="/video_mini?ruta=${encodeURIComponent(refVideo.ruta)}" alt=""><div><b>${esc(refVideo.nombre)}</b><br><small class="muted">${esc(refVideo.sesion)}</small></div><span style="flex:1"></span><button class="btn sec chico" data-ir="videos">Cambiar</button></div>`
+    : `<div class="refvideo"><span class="muted">Elige el video en la pestaña Videos.</span><span style="flex:1"></span><button class="btn sec chico" data-ir="videos">Elegir video</button></div>`;
+  if (BIB) $("crHistorial").innerHTML = historialPedidos(12);
+  else api("/api/biblioteca").then(b => { BIB = b; $("crHistorial").innerHTML = historialPedidos(12); }).catch(() => {});
+}
+document.querySelectorAll('input[name="crRef"]').forEach(r => r.addEventListener("change", pintarCrear));
+$("crPedir").onclick = async () => {
+  const texto = $("crTexto").value.trim();
+  if (texto.length < 5) return $("crTexto").focus();
+  const sel = document.querySelector('input[name="crRef"]:checked').value;
+  if (sel === "video" && !refVideo) return avisar("Elige primero el video de referencia", "err");
+  $("crPedir").disabled = true;
+  try {
+    await api("/api/pedido", { texto, videos: sel === "semana", video: sel === "video" ? refVideo.ruta : "" });
+    for (;;) {
+      await new Promise(ok => setTimeout(ok, 1500));
+      const t = await api("/api/trabajo");
+      $("crEstado").textContent = t.mensaje || "";
+      if (t.activo) continue;
+      if (t.error) throw new Error(t.error);
+      const hechas = t.resultado?.piezas || [];
+      BIB = null; await cargarLista();
+      $("crTexto").value = ""; $("crEstado").textContent = `Listo: ${hechas.length} pieza(s) creadas.`;
+      if (hechas[0]) { await abrir(hechas[0]); irA("editor"); }
+      avisar(`Listo: ${hechas.length} pieza(s) creadas. Genera sus fotos con los prompts de Flow.`);
+      break;
+    }
+  } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
+  $("crPedir").disabled = false;
+};
+// Videos
+async function cargarVideos(forzar) {
+  if (!VIDEOS || forzar) {
+    $("vRejilla").innerHTML = '<p class="muted">Cargando videos de Drive…</p>';
+    try { VIDEOS = (await api("/api/videos" + (forzar ? "?forzar=1" : ""))).videos; } catch (e) { $("vRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+    $("vProduccion").innerHTML = '<option value="">Todas las producciones</option>' + [...new Set(VIDEOS.map(v => v.produccion))].map(p => `<option>${esc(p)}</option>`).join("");
+  }
+  pintarVideos();
+}
+function pintarVideos() {
+  const q = $("vBuscar").value.trim().toLowerCase(), prod = $("vProduccion").value;
+  const l = (VIDEOS || []).filter(v => (!q || (v.nombre + " " + v.sesion).toLowerCase().includes(q)) && (!prod || v.produccion === prod));
+  $("vCuenta").textContent = `${l.length} videos`;
+  $("vRejilla").innerHTML = l.map((v, i) => `<div class="ficha" style="cursor:default">
+    <div class="mini" style="aspect-ratio:9/16"><img src="/video_mini?ruta=${encodeURIComponent(v.ruta)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'marcador',textContent:'Sin miniatura'}))"><span class="chip">${esc(v.mb)} MB</span></div>
+    <div class="info"><b>${esc(v.nombre)}</b><small>${esc(v.sesion)} · ${esc(v.fecha)}</small>
+      <div class="fila" style="margin-top:6px"><button class="btn chico" data-usar-video="${(VIDEOS || []).indexOf(v)}">✦ Crear posts</button><a class="btn sec chico" href="${esc(v.ver)}" target="_blank" rel="noopener">Ver</a></div></div></div>`).join("") || '<p class="muted">No encontré videos terminados.</p>';
+}
+$("vBuscar").addEventListener("input", pintarVideos); $("vProduccion").addEventListener("input", pintarVideos);
+$("vRecargar").onclick = () => cargarVideos(true);
+// Marca
+function pintarMarcaVista() {
+  const m = MARCA || {};
+  $("mNombre").textContent = m.nombre ? `Marca · ${m.nombre}` : "Marca";
+  $("mColores").innerHTML = (m.colores || []).map(c => `<div><span style="background:${esc(c.hex || c)}"></span>${esc(c.nombre || "")}<br>${esc(c.hex || c)}</div>`).join("");
+  const fotos = l => (l || []).map(f => `<img src="/marca/${f.split("/").map(encodeURIComponent).join("/")}" alt="" title="${esc(f)}">`).join("") || '<span class="muted">—</span>';
+  $("mProductos").innerHTML = fotos(m.productos); $("mLogos").innerHTML = fotos(m.logos);
+  const lista = l => (l || []).map(x => `<li>${esc(x)}</li>`).join("") || '<li class="muted">—</li>';
+  $("mEvitar").innerHTML = lista(m.evitar); $("mOblig").innerHTML = lista(m.obligatorio); $("mCierres").innerHTML = lista(m.cierres);
+  $("mNotas").textContent = m.notas_para_claude || "—";
+}
+document.addEventListener("click", e => {
+  const pes = e.target.closest("#pestanas button"); if (pes) return irA(pes.dataset.vista);
+  const ir = e.target.closest("[data-ir]"); if (ir) return irA(ir.dataset.ir);
+  const ab = e.target.closest("[data-abrir-id]"); if (ab) return abrirDesdeFicha(ab.dataset.abrirRel, ab.dataset.abrirId);
+  const uv = e.target.closest("[data-usar-video]");
+  if (uv) {
+    refVideo = VIDEOS[+uv.dataset.usarVideo];
+    document.querySelector('input[name="crRef"][value="video"]').checked = true;
+    if (!$("crTexto").value.trim()) $("crTexto").value = "Haz un carrusel de 6 láminas y 2 posts 1:1 que lleven el mensaje de este video.";
+    return irA("crear");
+  }
+});
+
 // ---------- Inicio ----------
 (async () => {
   await Promise.all(['400 40px "Bebas"', '500 40px "DM Sans"', '700 40px "DM Sans"', '900 40px "DM Sans"', '40px "Archivo Black"', '40px "Lilita"', '40px "Anton"']
@@ -993,6 +1267,9 @@ $("btnPedir").onclick = async () => {
   try {
     await cargarLista();
     await abrirPrimero();
+    document.documentElement.style.setProperty("--alto-pestanas", ($("pestanas").offsetHeight) + "px");
+    let v0 = "inicio"; try { v0 = localStorage.getItem("diseno_vista") || "inicio"; } catch (e) {}
+    irA(v0);
     revisarClaude(); revisarVersion();
     setInterval(revisarVersion, 3600 * 1000);
   } catch (e) { avisar("No pude leer los carruseles: " + e.message, "err"); }

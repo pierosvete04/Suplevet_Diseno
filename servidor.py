@@ -22,6 +22,7 @@ import marca
 import nucleo
 import piezas
 import recorte
+import videos as videos_edicion
 
 PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else int(os.environ.get("DISENO_PUERTO") or 8766)
 FUENTES = nucleo.RAIZ / "fuentes"
@@ -126,6 +127,16 @@ class H(BaseHTTPRequestHandler):
                 self._archivo(ruta.parent, ruta.name)
             elif u.path == "/img":
                 self._archivo(piezas.ruta_imagen(q["id"][0]), q["f"][0])
+            elif u.path == "/api/biblioteca":
+                self._json({"piezas": piezas.biblioteca(), "semanas": piezas.semanas(), "pedidos": piezas.pedidos_todos()[:60]})
+            elif u.path == "/archivo":  # miniatura o lámina exportada de cualquier semana
+                ruta = piezas.archivo(q["rel"][0], q["id"][0], q["f"][0])
+                self._archivo(ruta.parent, ruta.name)
+            elif u.path == "/api/videos":  # los videos terminados de la Sala de edición (solo lectura)
+                self._json({"videos": videos_edicion.listar(forzar="forzar" in q)})
+            elif u.path == "/video_mini":
+                ruta = videos_edicion.miniatura(q["ruta"][0])
+                self._archivo(ruta.parent, ruta.name)
             elif u.path == "/api/estado":
                 piezas.sincronizar()
                 self._json(estado())
@@ -220,9 +231,14 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("Escribe qué quieres que se haga")
                 videos = piezas.videos_de_la_semana() if b.get("videos") else None
                 semana, datos_marca = piezas.semana_actual(), marca.datos()
+                ruta_video = str(b.get("video") or "")
 
                 def hacer(av):
-                    r = asistente.resolver_pedido(texto, datos_marca, semana, videos, av)
+                    referencia = None
+                    if ruta_video:
+                        av("Leyendo el video de referencia y su guion…")
+                        referencia = videos_edicion.contexto(ruta_video)
+                    r = asistente.resolver_pedido(texto, datos_marca, semana, videos, av, referencia=referencia)
                     hechas = piezas.crear_desde_pedido(texto, r, semana)
                     piezas.subir()
                     return {"piezas": hechas}
@@ -243,6 +259,9 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/marca_base":
                 marca.crear_base(str(self._cuerpo().get("nombre", ""))[:60])
                 self._json({"ok": True, "marca": marca.datos()})
+            elif u.path == "/api/miniatura":  # la lámina 1 en chico, para la biblioteca (?id=&rel=)
+                piezas.guardar_miniatura(q["id"][0], self._crudo(4 * 1024 * 1024), q.get("rel", [None])[0])
+                self._json({"ok": True})
             elif u.path == "/api/nombre":
                 nucleo.guardar_config({"nombre": str(self._cuerpo().get("nombre", "")).strip()[:40]})
                 self._json({"ok": True})

@@ -1,3 +1,10 @@
+Versión 0.4.0:
+- La sala ahora tiene pestañas, como la Sala de edición: **Inicio** (la semana día por día, con lo exportado, lo que falta y los últimos pedidos), **Biblioteca** (todo lo creado en todas las semanas, con filtros por tema, mes, semana, fechas, tipo, formato, nivel y estado), **✦ Crear con IA**, **Videos**, **Editor** y **Marca**.
+- **Videos**: los videos terminados de la Sala de edición (V.FINALES de cada producción), con su miniatura. «✦ Crear posts» los usa de referencia: Claude lee el video y el guion de su producción y lleva ese mensaje a carruseles y posts.
+- En Crear con IA se elige la referencia: nada, los videos de la semana o un video de la Sala de edición. Al lado, los pedidos anteriores.
+- Al guardar una pieza se guarda su miniatura para verla en la biblioteca.
+- **Marca**: los colores, productos, logos y reglas que la sala lee de _MARCA.
+
 Versión 0.3.1:
 - Arreglo de fondo del error «No module named 'getpass'»: el código ya no usa esa pieza, así que «Actualizar ahora» funciona aunque tengas instalado un instalador viejo.
 

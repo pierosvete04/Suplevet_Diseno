@@ -331,3 +331,62 @@ def sincronizar(forzar=False):
 
 def subir(pid=None):
     conexion.en_segundo_plano(conexion.subir, rel_drive(pid))
+
+
+# ---------- Biblioteca: todas las piezas de todas las semanas ----------
+def _lunes_de_semana(nombre):
+    """«S03 · 19-25 OCT» -> fecha del lunes, con la misma cuenta de semanas de la estrategia."""
+    m = re.match(r"S(\d+)", nombre)
+    if not m:
+        return None
+    num, lunes_base = _base()
+    return lunes_base + dt.timedelta(days=7 * (int(m.group(1)) - num))
+
+
+def biblioteca():
+    """Cada pieza con su semana, su fecha (el día que sale) y su miniatura, de la más nueva a la más vieja."""
+    out = []
+    for s in semanas():
+        d = raiz() / s["rel"]
+        lunes = _lunes_de_semana(s["semana"])
+        for c in sorted(x for x in d.iterdir() if x.is_dir()):
+            try:
+                p = json.loads((c / "pieza.json").read_text(encoding="utf-8"))
+            except (FileNotFoundError, ValueError):
+                continue
+            dia = p.get("dia", "")
+            fecha = (lunes + dt.timedelta(days=DIAS.index(dia))).isoformat() if lunes and dia in DIAS else (lunes.isoformat() if lunes else "")
+            finales = sorted((c / "FINAL").glob("L*.png")) if (c / "FINAL").is_dir() else []
+            mini = "miniatura.png" if (c / "miniatura.png").exists() else (f"FINAL/{finales[0].name}" if finales else "")
+            out.append({"rel": s["rel"], "mes": s["mes"], "semana": s["semana"], "id": c.name, "titulo": p.get("titulo", c.name),
+                        "tipo": p.get("tipo", "carrusel"), "formato": p.get("formato", "4:5"), "dia": dia, "fecha": fecha,
+                        "nivel": p.get("nivel", ""), "publico": p.get("publico", ""), "estilo": p.get("estilo", ""),
+                        "laminas": len(p.get("laminas", [])), "exportado": bool(finales), "miniatura": mini,
+                        "actualizado": p.get("actualizado", ""), "por": p.get("por", ""), "pedido": p.get("pedido", ""),
+                        "con_fotos": any(c2.get("tipo") == "imagen" for l in p.get("laminas", []) for c2 in l.get("capas", []))
+                        or any(l.get("fondo", {}).get("tipo") == "imagen" for l in p.get("laminas", []))})
+    return sorted(out, key=lambda x: (x["fecha"], x["id"]), reverse=True)
+
+
+def pedidos_todos():
+    out = []
+    for s in semanas():
+        try:
+            for p in json.loads((raiz() / s["rel"] / "pedidos.json").read_text(encoding="utf-8")):
+                out.append({**p, "semana": s["semana"], "rel": s["rel"]})
+        except (FileNotFoundError, ValueError):
+            pass
+    return sorted(out, key=lambda x: x.get("fecha", ""), reverse=True)
+
+
+def archivo(rel, pid, nombre):
+    """La miniatura o una lámina exportada de cualquier semana (para la biblioteca)."""
+    if not re.fullmatch(r"miniatura\.png|FINAL/L\d+\.png", nombre or ""):
+        raise ValueError("Archivo no válido")
+    return carpeta(pid, rel) / nombre
+
+
+def guardar_miniatura(pid, png, rel=None):
+    if not png.startswith(b"\x89PNG"):
+        raise ValueError("La miniatura no llegó bien")
+    (carpeta(pid, rel) / "miniatura.png").write_bytes(png)

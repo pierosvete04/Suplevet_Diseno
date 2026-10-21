@@ -120,7 +120,7 @@ Responde SOLO con JSON, sin texto antes ni después:
 ORIENTACION = {"4:5": "vertical 4:5", "1:1": "square 1:1", "9:16": "tall vertical 9:16 (story), leave the top and bottom 15% clean"}
 
 
-def resolver_pedido(texto, marca, semana="", videos=None, avance=print):
+def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referencia=None):
     """Un pedido libre («3 posts 1:1 sobre omega 3», «una historia 9:16 con esto: …») -> las piezas a crear.
     videos: los ángulos de los videos de la semana (del brief), para que las piezas los acompañen.
     Devuelve {"piezas": [{tipo, formato, dia, titulo, nivel, publico, estilo, laminas: [{rol, titulo, texto, flow}], copy}]}."""
@@ -128,6 +128,10 @@ def resolver_pedido(texto, marca, semana="", videos=None, avance=print):
     base = ""
     if videos:
         base = "Videos de esta semana (las piezas deben acompañarlos, con el mismo tema y nivel):\n" + json.dumps(videos, ensure_ascii=False)
+    if referencia:
+        base += ("\nVideo de referencia hecho en la Sala de edición: las piezas llevan ESTE mensaje a post o carrusel "
+                 "(si el guion trae varios cuerpos, usa el que corresponde al nombre del video):\n"
+                 + json.dumps(referencia, ensure_ascii=False)[:24000])
     prompt = f"""Eres diseñador de contenido para redes. Este es el pedido del equipo, tal cual lo escribió:
 ---
 {texto.strip()}
