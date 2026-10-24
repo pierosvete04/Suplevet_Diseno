@@ -18,6 +18,7 @@ import actualizador
 import asistente
 import conexion
 import cuenta
+import importar_marca
 import marca
 import nucleo
 import piezas
@@ -28,6 +29,7 @@ PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv
 FUENTES = nucleo.RAIZ / "fuentes"
 TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "resultado": None}
 LATIDO = {"ultimo": 0.0, "adios": 0.0}
+INICIO = time.time()
 
 
 def lanzar(accion, fn):
@@ -71,6 +73,15 @@ def estado():
     return {"version": nucleo.VERSION, "drive": conexion.estado(), "cuenta": cuenta.estado(), "marca": marca.datos(), "quien": piezas.quien(),
             "semana": sem, "semanas": piezas.semanas(), "piezas": piezas.listar(sem), "formatos": piezas.FORMATOS,
             "recortador": {"listo": recorte.modelo_listo(), **recorte.ESTADO_MODELO}}
+
+
+class Servidor(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
+            return  # la ventana se cerró o se recargó a mitad de una respuesta: no es un error
+        super().handle_error(request, client_address)
 
 
 class H(BaseHTTPRequestHandler):
@@ -125,6 +136,12 @@ class H(BaseHTTPRequestHandler):
             elif u.path.startswith("/marca/"):
                 ruta = marca.ruta_archivo(unquote(u.path[len("/marca/"):]))
                 self._archivo(ruta.parent, ruta.name)
+            elif u.path == "/api/marca_importar/ver":  # lo subido para importar, antes de guardarlo (para verlo en la revisión)
+                try:
+                    f = importar_marca.ruta_staging(q.get("id", [""])[0], q.get("ruta", [""])[0])
+                except ValueError:
+                    return self.send_error(404)
+                self._archivo(f.parent, f.name)
             elif u.path == "/img":
                 self._archivo(piezas.ruta_imagen(q["id"][0]), q["f"][0])
             elif u.path == "/api/biblioteca":
@@ -159,6 +176,8 @@ class H(BaseHTTPRequestHandler):
                 self._json(cuenta.estado())
             elif u.path == "/api/dispositivos":
                 self._json({"dispositivos": cuenta.dispositivos(), "dias_nuevo": cuenta.DIAS_NUEVO})
+            elif u.path == "/api/cuenta/carpetas":  # elegir la carpeta del proyecto (cuenta.js): las carpetas de la cuenta
+                self._json({"ok": True, **cuenta.carpetas_para_elegir()})
             else:
                 self.send_error(404)
         except Exception as e:
@@ -166,6 +185,11 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.client_address[0] not in ("127.0.0.1", "::1"):
+            return self.send_error(403)
+        # Una página de internet abierta en el navegador podría mandar órdenes a la app: el navegador siempre dice
+        # de qué página viene el pedido (Origin) y tiene que ser la app misma.
+        origen = self.headers.get("Origin")
+        if origen and origen != "null" and urlparse(origen).netloc.lower() != (self.headers.get("Host") or "").lower():
             return self.send_error(403)
         u = urlparse(self.path)
         q = parse_qs(u.query)
@@ -255,6 +279,11 @@ class H(BaseHTTPRequestHandler):
                 e = cuenta.entrar(str(self._cuerpo().get("link", "")))
                 piezas.sincronizar(forzar=True)
                 self._json({"ok": True, "cuenta": e})
+            elif u.path == "/api/cuenta/primera":  # entrar y elegir (o crear) la carpeta del proyecto (cuenta.js)
+                r = cuenta.primera(self._cuerpo())
+                if "editor" in r:  # ya eligió carpeta
+                    conexion.tras_elegir_carpeta(r)
+                self._json({"ok": True, **r})
             elif u.path == "/api/salir":
                 cuenta.cerrar_sesion()
                 self._json({"ok": True})
@@ -263,6 +292,24 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True})
             elif u.path == "/api/cerrar_otros":
                 self._json({"ok": True, "cerrados": cuenta.cerrar_en_todas_menos_esta()})
+            elif u.path == "/api/marca_plantilla":  # importar la marca sin Claude (importar_marca.py, común con la Sala de edición)
+                self._json({"ok": True, "ruta": str(importar_marca.guardar_plantilla())})
+            elif u.path == "/api/marca_importar":
+                acc = q.get("accion", [""])[0]
+                if acc == "nuevo":
+                    self._json({"ok": True, "id": importar_marca.nuevo()})
+                elif acc == "subir":
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 400 * 1024 * 1024:
+                        raise ValueError("El archivo es muy grande (máximo 400 MB)")
+                    self._json({"ok": True, "archivos": importar_marca.recibir(q["id"][0], q["ruta"][0], self.rfile.read, n)})
+                elif acc == "analizar":
+                    self._json({"ok": True, **importar_marca.analizar(self._cuerpo().get("id"))})
+                elif acc == "aplicar":
+                    b = self._cuerpo()
+                    self._json({"ok": True, **importar_marca.aplicar(b.get("id"), b.get("propuesta") or {})})
+                else:
+                    raise ValueError("Acción no válida")
             elif u.path == "/api/marca_base":
                 marca.crear_base(str(self._cuerpo().get("nombre", ""))[:60])
                 self._json({"ok": True, "marca": marca.datos()})
@@ -295,4 +342,6 @@ if __name__ == "__main__":
     except Exception as e:
         print("Semana:", e, flush=True)
     cuenta.latido(forzar=True)
-    ThreadingHTTPServer(("127.0.0.1", PUERTO), H).serve_forever()
+    srv = Servidor(("127.0.0.1", PUERTO), H)
+    print(f"Lista para usar en {time.time() - INICIO:.1f} s", flush=True)
+    srv.serve_forever()

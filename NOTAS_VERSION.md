@@ -1,3 +1,10 @@
+Versión 0.9.0:
+- **Entrar y elegir la carpeta, paso a paso** (igual en las tres apps): entras con Google sin pegar ningún link, eliges la carpeta del equipo (una tuya, una compartida contigo, una nueva o con su link) y la app te dice cómo invitar al equipo como Editor. Si tu cuenta solo puede mirar esa carpeta, te avisa.
+- En **Configuración → Cuenta** está la carpeta del proyecto, con «Abrir en Drive» y «Cambiar de carpeta…». Si cambias de carpeta, lo de la anterior en esta PC queda aparte (no se mezcla).
+- **Marca → Importar mi marca** (sin Claude): «Descargar plantilla de marca» y subir la carpeta o el .zip (o arrastrarlos). La sala acomoda logos, tipografías, productos y colores (si no los pones, los saca del logo) y te los muestra antes de guardar. Es la misma marca de la Sala de edición.
+- **Actualizar más seguro**: el botón dice «⟳ Actualizando…» y una cortina tapa la sala hasta que la versión nueva arranca. Si algo falla, avisa y todo vuelve a como estaba.
+- **Más seguridad**: la sala solo acepta órdenes de su propia ventana (una página de internet ya no puede mandarle nada).
+
 Versión 0.8.0:
 - **Rehacer foto**: selecciona una foto (o la foto de fondo), escribe qué está mal («tiene arándanos, que se vea el polvo encima de las croquetas») y toca «✎ Rehacer foto». Claude escribe el prompt nuevo de Flow de esa lámina con tu nota y las reglas de la marca, y lo deja copiado para pegarlo en Flow.
 - La nota queda guardada en la pieza, con fecha y quién la escribió, y se ve debajo del prompt en «Escribir con Claude». Las notas anteriores de la misma foto también se respetan al rehacerla.

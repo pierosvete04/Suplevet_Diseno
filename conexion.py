@@ -6,6 +6,7 @@ Esta sala trabaja sobre su copia local (datos/drive) y sincroniza con Drive:
   - baja con --update: nunca pisa algo más nuevo de esta PC.
 """
 import threading
+import time
 
 import cuenta
 import nucleo
@@ -43,6 +44,22 @@ def subir(rel):
         else:
             cuenta.rc("copyto", local, f"{REMOTO}:{rel}", timeout=300)
     return True
+
+
+def tras_elegir_carpeta(r):
+    """Después de elegir (o crear) la carpeta del proyecto en la pantalla de la cuenta (cuenta.primera).
+    Si es otra carpeta que la de antes, la copia local vieja se aparta: si no, se subiría a la carpeta nueva."""
+    cid = cuenta.estado()["carpeta_id"]
+    antes = nucleo.CONFIG.get("carpeta_id")
+    if antes and antes != cid and CACHE.exists():
+        with _candado:
+            CACHE.rename(nucleo.DATOS / f"drive_anterior_{antes}_{int(time.time())}")
+    nucleo.guardar_config({"carpeta_id": cid})
+    import marca
+    import piezas
+    if r.get("nueva"):
+        marca.crear_base(r.get("marca", ""))
+    piezas.sincronizar(forzar=True)
 
 
 def en_segundo_plano(fn, *args):
