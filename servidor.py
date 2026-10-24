@@ -1,6 +1,6 @@
 """Sala de diseño: carruseles y posts con fotos de Flow, quitar fondos, la marca del proyecto y exportar al Publicador.
 
-Abrir:  python servidor.py   →   http://localhost:8766   (o SalaDiseno.exe)
+Abrir:  python servidor.py   →   http://localhost:8767   (o SalaDiseno.exe)
 """
 import base64
 import json
@@ -25,7 +25,7 @@ import piezas
 import recorte
 import videos as videos_edicion
 
-PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else int(os.environ.get("DISENO_PUERTO") or 8766)
+PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else int(os.environ.get("DISENO_PUERTO") or 8767)
 FUENTES = nucleo.RAIZ / "fuentes"
 TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "resultado": None}
 LATIDO = {"ultimo": 0.0, "adios": 0.0}

@@ -1,3 +1,7 @@
+Versión 0.9.1 (baja el instalador completo: cambia el programa que abre la sala):
+- **Arreglo: el Publicador ya no abre la Sala de diseño.** Las dos usaban el mismo puerto interno de la PC: si la sala estaba abierta, al abrir el Publicador salía la sala. Ahora la sala usa el suyo (8767).
+- Si otro programa ocupa el puerto de la sala, avisa en vez de abrir la ventana de ese programa.
+
 Versión 0.9.0:
 - **Entrar y elegir la carpeta, paso a paso** (igual en las tres apps): entras con Google sin pegar ningún link, eliges la carpeta del equipo (una tuya, una compartida contigo, una nueva o con su link) y la app te dice cómo invitar al equipo como Editor. Si tu cuenta solo puede mirar esa carpeta, te avisa.
 - En **Configuración → Cuenta** está la carpeta del proyecto, con «Abrir en Drive» y «Cambiar de carpeta…». Si cambias de carpeta, lo de la anterior en esta PC queda aparte (no se mezcla).

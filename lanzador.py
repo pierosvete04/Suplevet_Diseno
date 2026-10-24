@@ -7,11 +7,12 @@ Carpeta que se instala:
     datos/           lo de esta PC: configuración, copia local de Drive (nunca se toca)
 
 La conexión a Drive y a Claude es la misma de las otras salas (%LOCALAPPDATA%/Salas): se conecta una vez.
-Por dentro es un servidor solo de esta PC (127.0.0.1) que se apaga al cerrar la ventana.
+Por dentro es un servidor solo de esta PC (127.0.0.1) que se apaga al cerrar la ventana. Usa el puerto 8767:
+el 8765 es de la Sala de edición y el 8766 del Publicador (TikTok y YouTube vuelven a ese puerto al conectar).
 
 Si cambias este archivo o las librerías, sube LANZADOR_VERSION y el archivo LANZADOR_MINIMO.
 """
-LANZADOR_VERSION = "1.1.1"
+LANZADOR_VERSION = "1.2.0"
 
 # Imports explícitos para que PyInstaller empaquete lo que usa el código de app/ (que no analiza).
 import argparse, ctypes, glob, hashlib, http.server, io, json, mimetypes, re, runpy, secrets, shutil, socket  # noqa: E401,F401
@@ -33,7 +34,7 @@ try:
 except Exception:  # noqa: BLE001
     webview = None
 
-PUERTO = int(os.environ.get("DISENO_PUERTO") or 8766)  # otro puerto solo para probar con la sala abierta
+PUERTO = int(os.environ.get("DISENO_PUERTO") or 8767)  # otro puerto solo para probar con la sala abierta
 URL = f"http://127.0.0.1:{PUERTO}"
 TITULO = "Sala de diseño"
 
@@ -49,6 +50,7 @@ def preparar_entorno():
     datos.mkdir(exist_ok=True)
     os.environ["DISENO_DATOS"] = str(datos)
     os.environ["DISENO_VENTANA"] = "1"  # la sala se apaga sola cuando se cierra su ventana
+    os.environ["DISENO_PUERTO"] = str(PUERTO)  # el servidor usa el mismo puerto que este lanzador
     if getattr(sys, "frozen", False):  # solo el .exe se actualiza solo; en desarrollo se usa git pull
         os.environ["DISENO_LANZADOR"] = LANZADOR_VERSION
     return app, datos
@@ -57,6 +59,15 @@ def preparar_entorno():
 def en_uso():
     with socket.socket() as s:
         return s.connect_ex(("127.0.0.1", PUERTO)) == 0
+
+
+def es_la_sala():
+    """¿Lo que responde en el puerto es la Sala de diseño? (si es otro programa, no se abre su ventana)."""
+    try:
+        with urllib.request.urlopen(URL + "/", timeout=5) as r:
+            return f"<title>{TITULO}" in r.read(4000).decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def sin_ventanas_de_consola():
@@ -175,6 +186,10 @@ def main():
         consola_para_errores()
     salida_a_log(datos)
     if en_uso():  # ya estaba abierta: solo otra ventana
+        if not es_la_sala():
+            mensaje(f"Otro programa está usando el puerto {PUERTO} de esta PC, así que la Sala de diseño no puede abrir.\n"
+                    "Cierra ese programa (o reinicia la PC) y vuelve a abrir la sala.")
+            return
         if not ventana_propia(datos, sys.stderr):
             abrir_ventana(datos)
         return

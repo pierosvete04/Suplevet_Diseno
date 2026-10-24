@@ -37,7 +37,7 @@ la PC (`%LOCALAPPDATA%\Salas`), nunca en Drive.
 ## Desarrollo
 
 ```
-python servidor.py --puerto 8766
+python servidor.py --puerto 8767
 ```
 
 Publicar una versión: sube `VERSION`, escribe `NOTAS_VERSION.md`, haz commit y sube el tag `vX.Y.Z`.
