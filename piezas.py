@@ -272,7 +272,9 @@ def crear_desde_pedido(texto, resultado, rel=None, video=""):
         tipo = "post" if p.get("tipo") == "post" or len(laminas) == 1 else "carrusel"
         pid, datos = nueva(p.get("titulo") or "Pieza", tipo=tipo, laminas=max(1, len(laminas)), dia=p.get("dia", ""), rel=rel,
                            nivel=p.get("nivel", ""), publico=p.get("publico", ""), estilo=p.get("estilo", ""), formato=p.get("formato", "4:5"),
-                           origen="video" if video else "pedido")
+                           origen="guion" if p.get("fuente") else "video" if video else "pedido")
+        if p.get("fuente"):  # de qué guion y cuerpo de la Sala de edición salió («Cuerpos de los guiones»)
+            datos["fuente"] = p["fuente"]
         datos["guion"] = {"laminas": laminas, "copy": p.get("copy", "")}
         datos["copy"] = p.get("copy", "")
         datos["pedido"] = texto.strip()[:500]
@@ -536,7 +538,7 @@ def biblioteca():
             out.append({"rel": s["rel"], "mes": s["mes"], "semana": s["semana"], "id": c.name, "titulo": p.get("titulo", c.name),
                         "tipo": p.get("tipo", "carrusel"), "formato": p.get("formato", "4:5"), "dia": dia, "fecha": fecha,
                         "nivel": p.get("nivel", ""), "publico": p.get("publico", ""), "estilo": p.get("estilo", ""),
-                        "laminas": len(laminas), "exportado": bool(finales), "miniatura": mini, "origen": origen,
+                        "laminas": len(laminas), "exportado": bool(finales), "miniatura": mini, "origen": origen, "fuente": p.get("fuente"),
                         "actualizado": p.get("actualizado", ""), "por": p.get("por", ""), "pedido": p.get("pedido", ""),
                         "con_textos": _con_textos(p), "con_fotos": any(_con_foto(l, c) for l in laminas),
                         "laminas_con_foto": sum(1 for l in laminas if _con_foto(l, c)),

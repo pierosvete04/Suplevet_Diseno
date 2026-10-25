@@ -20,6 +20,7 @@ import asistente
 import conexion
 import cuenta
 import gemini
+import guiones
 import importar_marca
 import marca
 import nucleo
@@ -184,6 +185,8 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/archivo":  # miniatura o lámina exportada de cualquier semana
                 ruta = piezas.archivo(q["rel"][0], q["id"][0], q["f"][0])
                 self._archivo(ruta.parent, ruta.name)
+            elif u.path == "/api/guiones":  # los cuerpos de los guiones de la Sala de edición (solo lectura)
+                self._json({"guiones": guiones.listar(forzar="forzar" in q), "actualizando": guiones.actualizando()})
             elif u.path == "/api/videos":  # los videos terminados de la Sala de edición (solo lectura)
                 self._json({"videos": videos_edicion.listar(forzar="forzar" in q), "producciones": videos_edicion.producciones(),
                             "actualizando": videos_edicion.actualizando()})
@@ -193,6 +196,7 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/estado":
                 piezas.sincronizar()
                 videos_edicion.precalentar()  # la lista de videos se pide ya, por detrás, para que la pestaña Videos abra al instante
+                guiones.precalentar()  # y los guiones, para «Crear con IA → Cuerpos de los guiones»
                 self._json(estado())
             elif u.path == "/api/pieza":
                 pid = q["id"][0]
@@ -313,6 +317,11 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/pedido":  # un pedido libre: Claude decide las piezas y la sala las crea en la semana
                 b = self._cuerpo()
                 texto = str(b.get("texto", "")).strip()[:8000]
+                cuerpos = guiones.elegidos(b.get("cuerpos") or [])[:12]  # «Cuerpos de los guiones»: un carrusel por cada uno
+                if b.get("cuerpos") and not cuerpos:
+                    raise ValueError("No encontré esos cuerpos en los guiones de Drive. Toca «Actualizar» en la lista y vuelve a elegirlos.")
+                if cuerpos and len(texto) < 5:
+                    texto = f"Un carrusel por cada uno de los {len(cuerpos)} cuerpos elegidos de los guiones."
                 if len(texto) < 5:
                     raise ValueError("Escribe qué quieres que se haga")
                 videos = piezas.videos_de_la_semana() if b.get("videos") else None
@@ -327,7 +336,7 @@ class H(BaseHTTPRequestHandler):
                     if ruta_video:
                         av("Leyendo el video de referencia y su guion…")
                         referencia = videos_edicion.contexto(ruta_video)
-                    r = asistente.resolver_pedido(texto, datos_marca, semana, videos, av, referencia=referencia, disenos=disenos)
+                    r = asistente.resolver_pedido(texto, datos_marca, semana, videos, av, referencia=referencia, disenos=disenos, cuerpos=cuerpos)
                     hechas = piezas.crear_desde_pedido(texto, r, semana, video=ruta_video)
                     piezas.subir()
                     return {"piezas": hechas}

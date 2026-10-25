@@ -384,7 +384,27 @@ def respetar_disenos(laminas, elegidos):
     return laminas
 
 
-def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referencia=None, disenos=None):
+def _de_los_guiones(cuerpos):
+    """La parte del pedido para «Cuerpos de los guiones»: un carrusel por cuerpo, con su mensaje y sus hooks."""
+    if not cuerpos:
+        return ""
+    datos = [{"n": i + 1, "produccion": c["produccion"], "cuerpo": c["id"], "publico": c.get("publico") or "dueños de mascotas",
+              "texto_del_cuerpo": c["texto"], "hooks": c.get("hooks", [])[:5], "ctas": c.get("ctas", [])[:3]} for i, c in enumerate(cuerpos)]
+    return f"""
+Cuerpos de los guiones de la Sala de edición que eligió el equipo. Haz EXACTAMENTE {len(cuerpos)} carruseles: uno por cada
+cuerpo, en este mismo orden (la pieza 1 es del cuerpo n=1, y así).
+- Cada carrusel lleva de 5 a 7 láminas y cuenta el mensaje de SU cuerpo, partido en una idea por lámina. No inventes datos
+  ni ingredientes: usa solo lo que dice el cuerpo, con palabras simples.
+- La portada sale de uno de sus hooks: tómalo y acórtalo a 8 palabras como máximo (que enganche, no copies el hook entero).
+  Usa un hook distinto en cada carrusel.
+- El título de la pieza dice su tema en pocas palabras (no repitas el mismo título entre piezas).
+- Si el público son veterinarios: «publico» es «veterinarios», el tono es de colega a colega (B2B) y el CTA invita a escribir
+  por WhatsApp o a agendar una visita (usa sus «ctas»). Si no, el público son dueños de mascotas.
+- El nivel: TOFU si el cuerpo explica un problema, MOFU si compara o muestra cómo funciona, BOFU si invita a comprar o pedir.
+{json.dumps(datos, ensure_ascii=False)[:30000]}"""
+
+
+def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referencia=None, disenos=None, cuerpos=None):
     """Un pedido libre («3 posts 1:1 sobre omega 3», «una historia 9:16 con esto: …») -> las piezas a crear.
     videos: los ángulos de los videos de la semana (del brief), para que las piezas los acompañen.
     disenos: los que se marcaron en «Diseños» ({portada: [...], interna: [...], cta: [...]}); en lo que no se marcó, elige la IA.
@@ -401,6 +421,7 @@ def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referenc
         base += ("\nVideo de referencia hecho en la Sala de edición: las piezas llevan ESTE mensaje a post o carrusel "
                  "(si el guion trae varios cuerpos, usa el que corresponde al nombre del video):\n"
                  + json.dumps(referencia, ensure_ascii=False)[:24000])
+    base += _de_los_guiones(cuerpos)
     prompt = f"""Eres diseñador de contenido para redes. Este es el pedido del equipo, tal cual lo escribió:
 ---
 {texto.strip()}
@@ -438,4 +459,9 @@ Responde SOLO con JSON, sin texto antes ni después:
             p["laminas"] = con_cta(p.get("laminas", []), marca)
         if elegidos:  # aunque la IA se salga de lo elegido, cada lámina queda con uno de los diseños marcados
             respetar_disenos(p.get("laminas") or [], elegidos)
+    if cuerpos:  # cada pieza sabe de qué guion y cuerpo salió (la pieza n es del cuerpo n)
+        for p, c in zip(datos["piezas"], cuerpos):
+            p["fuente"] = {"produccion": c["produccion"], "ruta": c["ruta"], "cuerpo": c["id"]}
+        if len(datos["piezas"]) != len(cuerpos):
+            avance(f"Ojo: se pidieron {len(cuerpos)} carruseles y la IA armó {len(datos['piezas'])}.")
     return datos

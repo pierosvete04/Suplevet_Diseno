@@ -237,6 +237,16 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .mas-filtros summary { cursor: pointer; color: var(--muted); font-weight: 600; width: max-content; }
 .mas-filtros[open] summary { margin-bottom: 8px; }
 .mas-filtros .filtros { margin: 0; }
+/* Crear con IA → Cuerpos de los guiones: cada producción con sus cuerpos para marcar */
+.cuerpos { margin-top: 8px; border: 1px solid var(--line2); border-radius: 12px; padding: 10px 12px; background: var(--surface); display: grid; gap: 10px; max-height: 420px; overflow: auto; }
+.cuerpos .cab { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.cuerpos details summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.cuerpos details summary small { font-weight: 400; color: var(--muted); }
+.cuerpo-op { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: start; padding: 8px 10px; margin-top: 6px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.cuerpo-op:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.cuerpo-op input { margin-top: 3px; }
+.cuerpo-op b { font-size: 12.5px; } .cuerpo-op p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink); }
+.cuerpo-op small { grid-column: 2; color: var(--muted); font-size: 11.5px; }
 /* Crear con IA: los diseños con su vista previa, para marcar los que se quieren */
 .dis-grupos { display: grid; gap: 12px; }
 .dis-grupo > b { display: block; font-size: 12.5px; margin-bottom: 6px; }
@@ -404,8 +414,10 @@ main { display: flex; flex-direction: column; overflow: hidden; }
         <label class="fila"><input type="radio" name="crRef" value="" checked> Nada</label>
         <label class="fila" id="crRefSemana"><input type="radio" name="crRef" value="semana"> Los videos de esta semana (brief)<small class="muted" id="crSinBrief" hidden>· esta semana no tiene brief</small></label>
         <label class="fila"><input type="radio" name="crRef" value="video"> Un video de la Sala de edición</label>
+        <label class="fila"><input type="radio" name="crRef" value="cuerpos"> Cuerpos de los guiones <small class="muted">(un carrusel por cada uno)</small></label>
       </div>
       <div id="crVideo"></div>
+      <div id="crCuerpos" class="cuerpos" hidden></div>
       <div class="fila" style="margin-top:16px;justify-content:space-between"><p class="etq" style="margin:0">Diseños</p>
         <button class="btn-link" type="button" id="crDisLimpiar" hidden>Quitar lo marcado</button></div>
       <p class="muted" style="margin:4px 0 8px;font-size:12.5px">Marca los que quieras (puedes marcar varios). En la fila que no marques nada, la IA elige.</p>
@@ -2175,7 +2187,8 @@ $("pestanas").addEventListener("keydown", e => {
   e.preventDefault();
   const b = bs[(k + bs.length) % bs.length]; b.focus(); irA(b.dataset.vista);
 });
-const ORIGEN = { brief: "Del brief", pedido: "De un pedido", video: "De un video", mano: "Hecha a mano" };
+const ORIGEN = { brief: "Del brief", pedido: "De un pedido", video: "De un video", mano: "Hecha a mano", guion: "De un guion" };
+const origenDe = p => p.origen === "guion" && p.fuente ? `Guion ${p.fuente.produccion.split(" ")[0]} · ${p.fuente.cuerpo}` : ORIGEN[p.origen] || ORIGEN.mano;
 const INSIGNIA = { escribir: "", fotos: "warn", lista: "ahora", exportada: "ok" };
 // la tarjeta dice en qué paso va (barrita de 3: textos, fotos, exportar) y trae el botón del paso que sigue
 function ficha(p) {
@@ -2196,7 +2209,7 @@ function ficha(p) {
   return `<div class="ficha paso-${paso}" data-rel="${esc(p.rel)}" data-id="${esc(p.id)}">
     <button class="ficha-abrir" data-abrir-rel="${esc(p.rel)}" data-abrir-id="${esc(p.id)}">
       <div class="mini" style="aspect-ratio:${proporcion(p.formato)}">${mini}<span class="chip">${etiquetaTipo(p)} · ${esc(p.formato)}</span></div>
-      <div class="info"><b>${esc(p.titulo)}</b><small>${p.dia && DIAS_C[p.dia] ? DIAS_C[p.dia] + " " + fechaCorta(p.fecha) : "Sin día"} · ${esc(cod)} · ${ORIGEN[p.origen] || ORIGEN.mano}</small>
+      <div class="info"><b>${esc(p.titulo)}</b><small>${p.dia && DIAS_C[p.dia] ? DIAS_C[p.dia] + " " + fechaCorta(p.fecha) : "Sin día"} · ${esc(cod)} · ${esc(origenDe(p))}</small>
         <div class="insignias">${p.nivel ? `<span class="insignia">${esc(p.nivel)}</span>` : ""}<span class="insignia ${INSIGNIA[paso]}">${ESTADOS[paso]}</span></div></div></button>
     <div class="ficha-pie"><ol class="pasos" aria-label="Pasos: textos, fotos y exportar">${pasos}</ol>${boton}</div></div>`;
 }
@@ -2357,19 +2370,56 @@ function pintarCrear() {
   $("crVideo").innerHTML = sel !== "video" ? "" : refVideo
     ? `<div class="refvideo"><img src="/video_mini?ruta=${encodeURIComponent(refVideo.ruta)}" alt=""><div><b>${esc(refVideo.nombre)}</b><br><small class="muted">${esc(refVideo.sesion)}</small></div><span style="flex:1"></span><button class="btn sec chico" data-ir="videos">Cambiar</button></div>`
     : `<div class="refvideo"><span class="muted">Elige el video en la pestaña Videos.</span><span style="flex:1"></span><button class="btn sec chico" data-ir="videos">Elegir video</button></div>`;
+  $("crCuerpos").hidden = sel !== "cuerpos";
+  if (sel === "cuerpos") cargarCuerpos();
   if (BIB) $("crHistorial").innerHTML = historialPedidos(12);
   else api("/api/biblioteca").then(b => { BIB = b; $("crHistorial").innerHTML = historialPedidos(12); }).catch(() => {});
 }
+// «Cuerpos de los guiones»: los cuerpos de cada guion de la Sala de edición, para marcar; sale un carrusel por cada uno
+let GUIONES = null;
+const CUERPOS_SEL = new Set();  // «ruta|id» de los marcados (se mantienen aunque la lista se vuelva a pintar)
+async function cargarCuerpos(forzar) {
+  if (!GUIONES || forzar) {
+    $("crCuerpos").innerHTML = '<p class="muted" style="margin:0">Leyendo los guiones de la Sala de edición en Drive…</p>';
+    try { const r = await api("/api/guiones" + (forzar ? "?forzar=1" : "")); GUIONES = r.guiones || []; }
+    catch (e) { $("crCuerpos").innerHTML = `<p class="muted" style="margin:0">${esc(e.message)}</p>`; return; }
+  }
+  const corto = (s, n) => s.length > n ? s.slice(0, n).replace(/\s+\S*$/, "") + "…" : s;
+  $("crCuerpos").innerHTML = `<div class="cab"><b id="crCuerposN"></b><span class="fila"><button class="btn-link" type="button" id="crCuerposNinguno">Desmarcar todo</button>
+      <button class="btn sec chico" type="button" id="crCuerposAct">Actualizar</button></span></div>`
+    + (GUIONES.length ? GUIONES.map(g => `<details open><summary>${esc(g.sesion || g.produccion)} <small>· ${plural(g.cuerpos.length, "cuerpo")}${/vet/i.test(g.publico) ? " · para veterinarios" : ""}</small></summary>
+      ${g.cuerpos.map(c => `<label class="cuerpo-op"><input type="checkbox" data-cuerpo="${esc(g.ruta + "|" + c.id)}" ${CUERPOS_SEL.has(g.ruta + "|" + c.id) ? "checked" : ""}>
+        <span><b>${esc(c.id)}</b><p>${esc(corto(c.texto, 190))}</p></span>
+        <small>${c.hooks.length ? `${plural(c.hooks.length, "hook")} · «${esc(corto(c.hooks[0], 80))}»` : "sin hooks"}</small></label>`).join("")}</details>`).join("")
+      : '<p class="muted" style="margin:0">No encontré guiones en Drive. La Sala de edición los guarda en <code>&lt;producción&gt;/Guion/produccion.json</code>.</p>');
+  contarCuerpos();
+}
+function contarCuerpos() {
+  const n = CUERPOS_SEL.size;
+  if ($("crCuerposN")) $("crCuerposN").textContent = n ? `${plural(n, "cuerpo elegido", "cuerpos elegidos")} → ${plural(n, "carrusel", "carruseles")}` : "Marca los cuerpos (máximo 12)";
+}
+$("crCuerpos").addEventListener("change", e => {
+  const c = e.target.closest("[data-cuerpo]"); if (!c) return;
+  if (c.checked && CUERPOS_SEL.size >= 12) { c.checked = false; return avisar("Como máximo 12 cuerpos por pedido", "err"); }
+  c.checked ? CUERPOS_SEL.add(c.dataset.cuerpo) : CUERPOS_SEL.delete(c.dataset.cuerpo); contarCuerpos();
+});
+$("crCuerpos").addEventListener("click", e => {
+  if (e.target.id === "crCuerposAct") cargarCuerpos(true);
+  if (e.target.id === "crCuerposNinguno") { CUERPOS_SEL.clear(); $("crCuerpos").querySelectorAll("[data-cuerpo]").forEach(c => c.checked = false); contarCuerpos(); }
+});
 document.querySelectorAll('input[name="crRef"]').forEach(r => r.addEventListener("change", pintarCrear));
 $("crPedir").onclick = async () => {
   const texto = $("crTexto").value.trim();
-  if (texto.length < 5) { $("crTexto").focus(); return avisar("Escribe qué quieres que haga la IA (al menos 5 letras)", "err"); }
   const sel = document.querySelector('input[name="crRef"]:checked').value;
+  const cuerpos = sel === "cuerpos" ? [...CUERPOS_SEL].map(k => { const i = k.lastIndexOf("|"); return { ruta: k.slice(0, i), id: k.slice(i + 1) }; }) : [];
+  if (sel === "cuerpos" && !cuerpos.length) return avisar("Marca al menos un cuerpo de los guiones", "err");
+  // con cuerpos elegidos, el texto es opcional (sirve para pedir algo más: un día, un formato…)
+  if (!cuerpos.length && texto.length < 5) { $("crTexto").focus(); return avisar("Escribe qué quieres que haga la IA (al menos 5 letras)", "err"); }
   if (sel === "video" && !refVideo) return avisar("Elige primero el video de referencia", "err");
   if (sel === "semana" && ESTADO.tiene_brief === false) return avisar("Esta semana no tiene brief: elige «Nada» o un video de la Sala de edición", "err");
   $("crPedir").disabled = true;
   try {
-    await api("/api/pedido", { texto, videos: sel === "semana", video: sel === "video" ? refVideo.ruta : "", disenos: disenosElegidos() });
+    await api("/api/pedido", { texto, videos: sel === "semana", video: sel === "video" ? refVideo.ruta : "", disenos: disenosElegidos(), cuerpos });
     await terminarPedido(await esperarTrabajo("crEstado"));
   } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
   $("crPedir").disabled = false;

@@ -1,3 +1,8 @@
+Versión 0.16.0:
+- **Piezas desde los guiones de la Sala de edición**: en «✦ Crear con IA → Usar como referencia», la opción nueva **«Cuerpos de los guiones»** muestra cada producción (P02, P03, P04…) con sus cuerpos, su texto y su primer hook. Marca los que quieras (hasta 12) y sale **un carrusel por cada cuerpo**: la portada sale de uno de sus hooks, el contenido es el del cuerpo (sin inventar datos) y, si la producción es para veterinarios, va en tono B2B con su CTA de WhatsApp o visita.
+- El texto del pedido es opcional cuando eliges cuerpos (sirve para pedir algo más: un día, un formato, un tono).
+- Cada pieza queda marcada «De un guion» y la tarjeta dice de cuál: «Guion P04 · C3».
+- Los guiones se leen de Drive solo para leer, al abrir la sala y por detrás, y quedan guardados en esta PC: la lista sale al instante. Si un guion está copiado en dos carpetas, sale una sola vez.
 Versión 0.15.0:
 - **Dos diseños nuevos**: «Tapa de revista» (portada: la marca enorme detrás del animal, titulares a los costados, el título abajo y un sticker «Especial» con el tema de la semana) y «Mensajes» (portada o interna: burbujas de chat azules alrededor del animal, para testimonios o preguntas de dueños). Ya son 23.
 - **Crear con IA → «Diseños»**: todos los diseños con su vista previa (con tus colores, tu tipografía y tu bolsa), en tres filas: Portada, Láminas internas y CTA. Marca los que quieras (varios por fila); en la fila que no marques nada, la IA elige.
