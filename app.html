@@ -321,6 +321,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <div class="franja" id="iniFranja" hidden>
     <p id="iniFranjaTexto"></p>
     <div class="fila"><button class="btn btn-ia" type="button" id="iniEscribirTodas"></button>
+      <button class="btn btn-ia" type="button" id="iniGenerarFotos" data-ocupado="Generando fotos…" hidden></button>
       <button class="btn sec chico" type="button" id="iniCancelar" hidden>Cancelar</button></div>
     <p class="muted" id="iniEstado" role="status" style="flex-basis:100%;margin:0" hidden></p>
   </div>
@@ -491,9 +492,12 @@ main { display: flex; flex-direction: column; overflow: hidden; }
         <button class="btn chico" id="btnNuevo">+ Nueva</button>
       </div>
     </div>
-    <div>
+    <div id="cajaFotos">
       <p class="etq">Fotos (de Flow)</p>
       <p class="muted" id="fotosCuenta" style="margin:0 0 6px"></p>
+      <div class="fila" style="margin-bottom:6px"><button class="btn btn-ia" type="button" id="btnFotosIA" data-ocupado="Generando fotos…" style="flex:1" title="La IA abre Google Flow con tu cuenta, genera las fotos que faltan con el prompt de cada lámina y las pone en su lugar">✦ Generar fotos con IA</button>
+        <button class="btn sec chico" type="button" id="fotosCancelar" hidden>Cancelar</button></div>
+      <p class="muted" id="fotosEstado" role="status" style="margin:0 0 6px" hidden></p>
       <label class="soltar" id="soltar">Arrastra aquí las fotos de Flow o toca para elegirlas
         <input type="file" id="archivo" accept="image/png,image/jpeg,image/webp" multiple hidden>
       </label>
@@ -594,10 +598,13 @@ let lista = [], marca = [], C = null, cid = null, imgs = [], actual = 0, sel = n
 const cache = new Map();
 function imagen(src) {
   const url = src.tipo === "marca" ? `/marca/${src.f.split("/").map(encodeURIComponent).join("/")}` : `/img?id=${encodeURIComponent(cid)}&f=${encodeURIComponent(src.f)}`;
-  if (!cache.has(url)) {
+  // una foto que no estaba (la IA la anotó antes de generarla) se vuelve a pedir cuando llega a la carpeta Flow
+  const vieja = cache.get(url), reintentar = vieja?.fallo && src.tipo === "img" && imgs.includes(src.f) && Date.now() - vieja.fallo > 3000;
+  if (!vieja || reintentar) {
     const im = new Image();
     im.onload = () => { pintar(); pintarTira(); };
-    im.src = url;
+    im.onerror = () => { im.fallo = Date.now(); };
+    im.src = url + (reintentar ? `&v=${Date.now()}` : "");
     cache.set(url, im);
   }
   const im = cache.get(url);
@@ -927,7 +934,7 @@ async function hacerMiniatura() {  // la lámina 1 en chico, para la biblioteca 
   if (!C) return;
   const pieza = C, id = cid;
   try {
-    await esperarImagenes();
+    await esperarImagenes([pieza.laminas[0]]);  // la miniatura es la lámina 1: no espera fotos que falten en las otras
     const cv = document.createElement("canvas"); cv.width = 360; cv.height = Math.round(360 * H / W);
     const cx = cv.getContext("2d"); cx.scale(360 / W, 360 / W); dibujarLamina(cx, pieza.laminas[0], false);
     const b = await new Promise(ok => cv.toBlob(ok, "image/png"));
@@ -952,8 +959,10 @@ function pasoDe(p) {  // p: lo que manda el servidor (o resumenAbierta)
 }
 // la lámina tiene una foto puesta (de Flow o del producto); «Foto de fondo» sin foto elegida no cuenta, y tampoco
 // el nombre de una foto que la IA anotó pero que aún no se generó en Flow (no está en la carpeta Flow de la pieza)
+// (una lámina con el producto pero sin la foto de Flow que espera tampoco está completa)
 const fotoEsta = s => !!s && (s.tipo === "marca" ? marca.includes(s.f) : imgs.includes(s.f));
-const conFoto = l => l.capas.some(c => c.tipo === "imagen" && fotoEsta(c.src)) || (l.fondo.tipo === "imagen" && fotoEsta(l.fondo.src));
+const fotosDe = l => [...(l.fondo.tipo === "imagen" && l.fondo.src ? [l.fondo.src] : []), ...l.capas.filter(c => c.tipo === "imagen").map(c => c.src)];
+const conFoto = l => { const fs = fotosDe(l); return fs.some(fotoEsta) && !fs.some(s => s.tipo === "img" && !fotoEsta(s)); };
 function resumenAbierta() {  // lo mismo que manda el servidor, pero de la pieza abierta (cambia mientras se edita)
   return { exportado: !!lista.find(x => x.id === cid)?.exportado, laminas: C.laminas.length, laminas_con_foto: C.laminas.filter(conFoto).length,
     con_textos: !!C.guion?.laminas?.length || C.laminas.some(l => l.capas.some(c => c.tipo === "texto" && (c.texto || "").trim())) };
@@ -984,7 +993,12 @@ function pintarGuia() {
   $("btnClaude").classList.toggle("sec", paso !== "escribir");
   $("btnExportar").classList.toggle("sec", paso !== "lista");
   $("cajaIA").classList.toggle("primero", paso === "escribir");
-  $("soltar").classList.toggle("toca", paso === "fotos");
+  // «✦ Generar fotos con IA»: las láminas sin foto que tienen su prompt de Flow (si no hay ninguna, se sube a mano)
+  const conPrompt = C.laminas.filter((l, i) => !conFoto(l) && C.guion?.laminas?.[i]?.flow).length;
+  $("btnFotosIA").hidden = !conPrompt && $("cajaFotos").getAttribute("aria-busy") !== "true";
+  if ($("cajaFotos").getAttribute("aria-busy") !== "true") $("btnFotosIA").textContent = conPrompt === 1 ? "✦ Generar la foto con IA" : `✦ Generar las ${conPrompt} fotos con IA`;
+  $("btnFotosIA").classList.toggle("sec", paso !== "fotos");
+  $("soltar").classList.toggle("toca", paso === "fotos" && !conPrompt);
   const ahora = pasoDe(r);
   if (ahora !== pasoAbierta) { pasoAbierta = ahora; pintarLista(); }
 }
@@ -1065,7 +1079,8 @@ async function subirALamina(archivo, i) {  // la foto soltada sobre una lámina 
 }
 function ponerEnLamina(i, f) {  // de fondo si la lámina es de «Foto de fondo»; si no, cambia su foto o agrega una
   actual = i; sel = null;
-  const l = C.laminas[i], src = { tipo: "img", f }, vieja = l.capas.find(c => c.tipo === "imagen" && c.src.tipo === "img");
+  const l = C.laminas[i], src = { tipo: "img", f }, deFlow = c => c.tipo === "imagen" && c.src.tipo === "img";
+  const vieja = l.capas.find(c => deFlow(c) && !fotoEsta(c.src)) || l.capas.find(deFlow);  // primero la que la lámina espera y falta
   if (l.fondo.tipo === "imagen") cambio(() => l.fondo.src = src);
   else if (vieja) cambio(() => vieja.src = src);
   else {  // la foto nueva va debajo de los textos, para no taparlos
@@ -1156,6 +1171,19 @@ async function abrir(id) {
   try { localStorage.setItem("pieza_abierta", id); } catch (e) {}
   todo();
   if (C.guion?.laminas?.length && C.laminas.every(l => !l.capas.length)) aplicarGuion();
+  recorteEnCurso = recortarPendientes();
+}
+let recorteEnCurso = Promise.resolve();
+// las fotos que la lámina espera sin fondo («C05_N2_sinfondo.png») y que llegaron con fondo («C05_N2.jpg») se recortan solas
+async function recortarPendientes() {
+  const quiere = new Set(C.laminas.flatMap(l => [l.fondo.src, ...l.capas.filter(c => c.tipo === "imagen").map(c => c.src)])
+    .filter(s => s?.tipo === "img" && /_sinfondo\.png$/.test(s.f) && !imgs.includes(s.f)).map(s => s.f.replace(/_sinfondo\.png$/, "")));
+  const id = cid;
+  for (const base of quiere) {
+    const original = imgs.find(f => f.replace(/\.[^.]+$/, "") === base);
+    if (!original || cid !== id) continue;
+    try { await quitarFondo(original); } catch (e) { avisar(`No pude quitarle el fondo a ${original}: ${e.message}`, "err"); }
+  }
 }
 
 // ---------- Claude ----------
@@ -1167,13 +1195,13 @@ function pintarGuion() {
       + `<button class="btn chico" id="btnAplicar" style="margin-top:8px">Poner estos textos en las láminas</button>` : "";
 }
 // dónde se ve que la IA trabaja: la caja que gira y su «Cancelar»
-const ZONAS_IA = { clEstado: ["cajaIA", "clCancelar"], crEstado: ["v-crear", "crCancelar"], iniEstado: ["iniFranja", "iniCancelar"] };
+const ZONAS_IA = { clEstado: ["cajaIA", "clCancelar"], crEstado: ["v-crear", "crCancelar"], iniEstado: ["iniFranja", "iniCancelar"], fotosEstado: ["cajaFotos", "fotosCancelar"] };
 function ocuparZona(donde, si) {
   const [zona, cancelar] = ZONAS_IA[donde] || [];
   if (!zona) return;
   $(zona).setAttribute("aria-busy", si); $(cancelar).hidden = !si;
   $(zona).querySelectorAll(".btn-ia").forEach(b => {
-    if (si) { b.dataset.texto ??= b.textContent; b.textContent = "Escribiendo…"; }
+    if (si) { b.dataset.texto ??= b.textContent; b.textContent = b.dataset.ocupado || "Escribiendo…"; }
     else if (b.dataset.texto !== undefined) { b.textContent = b.dataset.texto; delete b.dataset.texto; }
   });
 }
@@ -1193,7 +1221,7 @@ async function esperarTrabajo(donde = "clEstado", antes = "") {
     }
   } finally { pintarGemini(null); ocuparZona(donde, false); $("tira").classList.remove("escribiendo"); }
 }
-["clCancelar", "crCancelar", "iniCancelar"].forEach(id => $(id).onclick = async () => {
+["clCancelar", "crCancelar", "iniCancelar", "fotosCancelar"].forEach(id => $(id).onclick = async () => {
   if (id === "iniCancelar") escribiendoTodas = false;  // también para la fila: no sigue con las que faltan
   try { await api("/api/cancelar", {}); } catch (e) { avisar(e.message, "err"); }
 });
@@ -1328,8 +1356,8 @@ function aplicarGuion() {
 }
 
 // ---------- Exportar ----------
-async function esperarImagenes() {  // ninguna lámina sale sin sus fotos
-  const srcs = C.laminas.flatMap(l => [l.fondo.tipo === "imagen" && l.fondo.src, ...l.capas.filter(c => c.tipo === "imagen").map(c => c.src)]).filter(Boolean);
+async function esperarImagenes(laminas = C.laminas) {  // ninguna lámina sale sin sus fotos
+  const srcs = laminas.flatMap(l => [l.fondo.tipo === "imagen" && l.fondo.src, ...l.capas.filter(c => c.tipo === "imagen").map(c => c.src)]).filter(Boolean);
   srcs.forEach(imagen);
   await Promise.all([...cache.values()].map(im => im.complete ? null : new Promise(ok => { im.addEventListener("load", ok, { once: true }); im.addEventListener("error", ok, { once: true }); })));
   const falta = srcs.find(s => !imagen(s));
@@ -1787,6 +1815,8 @@ function ficha(p) {
     : `<div class="marcador">${esc(p.titulo)}</div>`;
   const fotos = `${p.laminas_con_foto ?? 0} de ${p.laminas}`;
   const boton = paso === "escribir" ? `<button class="btn chico" data-paso="escribir">✦ Escribir con IA</button>`
+    : paso === "fotos" && p.faltan_con_prompt ? `<div class="fila"><button class="btn chico" data-paso="generar" title="La IA las genera en Google Flow con tu cuenta y las pone en su lámina">✦ Generar fotos con IA</button>
+        <button class="btn sec chico" data-paso="fotos" title="Subir tú las fotos (${fotos} listas)">Subir a mano</button></div>`
     : paso === "fotos" ? `<button class="btn chico" data-paso="fotos">Poner fotos (${fotos})</button>`
     : paso === "lista" ? `<button class="btn chico" data-paso="exportar">Exportar</button>`
     : `<span class="listo">✓ Ya está en el Publicador</span>`;
@@ -1805,6 +1835,7 @@ async function abrirDesdeFicha(rel, id, paso) {
     if (rel !== semana) { await api("/api/semana", { accion: "elegir", rel }); await cargarLista(); }
     await abrir(id); irA("editor");
     if (paso === "escribir") { resaltar($("cajaIA")); escribirConClaude(); }
+    else if (paso === "generar") { resaltar($("cajaFotos")); generarFotos([id]); }
     else if (paso === "fotos") { resaltar($("soltar")); $("soltar").focus?.(); }
     else if (paso === "exportar") { resaltar($("btnExportar")); $("btnExportar").focus(); }
   } catch (e) { avisar(e.message, "err"); }
@@ -1860,14 +1891,20 @@ async function pintarInicio() {
     .map(([t, v]) => `<div class="cifra"><b>${v}</b><span class="muted">${t}</span></div>`).join("");
   // la franja: de dónde salieron las piezas (el brief de la estrategia) y el botón para escribir todas las que faltan
   const delBrief = deSemana.filter(p => p.origen === "brief").length, porEscribir = n("escribir");
-  $("iniFranja").hidden = !delBrief && !porEscribir && !escribiendoTodas;
+  const paraFotos = deSemana.filter(p => pasoDe(p) === "fotos" && p.faltan_con_prompt).length, ocupado = escribiendoTodas || generandoFotos;
+  $("iniFranja").hidden = !delBrief && !porEscribir && !paraFotos && !ocupado;
   $("iniFranjaTexto").innerHTML = (delBrief ? `<b>La estrategia dejó ${plural(delBrief, "pieza", "piezas")} en el brief de la ${esc(semana.split("/")[1]?.split(" · ")[0] || "semana")}</b> y la sala las creó sola, una por día, con su tema, nivel y estilo. ` : "")
     + (porEscribir === 1 ? "Falta escribir 1: la IA le pone los textos y los prompts de Flow."
-      : porEscribir ? `Faltan escribir ${porEscribir}: la IA les pone los textos y los prompts de Flow.` : "Todas ya tienen textos: sigue con las fotos de Flow.");
-  if (!escribiendoTodas) {
+      : porEscribir ? `Faltan escribir ${porEscribir}: la IA les pone los textos y los prompts de Flow.` : "Todas ya tienen textos: sigue con las fotos de Flow.")
+    + (paraFotos ? ` ${paraFotos === 1 ? "A 1 pieza le faltan" : `A ${paraFotos} piezas les faltan`} fotos: la IA las genera en Google Flow con tu cuenta y las pone en su lámina.` : "");
+  if (!ocupado) {
     $("iniEscribirTodas").hidden = !porEscribir;
     $("iniEscribirTodas").textContent = porEscribir === 1 ? "✦ Escribirla con IA" : `✦ Escribir las ${porEscribir} con IA`;
+    $("iniGenerarFotos").hidden = !paraFotos;
+    $("iniGenerarFotos").textContent = paraFotos === 1 ? "✦ Generar sus fotos con IA" : `✦ Generar las fotos de las ${paraFotos} con IA`;
+    $("iniGenerarFotos").classList.toggle("sec", !!porEscribir);  // un solo botón azul: primero escribir, después fotos
   }
+  $("iniEscribirTodas").disabled = $("iniGenerarFotos").disabled = ocupado;
   $("iniDias").innerHTML = Object.keys(DIAS_C).map(d => `<div class="dia7"><h4>${DIAS_C[d]}</h4>${deSemana.filter(p => p.dia === d).map(p => ficha(p)).join("") || '<p class="muted" style="margin:0">—</p>'}</div>`).join("")
     + (deSemana.some(p => !p.dia) ? `<div class="dia7"><h4>Sin día</h4>${deSemana.filter(p => !p.dia).map(p => ficha(p)).join("")}</div>` : "");
   $("iniPedidos").innerHTML = historialPedidos(5);
@@ -1878,7 +1915,7 @@ let escribiendoTodas = false;
 async function escribirTodas() {
   const ids = (BIB?.piezas || []).filter(p => p.rel === semana && pasoDe(p) === "escribir").map(p => p.id);
   if (!ids.length || escribiendoTodas) return;
-  escribiendoTodas = true; $("iniEscribirTodas").disabled = true;
+  escribiendoTodas = true; $("iniEscribirTodas").disabled = $("iniGenerarFotos").disabled = true;
   let hechas = 0;
   try {
     for (const [k, id] of ids.entries()) {
@@ -1892,10 +1929,45 @@ async function escribirTodas() {
     }
     avisar(`Listo: ${plural(hechas, "pieza escrita", "piezas escritas")}. Ahora genera sus fotos en Flow con los prompts de cada lámina.`);
   } catch (e) { avisar(`IA: ${e.message}${hechas ? ` (${plural(hechas, "quedó escrita", "quedaron escritas")})` : ""}`, "err"); }
-  escribiendoTodas = false; $("iniEscribirTodas").disabled = false; $("iniEstado").hidden = true;
+  escribiendoTodas = false; $("iniEscribirTodas").disabled = $("iniGenerarFotos").disabled = false; $("iniEstado").hidden = true;
   await pintarInicio();
 }
 $("iniEscribirTodas").onclick = escribirTodas;
+// «✦ Generar fotos con IA»: la IA abre Google Flow con tu cuenta (Claude en tu Chrome, o Gemini en Antigravity), genera
+// las fotos que faltan con el prompt de cada lámina y la sala las pone en su lugar. Una pieza (editor) o varias (Inicio).
+let generandoFotos = false;
+async function generarFotos(ids, donde = "fotosEstado") {
+  if (generandoFotos || !ids.length) return;
+  generandoFotos = true; $("iniGenerarFotos").disabled = $("btnFotosIA").disabled = $("iniEscribirTodas").disabled = true;
+  try {
+    await guardarAhora();
+    await api("/api/claude", { accion: "fotos", ids });
+    await terminarFotos(await esperarTrabajo(donde), donde);
+  } catch (e) { $(donde).textContent = "No se pudo: " + e.message; avisar("IA: " + e.message, "err"); }
+  generandoFotos = false; $("iniGenerarFotos").disabled = $("btnFotosIA").disabled = $("iniEscribirTodas").disabled = false;
+  if (vista === "inicio") await pintarInicio();
+  pintarGuia();
+}
+async function terminarFotos(t, donde) {
+  const r = t.resultado || {}, hechos = (r.hechos || []).length, pend = r.pendientes || [];
+  await cargarLista();
+  // las que van sin fondo se recortan aquí (la sala no tiene con qué abrir un JPG por su lado): cada pieza se abre, se recorta y se guarda
+  const abierta = cid, a = actual;
+  for (const pid of (r.piezas || []).filter(x => x !== abierta && lista.some(p => p.id === x))) {
+    $(donde).textContent = `Recortando las fotos sin fondo de «${pid}»…`;
+    await abrir(pid); await recorteEnCurso; await guardarAhora();
+  }
+  if (abierta && lista.some(p => p.id === abierta)) {
+    await abrir(abierta); actual = Math.min(a, C.laminas.length - 1); pintar(); pintarTira();
+    if ((r.piezas || []).includes(abierta)) { $(donde).textContent = "Recortando las fotos sin fondo…"; await recorteEnCurso; await guardarAhora(); }
+  }
+  const msg = r.mensaje || (hechos ? `Listo: ${plural(hechos, "foto puesta", "fotos puestas")} en sus láminas.` : "No llegó ninguna foto.")
+    + (pend.length ? ` Faltaron ${pend.length}: ${pend.map(p => `${p.id} (${p.motivo})`).join("; ")}` : "");
+  $(donde).textContent = msg; $(donde).hidden = false;
+  avisar(msg, pend.length && !hechos ? "err" : "");
+}
+$("btnFotosIA").onclick = () => C ? generarFotos([cid]) : avisar(SIN_PIEZA, "err");
+$("iniGenerarFotos").onclick = () => generarFotos((BIB?.piezas || []).filter(p => p.rel === semana && pasoDe(p) === "fotos" && p.faltan_con_prompt).map(p => p.id), "iniEstado");
 function historialPedidos(max) {
   const ps = (BIB?.pedidos || []).slice(0, max);
   return ps.length ? ps.map(p => `<div class="historial-p"><q>${esc(p.pedido.length > 220 ? p.pedido.slice(0, 220) + "…" : p.pedido)}</q>
@@ -1946,6 +2018,11 @@ async function retomarTrabajo() {
     irA("crear"); $("crPedir").disabled = true; $("crEstado").textContent = t.mensaje || "La IA sigue trabajando en tu pedido…";
     try { await terminarPedido(await esperarTrabajo("crEstado")); } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
     $("crPedir").disabled = false;
+  } else if (t.accion === "fotos") {
+    avisar("La IA sigue generando las fotos que pediste antes de recargar. Espera, no se pierde.");
+    generandoFotos = true;
+    try { await terminarFotos(await esperarTrabajo("fotosEstado"), "fotosEstado"); } catch (e) { avisar("IA: " + e.message, "err"); }
+    generandoFotos = false; pintarGuia();
   } else if (t.accion === "escribir" || t.accion === "rehacer") {
     $("btnClaude").disabled = true; $("clEstado").textContent = t.mensaje || "La IA sigue escribiendo…";
     avisar("La IA sigue trabajando en lo que pediste antes de recargar. Espera, no se pierde.");

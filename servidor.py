@@ -57,6 +57,36 @@ def lanzar(accion, fn, pid=None, lamina=None, nota=None):
     threading.Thread(target=correr, daemon=True).start()
 
 
+def generar_fotos(ids, avance):
+    """La IA genera en Google Flow las fotos que les faltan a esas piezas (con el prompt de cada lámina), las baja a
+    Descargas con su código, y la sala las pasa a Flow/ de cada pieza, las pone en su lámina y las sube a Drive."""
+    pedidos = {pid: piezas.fotos_que_faltan(pid) for pid in ids}
+    items = [x for lista in pedidos.values() for x in lista]
+    if not items:
+        return {"hechos": [], "pendientes": [], "piezas": ids, "mensaje": "No falta ninguna foto con prompt de Flow en estas piezas."}
+    de_quien = {x["id"]: pid for pid, lista in pedidos.items() for x in lista}
+    avance(f"Faltan {len(items)} fotos: la IA las genera en Google Flow…")
+    desde = time.time() - 5
+    proyecto = "Diseño " + piezas.semana_actual().split("/")[-1].split(" · ")[0]  # «Diseño S03»
+    r = asistente.generar_fotos(items, proyecto, piezas.carpeta_descargas(), avance=avance)
+    pendientes = [{"id": p.get("codigo") or p.get("id"), "motivo": p.get("motivo", "")} for p in r.get("pendientes") or []]
+    llegadas = {}
+    for cod, nombre in (r.get("archivos") or {}).items():
+        if cod not in de_quien:
+            continue
+        try:
+            llegadas.setdefault(de_quien[cod], {})[cod] = piezas.traer_de_descargas(de_quien[cod], cod, nombre, desde)
+        except (ValueError, OSError) as e:
+            pendientes.append({"id": cod, "motivo": str(e)})
+    hechos = []
+    for pid, fotos in llegadas.items():
+        piezas.poner_fotos(pid, fotos)
+        piezas.subir(pid)
+        hechos += list(fotos)
+    pendientes += [{"id": x, "motivo": "la IA no la bajó"} for x in de_quien if x not in hechos and x not in {p["id"] for p in pendientes}]
+    return {"hechos": hechos, "pendientes": pendientes, "piezas": ids}
+
+
 def al_cerrar_ventana():
     """La ventana dijo adiós: si no vuelve en unos segundos (no era una recarga), la sala se apaga."""
     if not os.environ.get("DISENO_VENTANA"):
@@ -270,6 +300,11 @@ class H(BaseHTTPRequestHandler):
                     datos_marca = marca.datos()
                     n = int(b.get("lamina", 0))
                     lanzar("rehacer", lambda av: asistente.rehacer_foto(pieza, n, nota, datos_marca, av), pid=b["id"], lamina=n, nota=nota)
+                elif b.get("accion") == "fotos":  # «✦ Generar fotos con IA» de una o varias piezas de la semana
+                    ids = [str(x) for x in (b.get("ids") or [])][:20]
+                    if not ids:
+                        raise ValueError("Elige al menos una pieza")
+                    lanzar("fotos", lambda av: generar_fotos(ids, av), pid=ids[0] if len(ids) == 1 else None)
                 else:
                     raise ValueError("Acción no válida")
                 self._json({"ok": True})

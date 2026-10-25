@@ -22,6 +22,7 @@ import nucleo
 _estado = {"t": 0, "datos": None}
 MODOS = ("auto", "claude", "gemini")
 CLAUDE_MAX = 10 * 60  # si Claude no termina en 10 minutos, se corta (antes se quedaba colgado para siempre)
+CLAUDE_FLOW_MAX = 30 * 60  # generar y bajar fotos en Flow tarda más: media hora, como Gemini
 
 
 def modo():
@@ -91,8 +92,9 @@ _CLAUDE_CAIDO = ("sesión iniciada", "login", "no encuentro claude", "limit", "l
                  "overloaded", "no respondió", "tardó demasiado", "demasiado largo")
 
 
-def correr(prompt, avance=print, max_turnos=20, que="pedido"):
-    """Pasa el pedido a la IA que toque y devuelve su texto final (en el que viene el JSON)."""
+def correr(prompt, avance=print, max_turnos=20, que="pedido", navegador=False):
+    """Pasa el pedido a la IA que toque y devuelve su texto final (en el que viene el JSON).
+    navegador=True: la IA maneja el navegador de esta PC (Claude: el Chrome con la extensión de Claude; Gemini: el de Antigravity)."""
     usa = quien()
     if not usa:
         m = modo()
@@ -100,17 +102,19 @@ def correr(prompt, avance=print, max_turnos=20, que="pedido"):
                            else "Antigravity no está instalado en esta PC. Instálalo (antigravity.google) o cambia a Claude en Configuración → IA." if m == "gemini"
                            else "No hay ninguna IA lista: inicia sesión en Claude o instala Antigravity (Configuración → IA).")
     if usa == "gemini":
-        return gemini.correr(prompt, que, avance)
+        return gemini.correr(prompt, que, avance, navegador)
     try:
-        return correr_claude(prompt, avance, max_turnos)
+        return correr_claude(prompt, avance, max_turnos, chrome=navegador)
     except nucleo.Cancelado:
         raise
     except RuntimeError as e:
-        if modo() != "auto" or not gemini.estado()["instalado"] or not any(x in str(e).lower() for x in _CLAUDE_CAIDO):
+        # con el navegador, que Chrome o su extensión no estén también es motivo para seguir con Gemini
+        caido = _CLAUDE_CAIDO + (("chrome", "extensión", "extension") if navegador else ())
+        if modo() != "auto" or not gemini.estado()["instalado"] or not any(x in str(e).lower() for x in caido):
             raise
         avance(f"Claude no pudo ({str(e)[:120]}). Sigue Gemini en Antigravity…")
         _estado["datos"] = None
-        return gemini.correr(prompt, que, avance)
+        return gemini.correr(prompt, que, avance, navegador)
 
 
 def iniciar_sesion():
@@ -121,15 +125,39 @@ def iniciar_sesion():
     subprocess.Popen(["cmd", "/c", "start", "Claude - iniciar sesion", "/wait", ruta, "auth", "login", "--claudeai"], cwd=str(nucleo.DATOS))
 
 
-def correr_claude(prompt, avance=print, max_turnos=20):
+def abrir_chrome(avance):
+    """Claude in Chrome necesita Chrome abierto: si está cerrado, se abre (con el último perfil usado) y se le da tiempo
+    a la extensión para conectarse. (Lo mismo que la Sala de edición.)"""
+    if os.name != "nt":
+        return
+    r = subprocess.run(["tasklist", "/FI", "IMAGENAME eq chrome.exe", "/NH"], capture_output=True, text=True, errors="replace", **_sin_ventana())
+    if "chrome.exe" in r.stdout:
+        return
+    rutas = [Path(os.environ.get(v, "")) / "Google" / "Chrome" / "Application" / "chrome.exe"
+             for v in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")]
+    chrome = next((p for p in rutas if p.is_file()), None)
+    if not chrome:
+        raise RuntimeError("No encuentro Google Chrome en esta PC: hace falta Chrome con la extensión de Claude")
+    avance("Abriendo Chrome…")
+    subprocess.Popen([str(chrome)])
+    time.sleep(20)
+
+
+def correr_claude(prompt, avance=print, max_turnos=20, chrome=False):
     """Corre Claude Code sin ventana, solo para responder (sin tocar archivos). Devuelve el texto final.
     El pedido va por la entrada (stdin) y no en la línea de comandos: Windows corta las órdenes de más de 32.767 letras
-    (8.191 con claude.cmd), y un pedido con el guion de un video de referencia las pasa."""
+    (8.191 con claude.cmd), y un pedido con el guion de un video de referencia las pasa.
+    chrome=True: también maneja el Chrome de esta PC con la extensión de Claude (Google Flow con la cuenta del usuario),
+    como «Generar en Flow» de la Sala de edición. Tiene más tiempo: generar y bajar fotos tarda."""
     ruta = encontrar()
     if not ruta:
         raise RuntimeError("No encuentro Claude Code en esta PC (Configuración → IA)")
     cmd = [ruta, "-p", "--output-format", "stream-json", "--verbose", "--disallowedTools", "Bash", "Write", "Edit",
            "WebFetch", "WebSearch", "--max-turns", str(max_turnos)]
+    if chrome:
+        abrir_chrome(avance)
+        cmd += ["--chrome", "--allowedTools", "mcp__claude-in-chrome", "Skill"]
+    limite = CLAUDE_FLOW_MAX if chrome else CLAUDE_MAX
     p = subprocess.Popen(cmd, cwd=str(nucleo.DATOS), stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
                          text=True, encoding="utf-8", errors="replace", **_sin_ventana())
     nucleo.PROCESOS.add(p)
@@ -141,7 +169,7 @@ def correr_claude(prompt, avance=print, max_turnos=20):
     def cortar():
         vencido.set()
         p.kill()
-    reloj = threading.Timer(CLAUDE_MAX, cortar)
+    reloj = threading.Timer(limite, cortar)
     reloj.daemon = True
     reloj.start()
     final = None
@@ -155,6 +183,9 @@ def correr_claude(prompt, avance=print, max_turnos=20):
                 continue
             if ev.get("type") == "assistant":
                 for b in ev.get("message", {}).get("content", []):
+                    if b.get("type") == "tool_use" and b.get("name", "").startswith("mcp__claude-in-chrome__"):
+                        arg = b.get("input", {})  # en Chrome: qué está haciendo, en sus palabras
+                        avance("Claude · Chrome · " + str(arg.get("action_summary") or arg.get("action") or b["name"].split("__")[-1])[:140])
                     t = b.get("text", "").strip() if b.get("type") == "text" else ""
                     if t and not t.startswith(("{", "`")):  # el JSON de la respuesta no es un avance
                         avance("Claude · " + t.splitlines()[0][:140])
@@ -168,7 +199,7 @@ def correr_claude(prompt, avance=print, max_turnos=20):
         nucleo.PROCESOS.discard(p)
     nucleo.revisar_cancelado()
     if vencido.is_set():
-        raise RuntimeError(f"Claude tardó demasiado (más de {CLAUDE_MAX // 60} minutos) y se cortó. Intenta de nuevo.")
+        raise RuntimeError(f"Claude tardó demasiado (más de {limite // 60} minutos) y se cortó. Intenta de nuevo.")
     if not final:
         lector.join(2)
         raise RuntimeError("Claude no respondió. " + "".join(errores).strip()[-300:])
@@ -213,6 +244,38 @@ Responde SOLO con JSON, sin texto antes ni después:
     datos = _json_de(correr(prompt, avance=avance, que="escribir"), "la pieza")
     if pieza.get("tipo") != "post":
         datos["laminas"] = con_cta(datos.get("laminas", []), marca)
+    return datos
+
+
+FLOW_FORMATO = {"4:5": "3:4", "1:1": "1:1", "9:16": "9:16"}  # el 4:5 no está en Flow: 3:4 es lo más cercano (896×1200)
+
+
+def generar_fotos(items, proyecto, descargas, avance=print):
+    """«✦ Generar fotos con IA»: la IA abre Google Flow en el navegador de esta PC (con la cuenta del usuario), genera
+    una foto por prompt y la baja a Descargas con su código, como «Generar en Flow» de la Sala de edición.
+    items: [{id, prompt, formato}] · Devuelve {"archivos": {id: nombre en Descargas}, "pendientes": [{id, motivo}]}."""
+    pedido = json.dumps([{"codigo": x["id"], "prompt": x["prompt"], "formato": FLOW_FORMATO.get(x.get("formato"), "3:4")} for x in items],
+                        ensure_ascii=False, indent=1)
+    prompt = f"""Genera en Google Flow estas {len(items)} imágenes y bájalas a la carpeta Descargas de esta PC ({descargas}).
+{pedido}
+
+Si tienes la skill «suplevet-flow-chrome», úsala: tiene el mapa de pantallas de Flow. Los pasos:
+1. Abre https://labs.google/flow (la sesión de Google ya está abierta). Abre el proyecto «{proyecto}»; si no existe, créalo («Nuevo proyecto»).
+2. En los ajustes del generador (ícono de deslizadores → Configuración del agente → Generación de imágenes predeterminada)
+   elige el formato de cada imagen (casi todas «3:4») y x1 (una imagen por prompt). Guarda.
+3. Para cada imagen pega su código y su prompt juntos (por ejemplo «C05_N1: …») y envíalo. No esperes a que termine
+   una para mandar la siguiente: Flow las hace en paralelo. Si Google rechaza un prompt, cámbialo lo mínimo (sin palabras
+   de enfermedad ni de dolor) y reenvíalo una vez; si vuelve a fallar, déjalo en «pendientes».
+4. Cuando ya no quede ninguna generándose, baja cada una en tamaño original con su código como nombre («C05_N1.jpg»):
+   desde la página, con fetch y un enlace <a download>; en la URL de la imagen cambia «=s512-rw» por «=s0».
+- Si Google pide iniciar sesión, elegir cuenta, aceptar términos o un captcha, o si se acabó el cupo: para y dilo en
+  «pendientes». Nunca escribas contraseñas, no compres créditos ni cambies el plan. No generes nada que no esté en la lista.
+- Cierra las pestañas que abriste al terminar.
+Al final responde SOLO con JSON, sin texto antes ni después:
+{{"archivos": {{"<código>": "<nombre exacto del archivo en Descargas>"}}, "pendientes": [{{"codigo": "<código>", "motivo": "…"}}]}}"""
+    datos = _json_de(correr(prompt, avance=avance, max_turnos=150, que="fotos", navegador=True), "la lista de fotos bajadas")
+    if "archivos" not in datos:
+        raise RuntimeError("La IA no terminó en Flow. Intenta de nuevo.")
     return datos
 
 

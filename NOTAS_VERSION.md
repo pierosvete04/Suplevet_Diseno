@@ -1,3 +1,11 @@
+Versión 0.12.0:
+- **✦ Generar fotos con IA**: la IA abre Google Flow con tu cuenta (Claude en tu Chrome con su extensión, o Gemini en Antigravity), genera las fotos que faltan con el prompt de cada lámina, las baja y la sala las pone sola en su lámina. Igual que «Generar en Flow» de la Sala de edición.
+  - En cada tarjeta con «Faltan fotos» es el botón principal («Subir a mano» queda al lado). En el editor está arriba del panel de fotos. En Inicio, «✦ Generar las fotos de las N con IA» hace todas las piezas de la semana en un solo viaje a Flow.
+  - Cada foto va donde la lámina la esperaba: de fondo, o recortada sin fondo (se recorta sola) si la lámina iba sobre un color.
+  - Lo que Google rechace o no se baje queda dicho al final, y el botón sirve para reintentar solo esas.
+  - Mientras trabaja se ve qué hace en Chrome, cuánto lleva y «Cancelar».
+- **Arreglo:** una lámina con la bolsa del producto pero sin la foto de Flow que espera ya no cuenta como completa.
+- La miniatura de la tarjeta sale aunque falten fotos en otras láminas (solo necesita la primera).
 Versión 0.11.1:
 - **Arreglo: una pieza ya no sale «Lista» si sus fotos no existen.** Cuando la IA escribe una pieza, anota qué foto de Flow va en cada lámina (por ejemplo C05_N1.jpg) antes de que se genere. La sala la contaba como puesta; ahora solo cuenta si la foto está de verdad en la carpeta Flow de la pieza (o en _MARCA). Esas piezas salen como «Faltan fotos», con «Textos listos · Faltan las fotos de Flow» en la tarjeta, y en el editor cada lámina sin su foto dice «sin foto».
 Versión 0.11.0:

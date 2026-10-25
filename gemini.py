@@ -181,8 +181,9 @@ def _limpiar_viejas():
             pass
 
 
-def correr(prompt, que="pedido", avance=print):
-    """Le pasa el pedido a Gemini en Antigravity y espera su respuesta. Devuelve el texto JSON que dejó en respuesta.json."""
+def correr(prompt, que="pedido", avance=print, navegador=False):
+    """Le pasa el pedido a Gemini en Antigravity y espera su respuesta. Devuelve el texto JSON que dejó en respuesta.json.
+    navegador=True: el pedido es para hacer en el navegador de Antigravity (generar fotos en Google Flow)."""
     if not exe():
         raise RuntimeError("Antigravity no está instalado en esta PC. Instálalo desde antigravity.google o conecta Claude (Configuración → IA).")
     _limpiar_viejas()
@@ -191,7 +192,8 @@ def correr(prompt, que="pedido", avance=print):
     respuesta = carpeta / "respuesta.json"
     texto = f"""# Pedido de la Sala de diseño
 
-Trabaja solo en esta carpeta ({carpeta}). No hace falta el navegador ni otros archivos: todo lo que necesitas está aquí abajo.
+{f"Este pedido se hace en el navegador (con tu herramienta de navegador). Los archivos que escribas van en esta carpeta ({carpeta})."
+  if navegador else f"Trabaja solo en esta carpeta ({carpeta}). No hace falta el navegador ni otros archivos: todo lo que necesitas está aquí abajo."}
 Gemini Flash basta: no hace falta pensar mucho, solo seguir las reglas al pie de la letra.
 
 ## Lo que hay que hacer

@@ -322,6 +322,106 @@ def imagenes(pid):
     return sorted((f.name for f in d.iterdir() if f.suffix.lower() in EXT), key=lambda n: (d / n).stat().st_mtime)
 
 
+# ---------- «✦ Generar fotos con IA»: las fotos de Flow que faltan, y ponerlas en su lámina cuando llegan ----------
+def _foto_de(lam):
+    """La foto que la lámina ya tiene anotada (de fondo o como capa), aunque el archivo todavía no exista."""
+    f = lam.get("fondo", {})
+    if f.get("tipo") == "imagen" and (f.get("src") or {}).get("tipo") == "img":
+        return f["src"]
+    return next((c["src"] for c in lam.get("capas", []) if c.get("tipo") == "imagen" and (c.get("src") or {}).get("tipo") == "img"), None)
+
+
+def fotos_que_faltan(pid):
+    """[{id, prompt, formato, lamina}] de las láminas sin foto que tienen prompt de Flow. El id es el nombre que la lámina
+    ya espera (C05_N1 de «C05_N1.jpg» o de «C05_N2_sinfondo.png») o uno nuevo (C07_L3)."""
+    c = carpeta(pid)
+    p = json.loads((c / "pieza.json").read_text(encoding="utf-8"))
+    guion = (p.get("guion") or {}).get("laminas") or []
+    num = next((x for x in c.name.split(" · ") if re.fullmatch(r"[CP]\d+", x)), "P")
+    out = []
+    for i, lam in enumerate(p.get("laminas", [])):
+        prompt = (guion[i].get("flow") or "").strip() if i < len(guion) else ""
+        if not prompt or _con_foto(lam, c):
+            continue
+        src = _faltante(lam, c) or _foto_de(lam)
+        cod = re.sub(r"_sinfondo$", "", Path(src["f"]).stem) if src else f"{num}_L{i + 1}"
+        out.append({"id": re.sub(r"[^\w-]", "_", cod), "prompt": prompt, "formato": p.get("formato", "4:5"), "lamina": i})
+    return out
+
+
+def poner_fotos(pid, llegadas):
+    """llegadas: {id: archivo ya guardado en Flow/}. Cada foto va a la lámina que la esperaba:
+    - si la lámina ya tenía anotada esa foto, se corrige el nombre (la IA anotó .jpg y llegó .png, por ejemplo); si la
+      esperaba sin fondo («_sinfondo.png»), se deja así: el editor la recorta solo al abrir la pieza;
+    - si no tenía ninguna, va de fondo a toda la lámina, o recortada encima del color si el guion pidió fondo «color».
+    Devuelve las láminas (1, 2…) que recibieron foto."""
+    c = carpeta(pid)
+    p = json.loads((c / "pieza.json").read_text(encoding="utf-8"))
+    guion = (p.get("guion") or {}).get("laminas") or []
+    pedidas = {x["id"]: x["lamina"] for x in fotos_que_faltan(pid)}
+    puestas = []
+    for cod, archivo in llegadas.items():
+        i = pedidas.get(cod)
+        if i is None:
+            continue
+        lam = p["laminas"][i]
+        src = _faltante(lam, c) or _foto_de(lam)
+        if src:
+            if not src["f"].endswith("_sinfondo.png"):
+                src["f"] = archivo
+        elif i < len(guion) and guion[i].get("fondo") == "color":
+            w, h = FORMATOS.get(p.get("formato"), FORMATOS["4:5"])  # debajo de los textos, como «ponerEnLamina» del editor
+            lam.setdefault("capas", []).insert(0, {"id": f"f{int(time.time() * 1000) % 10**9}{i}", "tipo": "imagen",
+                                                   "src": {"tipo": "img", "f": f"{Path(archivo).stem}_sinfondo.png"},
+                                                   "x": w // 2, "y": round(h * 0.62), "w": 760, "sombra": 0.4})
+        else:
+            lam["fondo"] = {**lam.get("fondo", {}), "tipo": "imagen", "src": {"tipo": "img", "f": archivo}}
+        puestas.append(i + 1)
+    if puestas:
+        guardar(pid, p)
+    return puestas
+
+
+def carpeta_descargas():
+    """La carpeta de Descargas de esta PC (la de verdad, aunque Windows la haya movido a otro disco u OneDrive),
+    igual que en la Sala de edición. Se puede fijar otra en config.local.json → carpeta_descargas."""
+    c = nucleo.CONFIG.get("carpeta_descargas")
+    if c and Path(c).is_dir():
+        return Path(c)
+    if os.name == "nt":
+        import ctypes
+        try:
+            class GUID(ctypes.Structure):
+                _fields_ = [("a", ctypes.c_uint32), ("b", ctypes.c_uint16), ("c", ctypes.c_uint16), ("d", ctypes.c_ubyte * 8)]
+            descargas = GUID(0x374DE290, 0x123F, 0x4565, (ctypes.c_ubyte * 8)(0x91, 0x64, 0x39, 0xC4, 0x92, 0x5E, 0x46, 0x7B))
+            p = ctypes.c_wchar_p()
+            if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(descargas), 0, None, ctypes.byref(p)) == 0:
+                ruta = Path(p.value)
+                ctypes.windll.ole32.CoTaskMemFree(p)
+                if ruta.is_dir():
+                    return ruta
+        except Exception:  # noqa: BLE001
+            pass
+    return Path.home() / "Downloads"
+
+
+def traer_de_descargas(pid, cod, nombre, desde):
+    """El archivo que la IA bajó a Descargas pasa a Flow/ de la pieza como «<código>.<ext>». Solo si se bajó ahora
+    (desde: hora en que empezó el pedido), nunca uno viejo con el mismo nombre. Devuelve el nombre en Flow/."""
+    base = carpeta_descargas().resolve()
+    f = (base / Path(str(nombre)).name).resolve()
+    if f.parent != base or not f.is_file() or f.suffix.lower() not in EXT:
+        raise ValueError(f"no encontré «{nombre}» en Descargas")
+    if f.stat().st_mtime < desde:
+        raise ValueError(f"«{nombre}» en Descargas es de antes: no se bajó ahora")
+    destino = ruta_imagen(pid) / f"{cod}{f.suffix.lower()}"
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    if destino.exists():  # la de antes queda guardada aparte, no se pisa
+        destino.rename(destino.with_name(f"{cod}_antes_{time.strftime('%Y%m%d-%H%M%S')}{destino.suffix}"))
+    destino.write_bytes(f.read_bytes())
+    return destino.name
+
+
 def exportar(pid, pngs, copy=""):
     """pngs: bytes de cada lámina, en orden. Reemplaza lo exportado antes. Deja todo en <pieza>/FINAL."""
     destino = carpeta(pid) / "FINAL"
@@ -381,11 +481,22 @@ def _foto_existe(src, c):
         return False
 
 
-def _con_foto(lam, c):
-    """La lámina tiene una foto puesta (de Flow o del producto). «Foto de fondo» sin foto elegida no cuenta."""
+def _fotos_de(lam):
+    """Todas las fotos que la lámina tiene anotadas: la de fondo y las de sus capas."""
     f = lam.get("fondo", {})
-    return any(x.get("tipo") == "imagen" and _foto_existe(x.get("src") or {}, c) for x in lam.get("capas", [])) \
-        or (f.get("tipo") == "imagen" and bool(f.get("src")) and _foto_existe(f["src"], c))
+    return ([f["src"]] if f.get("tipo") == "imagen" and f.get("src") else []) + \
+        [x.get("src") or {} for x in lam.get("capas", []) if x.get("tipo") == "imagen"]
+
+
+def _faltante(lam, c):
+    """La primera foto de Flow que la lámina espera y que todavía no existe, o None."""
+    return next((s for s in _fotos_de(lam) if s.get("tipo") == "img" and not _foto_existe(s, c)), None)
+
+
+def _con_foto(lam, c):
+    """La lámina tiene su foto: al menos una puesta (de Flow o del producto) y ninguna que espere y no esté.
+    «Foto de fondo» sin foto elegida no cuenta."""
+    return any(_foto_existe(s, c) for s in _fotos_de(lam)) and not _faltante(lam, c)
 
 
 def _con_textos(p):
@@ -419,8 +530,8 @@ def biblioteca():
             fecha = (lunes + dt.timedelta(days=DIAS.index(dia))).isoformat() if lunes and dia in DIAS else (lunes.isoformat() if lunes else "")
             finales = sorted((c / "FINAL").glob("L*.png")) if (c / "FINAL").is_dir() else []
             mini = "miniatura.png" if (c / "miniatura.png").exists() else (f"FINAL/{finales[0].name}" if finales else "")
-            laminas = p.get("laminas", [])
-            origen = p.get("origen") or ("brief" if (dia, (p.get("titulo") or "").strip()) in plan
+            laminas, guion = p.get("laminas", []), (p.get("guion") or {}).get("laminas") or []
+            origen =p.get("origen") or ("brief" if (dia, (p.get("titulo") or "").strip()) in plan
                                          else "video" if p.get("video") else "pedido" if p.get("pedido") else "mano")
             out.append({"rel": s["rel"], "mes": s["mes"], "semana": s["semana"], "id": c.name, "titulo": p.get("titulo", c.name),
                         "tipo": p.get("tipo", "carrusel"), "formato": p.get("formato", "4:5"), "dia": dia, "fecha": fecha,
@@ -428,7 +539,9 @@ def biblioteca():
                         "laminas": len(laminas), "exportado": bool(finales), "miniatura": mini, "origen": origen,
                         "actualizado": p.get("actualizado", ""), "por": p.get("por", ""), "pedido": p.get("pedido", ""),
                         "con_textos": _con_textos(p), "con_fotos": any(_con_foto(l, c) for l in laminas),
-                        "laminas_con_foto": sum(1 for l in laminas if _con_foto(l, c))})
+                        "laminas_con_foto": sum(1 for l in laminas if _con_foto(l, c)),
+                        # las que la IA puede generar en Flow: sin foto y con su prompt (si es 0, se suben a mano)
+                        "faltan_con_prompt": sum(1 for l, g in zip(laminas, guion) if (g.get("flow") or "").strip() and not _con_foto(l, c))})
     return sorted(out, key=lambda x: (x["fecha"], x["id"]), reverse=True)
 
 
