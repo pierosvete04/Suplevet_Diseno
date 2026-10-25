@@ -185,12 +185,14 @@ class H(BaseHTTPRequestHandler):
                 ruta = piezas.archivo(q["rel"][0], q["id"][0], q["f"][0])
                 self._archivo(ruta.parent, ruta.name)
             elif u.path == "/api/videos":  # los videos terminados de la Sala de edición (solo lectura)
-                self._json({"videos": videos_edicion.listar(forzar="forzar" in q), "producciones": videos_edicion.producciones()})
+                self._json({"videos": videos_edicion.listar(forzar="forzar" in q), "producciones": videos_edicion.producciones(),
+                            "actualizando": videos_edicion.actualizando()})
             elif u.path == "/video_mini":
                 ruta = videos_edicion.miniatura(q["ruta"][0])
                 self._archivo(ruta.parent, ruta.name)
             elif u.path == "/api/estado":
                 piezas.sincronizar()
+                videos_edicion.precalentar()  # la lista de videos se pide ya, por detrás, para que la pestaña Videos abra al instante
                 self._json(estado())
             elif u.path == "/api/pieza":
                 pid = q["id"][0]

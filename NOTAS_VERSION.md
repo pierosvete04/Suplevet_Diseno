@@ -1,3 +1,7 @@
+Versión 0.13.0:
+- **Videos abre al instante**: antes tardaba unos 15 s cada vez, porque recorría todo el Drive carpeta por carpeta. Ahora la lista se pide de una sola vez (la mitad del tiempo), se guarda en esta PC y se muestra apenas entras; si tiene más de 10 minutos, se busca la nueva por detrás («buscando videos nuevos en Drive…»). La sala la pide al abrir, así que al entrar a Videos ya suele estar.
+- **Configuración como la de la Sala de edición**: «🔌 Conexiones» en tarjetas (Drive, Claude, Antigravity con Gemini, Google Flow, Claude en Chrome, la marca y el recortador), cada una con su estado, «Cómo se hace» y su botón, y arriba cuántas están listas. La elección de IA (Automático, Solo Claude, Solo Gemini) queda arriba de las tarjetas. Marca con botones grandes («Ver la marca», «Importar mi marca»).
+- La pestaña **«✦ Crear con IA»** pasa a la derecha de la barra.
 Versión 0.12.0:
 - **✦ Generar fotos con IA**: la IA abre Google Flow con tu cuenta (Claude en tu Chrome con su extensión, o Gemini en Antigravity), genera las fotos que faltan con el prompt de cada lámina, las baja y la sala las pone sola en su lámina. Igual que «Generar en Flow» de la Sala de edición.
   - En cada tarjeta con «Faltan fotos» es el botón principal («Subir a mano» queda al lado). En el editor está arriba del panel de fotos. En Inicio, «✦ Generar las fotos de las N con IA» hace todas las piezas de la semana en un solo viaje a Flow.

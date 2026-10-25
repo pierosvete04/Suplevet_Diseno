@@ -151,12 +151,35 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .ia-modos { display: grid; gap: 6px; }
 .ia-modos label { display: flex; gap: 8px; align-items: baseline; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
 .ia-modos label:has(input:checked) { border-color: var(--accent2); background: var(--surface2); }
-.ia-tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 12px; }
-.ia-tarjeta { display: grid; gap: 8px; align-content: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
-.ia-tarjeta p { margin: 0; font-size: 13px; }
-.ia-tarjeta .pill { font-size: 12px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line2); color: var(--muted); }
-.ia-tarjeta .pill.ok { color: var(--ok, #22c55e); border-color: currentColor; }
-.ia-tarjeta .btn { justify-self: start; }
+/* Configuración: lo mismo que la Sala de edición (Conexiones en tarjetas, acciones grandes, pie) */
+.pill { font: 600 11.5px var(--f); padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line2); color: var(--muted); white-space: nowrap; }
+.pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.conf-menu a .pill { margin-left: auto; }
+.conf-form { max-width: 680px; }
+.conf-avanzado summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.conf-pie { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.conf-acciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 14px; }
+.accion { text-align: left; display: grid; gap: 2px; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line2); background: var(--surface2); color: var(--ink); font: 13px var(--f); cursor: pointer; transition: border-color .15s, transform .15s; }
+.accion:hover { border-color: var(--accent); transform: translateY(-1px); } .accion small { color: var(--muted); font-size: 11.5px; }
+.conf-progreso { min-width: 210px; display: grid; gap: 6px; font-size: 12.5px; }
+.conf-progreso .barra { display: block; height: 8px; border-radius: 99px; background: var(--surface2); border: 1px solid var(--line); overflow: hidden; padding: 0; }
+.conf-progreso .barra i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 99px; transition: width .4s; }
+.conexiones { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+.conexion { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: var(--bg2); display: grid; gap: 10px; align-content: start; transition: border-color .15s; }
+.conexion:hover { border-color: var(--line2); }
+.conexion.listo { border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); }
+.conexion .con-cab { display: flex; gap: 10px; align-items: flex-start; }
+.conexion .con-ico { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; font-size: 17px; background: var(--surface2); border: 1px solid var(--line2); }
+.conexion.listo .con-ico { border-color: color-mix(in srgb, var(--ok) 45%, var(--line2)); }
+.conexion .que { flex: 1; min-width: 0; } .conexion .que b { display: block; font-size: 13.5px; } .conexion .que small { display: block; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.conexion .con-estado, .conexion details { margin-left: 46px; margin-top: -4px; }
+.conexion .con-pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.conexion details summary { cursor: pointer; font-size: 12.5px; color: var(--accent2); font-weight: 600; list-style: none; }
+.conexion details summary::-webkit-details-marker { display: none; }
+.conexion details summary::before { content: "▸ "; } .conexion details[open] summary::before { content: "▾ "; }
+.conexion ol { margin: 8px 0 4px; padding-left: 20px; font-size: 12.5px; display: grid; gap: 4px; }
+.conexion .marca { font-size: 12px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .gemini-caja { position: fixed; right: 16px; bottom: 16px; z-index: 50; width: min(380px, calc(100vw - 32px)); display: grid; gap: 10px;
   padding: 14px 16px; border-radius: 14px; background: var(--surface2); border: 1px solid var(--accent2); box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 13px; }
 .gemini-caja[hidden] { display: none; }
@@ -169,6 +192,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .pestanas button { border: 0; background: none; padding: 10px 14px 9px; border-bottom: 2px solid transparent; font: 600 13px var(--f); color: var(--muted); cursor: pointer; }
 .pestanas button:hover { color: var(--ink); }
 .pestanas button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); }
+.pestanas .pestana-ia { margin-left: auto; color: var(--accent); }  /* «✦ Crear con IA» va sola, a la derecha */
 .vista { height: calc(100vh - var(--alto-cabeza, 47px) - var(--alto-pestanas, 41px)); overflow: auto; padding: 18px 22px; }
 .vista h2 { font: 700 18px var(--fd); margin: 0 0 4px; }
 .sub { color: var(--muted); margin: 0 0 14px; }
@@ -283,10 +307,10 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 <nav class="pestanas" id="pestanas" role="tablist">
   <button role="tab" id="tab-inicio" aria-controls="v-inicio" data-vista="inicio" aria-selected="true">Inicio</button>
   <button role="tab" id="tab-biblioteca" aria-controls="v-biblioteca" data-vista="biblioteca" aria-selected="false" tabindex="-1">Biblioteca</button>
-  <button role="tab" id="tab-crear" aria-controls="v-crear" data-vista="crear" aria-selected="false" tabindex="-1">✦ Crear con IA</button>
   <button role="tab" id="tab-videos" aria-controls="v-videos" data-vista="videos" aria-selected="false" tabindex="-1">Videos</button>
   <button role="tab" id="tab-editor" aria-controls="v-editor" data-vista="editor" aria-selected="false" tabindex="-1">Editor</button>
   <button role="tab" id="tab-marca" aria-controls="v-marca" data-vista="marca" aria-selected="false" tabindex="-1">Marca</button>
+  <button role="tab" id="tab-crear" class="pestana-ia" aria-controls="v-crear" data-vista="crear" aria-selected="false" tabindex="-1">✦ Crear con IA</button>
 </nav>
 <aside class="gemini-caja" id="geminiCaja" role="status" aria-live="polite" hidden>
   <b>✦ Esta vez escribe Gemini, en Antigravity</b>
@@ -415,7 +439,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
     <aside class="conf-menu" aria-label="Secciones de configuración">
       <div class="conf-tit"><span class="conf-ico">⚙</span><div><b>Configuración</b><small>De esta PC</small></div></div>
       <a href="#confCuenta" class="activo">👤 Cuenta y dispositivos <span class="punto-estado" id="confPCuenta"></span></a>
-      <a href="#confClaude">✦ IA (Claude y Gemini) <span class="punto-estado" id="confPClaude"></span></a>
+      <a href="#confClaude">🔌 Conexiones <span class="pill" id="confNCon"></span><span class="punto-estado" id="confPClaude" hidden></span></a>
       <a href="#confMarca">🎨 Marca del proyecto <span class="punto-estado" id="confPMarca"></span></a>
       <a href="#confNombre">✎ Tu nombre</a>
       <a href="#confAct">⟳ Actualizaciones <span class="punto-estado" id="confPAct"></span></a>
@@ -426,36 +450,38 @@ main { display: flex; flex-direction: column; overflow: hidden; }
           <p class="muted">Con qué cuenta de Google entraste, en qué PCs se abrió y cerrar sesión. Es la misma sesión de las tres apps.</p></div></div>
         <div id="cfgCuenta"></div>
       </section>
+      <!-- Conexiones: el mismo diseño que la Sala de edición (tarjetas con estado, pasos y botón; arriba cuántas están listas) -->
       <section class="caja conf-sec" id="confClaude">
-        <div class="conf-cab"><div><h2>IA: Claude y Gemini</h2>
-          <p class="muted">La IA escribe las piezas (textos, prompts de Flow y copy). Hay dos: Claude y Gemini (en Antigravity). Con una sola ya funciona; con las dos, si una falla, sigue la otra.</p></div></div>
-        <p class="etq">¿Cuál usar?</p>
+        <div class="conf-cab"><div><h2>Conexiones para trabajar</h2>
+          <p class="muted">Lo que esta PC necesita tener conectado. Se hace una sola vez y se recuerda. La IA (Claude o Gemini) escribe las piezas y genera sus fotos en Google Flow: con una sola ya funciona; con las dos, si una falla, sigue la otra.</p></div>
+          <div class="conf-progreso" id="conProgreso"></div></div>
+        <p class="etq">¿Qué IA usar?</p>
         <div class="ia-modos" id="iaModos" role="radiogroup" aria-label="Qué IA usar">
           <label><input type="radio" name="iaModo" value="auto"> <b>Automático</b> <small class="muted">(recomendado) Claude, y si no está o se cae, Gemini</small></label>
           <label><input type="radio" name="iaModo" value="claude"> <b>Solo Claude</b></label>
           <label><input type="radio" name="iaModo" value="gemini"> <b>Solo Gemini</b> <small class="muted">en Antigravity</small></label>
         </div>
-        <div class="estado-grande" id="cfgIaUsa" style="margin-top:10px"></div>
-        <div class="ia-tarjetas">
-          <div class="ia-tarjeta"><div class="fila" style="justify-content:space-between"><b>Claude</b><span class="pill" id="cfgClaudePill"></span></div>
-            <p class="muted" id="cfgClaude"></p>
-            <small class="muted">Trabaja solo, sin abrir ventanas. Usa la app de escritorio de Claude de esta PC, con tu suscripción.</small>
-            <button class="btn sec chico" id="btnLoginClaude">Iniciar sesión en Claude</button></div>
-          <div class="ia-tarjeta"><div class="fila" style="justify-content:space-between"><b>Gemini (Antigravity)</b><span class="pill" id="cfgGeminiPill"></span></div>
-            <p class="muted" id="cfgGemini"></p>
-            <small class="muted">La sala abre Antigravity y le pasa el pedido a Gemini sola; cuando termina, toma la respuesta. Si algún día no puede, te copia el mensaje para que lo pegues.</small></div>
-        </div>
+        <div class="estado-grande" id="cfgIaUsa" style="margin:10px 0 14px"></div>
+        <div id="listaConexiones" class="conexiones"></div>
       </section>
       <section class="caja conf-sec" id="confMarca">
         <div class="conf-cab"><div><h2>Marca del proyecto</h2>
-          <p class="muted">La sala no trae ninguna marca adentro: lee _MARCA del Drive del proyecto (colores, productos, logos, reglas y el CTA final de los carruseles). Se ve completa en la pestaña Marca.</p></div></div>
+          <p class="muted">La sala no trae ninguna marca adentro: lee <code>_MARCA</code> del Drive del proyecto (colores, productos, logos, reglas y el CTA final de los carruseles). Es la misma marca de la Sala de edición: se carga una vez y sirve para las dos.</p></div></div>
         <div class="estado-grande" id="cfgMarca"></div>
-        <div class="fila" style="margin-top:10px"><input type="text" id="cfgMarcaNombre" placeholder="Nombre de la marca (proyecto nuevo)" style="flex:1;max-width:360px"><button class="btn sec chico" id="btnMarcaBase">Crear _MARCA de base</button></div>
+        <div class="conf-acciones">
+          <button class="accion" type="button" data-ir="marca"><b>🎨 Ver la marca</b><small>Colores, productos, logos, reglas y el CTA</small></button>
+          <button class="accion" type="button" id="cfgImportar"><b>⬆ Importar mi marca</b><small>Desde la plantilla, como carpeta o .zip</small></button>
+        </div>
+        <details class="conf-pie conf-avanzado"><summary>Proyecto nuevo, sin marca todavía</summary>
+          <p class="muted" style="font-size:12px;margin:6px 0">Crea una <code>_MARCA</code> de base en el Drive del proyecto para empezar. Si ya existe, no cambia nada.</p>
+          <div class="fila"><input type="text" id="cfgMarcaNombre" placeholder="Nombre de la marca" style="flex:1;max-width:360px"><button class="btn sec chico" id="btnMarcaBase">Crear _MARCA de base</button></div>
+        </details>
       </section>
       <section class="caja conf-sec" id="confNombre">
         <div class="conf-cab"><div><h2>Tu nombre</h2>
-          <p class="muted">Sale en el aviso «lo está editando…» cuando otra persona abre la misma pieza.</p></div></div>
-        <div class="fila"><input type="text" id="cfgNombre" style="flex:1;max-width:360px"><button class="btn chico" id="btnGuardarNombre">Guardar</button></div>
+          <p class="muted">Sale en el aviso «lo está editando…» cuando otra persona abre la misma pieza, y en los pedidos a la IA.</p></div></div>
+        <div class="conf-form"><label class="muted" for="cfgNombre" style="font-size:12px">Cómo te ven los demás</label>
+          <div class="fila" style="margin-top:4px"><input type="text" id="cfgNombre" style="flex:1;max-width:360px"><button class="btn chico" id="btnGuardarNombre">Guardar</button></div></div>
       </section>
       <section class="caja conf-sec" id="confAct">
         <div class="conf-cab"><div><h2>Actualizaciones del sistema</h2>
@@ -1651,25 +1677,81 @@ function pintarIA(c) {
   $("estClaude").className = "app-pastilla " + (usa ? "ok" : "mal");
   $("confPClaude").className = "punto-estado " + (usa ? "ok" : "warn");
   document.querySelectorAll('input[name="iaModo"]').forEach(r => r.checked = r.value === (c.modo || "auto"));
+  IA = c;
   const otra = usa === "claude" && g.instalado ? " Si Claude se cae (por ejemplo, se acaba el uso del plan), sigue Gemini." : "";
   $("cfgIaUsa").textContent = usa === "claude" ? "✓ Ahora escribe Claude." + (c.modo === "auto" ? otra : "")
     : usa === "gemini" ? "✓ Ahora escribe Gemini, en Antigravity." + (c.modo === "auto" ? " (Claude no tiene la sesión iniciada en esta PC.)" : "")
     : c.modo === "claude" ? "Elegiste «Solo Claude», pero Claude no tiene la sesión iniciada: inicia sesión abajo o elige Automático."
     : c.modo === "gemini" ? "Elegiste «Solo Gemini», pero Antigravity no está instalado: instálalo desde antigravity.google o elige Automático."
     : "Ninguna IA está lista: inicia sesión en Claude o instala Antigravity (con una basta).";
-  $("cfgClaudePill").textContent = c.sesion ? "● Listo" : c.instalado ? "Sin sesión" : "No instalado";
-  $("cfgClaudePill").className = "pill " + (c.sesion ? "ok" : "");
-  // con la sesión ya iniciada, el botón solo sirve para entrar de nuevo (por ejemplo, con otra cuenta)
-  $("btnLoginClaude").textContent = c.sesion ? "Volver a iniciar sesión" : "Iniciar sesión en Claude";
-  $("btnLoginClaude").hidden = !c.instalado;
-  $("cfgClaude").textContent = c.sesion ? "La sesión ya está iniciada en esta PC."
-    : c.instalado ? "Está instalado pero sin sesión: toca «Iniciar sesión en Claude» y entra con tu cuenta (una sola vez)."
-    : "No está en esta PC: instala la app de escritorio de Claude.";
-  $("cfgGeminiPill").textContent = g.instalado ? "● Instalado" : "No instalado";
-  $("cfgGeminiPill").className = "pill " + (g.instalado ? "ok" : "");
-  $("cfgGemini").textContent = g.instalado ? "Antigravity está en esta PC. Entra en él con tu cuenta de Google una vez."
-    : "No está en esta PC: instálalo desde antigravity.google y entra con tu cuenta de Google.";
+  pintarConexiones();
 }
+
+// ---------- Conexiones: lo que esta PC tiene que tener listo, como en la Sala de edición ----------
+let IA = null;
+const marcaConexion = (id, v) => { try { if (v === undefined) return localStorage.getItem("con_" + id) === "1"; localStorage.setItem("con_" + id, v ? "1" : "0"); } catch (e) { return false; } };
+// en la ventana del programa, un enlace con target=_blank se abre en el navegador de la PC (como «instalador completo»)
+const abrirAfuera = url => Object.assign(document.createElement("a"), { href: url, target: "_blank", rel: "noopener" }).click();
+function pintarConexiones() {
+  if (!$("listaConexiones") || !ESTADO.marca) return;
+  if (!BIB && !pintarConexiones.pidiendo) {  // para saber si Flow ya se usa hacen falta las piezas
+    pintarConexiones.pidiendo = true;
+    api("/api/biblioteca").then(b => { BIB = b; pintarConexiones(); }).catch(() => {});
+  }
+  const c = IA || {}, g = c.gemini || {}, conectado = !!ESTADO.cuenta?.conectado, rec = ESTADO.recortador || {};
+  const usaFlow = (BIB?.piezas || []).some(p => p.exportado && p.con_textos);  // ya se exportaron piezas con sus fotos
+  const items = [
+    { id: "drive", t: "Google Drive (carpeta del proyecto)", d: "Guarda las piezas en DISEÑO/, lee la marca y el brief de la semana, y deja lo exportado en FINAL/ para el Publicador.", ok: conectado, auto: true, ico: "☁",
+      pasos: ["Entra con tu cuenta de Google (la misma de las tres apps).", "Elige la carpeta del equipo: una tuya, una compartida contigo o una nueva.", "Esa cuenta necesita permiso de <b>Editor</b> en la carpeta: si solo puede ver, la sala te avisa."],
+      boton: ["Ir a Cuenta", () => irConf("confCuenta")] },
+    { id: "claude", t: "Claude (app de escritorio)", d: c.sesion ? "Listo en esta PC: escribe las piezas con tu suscripción, sin abrir ventanas." : c.instalado ? "Está instalado, falta iniciar sesión (una sola vez)." : "Escribe las piezas con la suscripción de Claude (sin pagar API).",
+      ok: !!c.sesion, auto: true, opcional: !c.sesion && !!g.instalado, ico: "✳",
+      pasos: ["Instala la app de escritorio de Claude e inicia sesión con la cuenta del equipo.", "Toca «Iniciar sesión en Claude» aquí abajo: se abre una ventana para entrar (una sola vez).", "Si sigue diciendo que falta, cierra y vuelve a abrir la sala."],
+      boton: [c.sesion ? "Volver a iniciar sesión" : "Iniciar sesión en Claude", async () => {
+        try { await api("/api/claude", { accion: "login" }); avisar("Se abrió una ventana para entrar a Claude"); } catch (e) { avisar(e.message, "err"); } }], oculto: !c.instalado && !!g.instalado },
+    { id: "gemini", t: "Antigravity con Gemini", d: g.instalado ? "Instalado en esta PC: la sala le pasa el pedido a Gemini sola y toma la respuesta." : "La otra IA: escribe las piezas y genera las fotos si Claude no está o se cae.",
+      ok: !!g.instalado, auto: true, opcional: !g.instalado && !!c.sesion, ico: "🪐",
+      pasos: ["Instala Antigravity (antigravity.google) y entra con tu cuenta de Google, la misma de Flow.", "Ábrelo una vez y empieza una conversación: así la sala puede pasarle los pedidos sola.", "Para generar fotos, deja abierto su navegador con tu sesión de Google (Flow entra solo)."],
+      boton: ["Abrir antigravity.google", () => abrirAfuera("https://antigravity.google")] },
+    { id: "flow", t: "Google Flow (fotos con IA)", d: usaFlow ? "En uso: ya hay piezas con fotos." : "Donde la IA genera las fotos de cada lámina con su prompt («✦ Generar fotos con IA»).", ok: usaFlow || marcaConexion("flow"), manual: !usaFlow, ico: "🖼",
+      pasos: ["Abre Google Flow e inicia sesión con la cuenta de Google que tiene el plan de Google AI.", "Déjala con la sesión abierta en Chrome (o en el navegador de Antigravity).", "En una pieza con «Faltan fotos», toca «✦ Generar fotos con IA»: la IA crea el proyecto «Diseño S…», genera y baja las fotos, y la sala las pone en su lámina."],
+      boton: ["Abrir Google Flow", () => abrirAfuera("https://labs.google/flow")] },
+    { id: "chrome", t: "Claude en Chrome", d: "Para que Claude genere solo las fotos en Flow, en tu navegador. Sin esto, las genera Gemini en Antigravity.", ok: marcaConexion("chrome"), opcional: true, ico: "◎",
+      pasos: ["En Google Chrome, instala la extensión «Claude» desde la Chrome Web Store e inicia sesión con la cuenta de Claude.", "Deja abierto Chrome con la sesión de Google (Flow) iniciada.", "Si aparece un inicio de sesión, términos o un captcha, lo haces tú: la IA se detiene y avisa."],
+      boton: ["Abrir Chrome Web Store", () => abrirAfuera("https://chromewebstore.google.com/search/claude")] },
+    { id: "marca", t: "Marca del proyecto (_MARCA)", d: ESTADO.marca.tiene_marca ? `${ESTADO.marca.nombre || "La marca"}: colores, logos y productos listos.` : "Colores, logos, productos y reglas que la IA respeta. Se cargan una vez para las dos salas.",
+      ok: !!ESTADO.marca.tiene_marca, auto: true, ico: "🎨",
+      pasos: ["En la pestaña Marca, descarga la plantilla de marca.", "Llénala con tus logos, tipografías, fotos del producto y la ficha (Word).", "Súbela como carpeta o .zip: la sala la acomoda y te la muestra antes de guardar."],
+      boton: ["Ir a Marca", () => irA("marca")] },
+    { id: "recorte", t: "Recortador de fondos", d: rec.listo ? "Listo en esta PC: quita el fondo de las fotos sin internet." : "Quita el fondo de las fotos (✂). Se baja solo la primera vez que lo usas (170 MB).",
+      ok: !!rec.listo, auto: true, opcional: !rec.listo, ico: "✂",
+      pasos: ["En el editor, toca ✂ sobre una foto: la primera vez baja el recortador (170 MB) y queda en esta PC para las tres salas.", "Las fotos que una lámina espera «sin fondo» se recortan solas al llegar de Flow."],
+      boton: ["Ir al editor", () => irA("editor")] },
+  ].filter(x => !x.oculto);
+  const abiertos = new Set([...document.querySelectorAll("#listaConexiones details[open]")].map(d => d.dataset.id));
+  const orden = [...items].sort((a, b) => (a.ok - b.ok) || ((a.opcional || 0) - (b.opcional || 0)));  // primero lo que falta
+  $("listaConexiones").innerHTML = orden.map(x => `<div class="conexion ${x.ok ? "listo" : ""}">
+      <div class="con-cab"><span class="con-ico" aria-hidden="true">${x.ico}</span>
+        <span class="que"><b>${esc(x.t)}</b><small>${esc(x.d)}</small></span></div>
+      <div class="con-estado"><span class="pill ${x.ok ? "ok" : x.opcional ? "" : "warn"}">${x.ok ? (x.manual === false ? "✓ En uso" : "✓ Listo") : x.opcional ? "Opcional" : x.auto ? "Falta conectar" : "Márcalo cuando entres"}</span></div>
+      <details data-id="${x.id}" ${abiertos.has(x.id) ? "open" : ""}><summary>Cómo se hace (${x.pasos.length} pasos)</summary><ol>${x.pasos.map(p => `<li>${p}</li>`).join("")}</ol></details>
+      <div class="con-pie">${x.auto || x.manual === false ? `<span class="muted" style="font-size:12px">La sala lo revisa sola</span>`
+          : `<label class="marca"><input type="checkbox" data-con-marca="${x.id}" ${x.ok ? "checked" : ""}> Ya lo tengo listo</label>`}
+        <button class="btn ${x.ok ? "sec" : ""} chico" type="button" data-con-abrir="${x.id}">${esc(x.boton[0])}</button></div>
+    </div>`).join("");
+  const nec = items.filter(x => !x.opcional), listos = nec.filter(x => x.ok).length;
+  $("conProgreso").innerHTML = `<span><b>${listos} de ${nec.length}</b> listas${listos === nec.length ? " · todo listo 🎉" : ""}</span><span class="barra"><i style="width:${listos / nec.length * 100}%"></i></span>`;
+  $("confNCon").textContent = `${listos}/${nec.length}`; $("confNCon").className = "pill " + (listos === nec.length ? "ok" : "warn");
+  pintarConexiones.items = items;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-con-abrir]"); if (!b) return;
+  e.preventDefault(); pintarConexiones.items?.find(x => x.id === b.dataset.conAbrir)?.boton[1]();
+});
+document.addEventListener("change", e => {
+  const m = e.target.closest?.("[data-con-marca]"); if (!m) return;
+  marcaConexion(m.dataset.conMarca, m.checked); pintarConexiones();
+});
 document.querySelectorAll('input[name="iaModo"]').forEach(r => r.addEventListener("change", async () => {
   try { pintarIA(await api("/api/claude", { accion: "modo", modo: r.value })); avisar("Listo: la sala usará " + (r.value === "auto" ? "Claude y, si no está, Gemini" : r.value === "claude" ? "solo Claude" : "solo Gemini")); }
   catch (e) { avisar(e.message, "err"); }
@@ -1689,6 +1771,7 @@ function pintarConfig() {
   $("cfgMarca").textContent = d.marca.tiene_marca ? `${d.marca.nombre || "La marca"}: ${plural(d.marca.colores.length, "color", "colores")}, ${plural(d.marca.logos.length, "logo")} y ${plural(d.marca.productos.length, "producto")} en _MARCA del Drive.` : "Este proyecto aún no tiene _MARCA en su Drive.";
   $("actVersion").textContent = d.version;
   $("confPMarca").className = "punto-estado " + (d.marca.tiene_marca ? "ok" : "warn");
+  pintarConexiones();
   revisarClaude();
   revisarVersion();  // sin forzar: pinta el punto de Actualizaciones sin esperar a que toquen «Buscar»
 }
@@ -1750,7 +1833,7 @@ $("btnGuardarNombre").onclick = async () => {
   } catch (e) { avisar(e.message, "err"); }
 };
 
-$("btnLoginClaude").onclick = async () => { try { await api("/api/claude", { accion: "login" }); avisar("Se abrió una ventana para entrar a Claude"); } catch (e) { avisar(e.message, "err"); } };
+$("cfgImportar").onclick = () => { irA("marca"); resaltar($("mkSoltar")); };
 $("btnMarcaBase").onclick = async () => {
   try {
     const r = await api("/api/marca_base", { nombre: $("cfgMarcaNombre").value.trim() }); await cargarLista(); pintarConfig();
@@ -2034,11 +2117,15 @@ async function retomarTrabajo() {
   }
 }
 // Videos
-async function cargarVideos(forzar) {
-  if (!VIDEOS || forzar) {
-    $("vRejilla").innerHTML = '<p class="muted">Cargando videos de Drive…</p>';
-    let r; try { r = await api("/api/videos" + (forzar ? "?forzar=1" : "")); } catch (e) { $("vRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+// la lista sale al instante (la última guardada); si es vieja, la sala pide la nueva a Drive por detrás y aquí se cambia sola
+async function cargarVideos(forzar, silencioso) {
+  if (!VIDEOS || forzar || silencioso) {
+    if (!silencioso) $("vRejilla").innerHTML = '<p class="muted">Cargando videos de Drive…</p>';
+    let r; try { r = await api("/api/videos" + (forzar ? "?forzar=1" : "")); } catch (e) { if (!silencioso) $("vRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
     VIDEOS = r.videos;
+    clearTimeout(cargarVideos.t);
+    if (r.actualizando) cargarVideos.t = setTimeout(() => cargarVideos(false, true), 4000);
+    $("vCuenta").dataset.actualizando = r.actualizando ? "1" : "";
     const conVideos = new Set(VIDEOS.map(v => v.produccion));
     const prods = [...new Set([...(r.producciones || []), ...conVideos])].sort();
     $("vProduccion").innerHTML = '<option value="">Todas las producciones</option>' + prods.map(p => `<option value="${esc(p)}">${esc(p)}${conVideos.has(p) ? ` (${VIDEOS.filter(v => v.produccion === p).length})` : " · sin videos terminados"}</option>`).join("");
@@ -2048,7 +2135,7 @@ async function cargarVideos(forzar) {
 function pintarVideos() {
   const q = $("vBuscar").value.trim().toLowerCase(), prod = $("vProduccion").value;
   const l = (VIDEOS || []).filter(v => (!q || (v.nombre + " " + v.sesion).toLowerCase().includes(q)) && (!prod || v.produccion === prod));
-  $("vCuenta").textContent = `${l.length} videos`;
+  $("vCuenta").textContent = `${l.length} videos` + ($("vCuenta").dataset.actualizando ? " · buscando videos nuevos en Drive…" : "");
   $("vRejilla").innerHTML = l.map((v, i) => `<div class="ficha" style="cursor:default">
     <div class="mini" style="aspect-ratio:9/16"><img src="/video_mini?ruta=${encodeURIComponent(v.ruta)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'marcador',textContent:'Sin miniatura'}))"><span class="chip">${esc(v.mb)} MB</span></div>
     <div class="info"><b>${esc(v.nombre)}</b><small>${esc(v.sesion)} · ${esc(v.fecha)}</small>
