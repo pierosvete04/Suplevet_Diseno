@@ -1,20 +1,38 @@
-"""Claude dentro de la Sala de diseño: escribe el texto de cada lámina, el prompt de Flow de cada foto y el copy.
+"""La IA dentro de la Sala de diseño: escribe el texto de cada lámina, el prompt de Flow de cada foto y el copy.
 
-Usa Claude Code de esta PC con la suscripción (sin API ni claves): el que trae la app de escritorio de Claude
-o el que se instala aparte. Se entra una sola vez («Iniciar sesión en Claude»). La sala no sabe de ninguna
-marca: las reglas salen de _MARCA/marca.json del proyecto (palabras a evitar, frases obligatorias, cierres).
+Hay dos y la sala usa la que haya (Configuración → IA):
+  Claude  Claude Code de esta PC con la suscripción (sin API ni claves): el de la app de escritorio de Claude o el que
+          se instala aparte. Se entra una sola vez («Iniciar sesión en Claude»). Corre solo, sin ventana.
+  Gemini  en Antigravity (gemini.py): la sala lo abre con el pedido listo y toma la respuesta sola.
+En «automático» va Claude y, si no tiene sesión o se cae (por ejemplo, se acabó el uso del plan), sigue Gemini.
+La sala no sabe de ninguna marca: las reglas salen de _MARCA/marca.json del proyecto.
 """
 import glob
 import json
 import os
 import shutil
 import subprocess
+import threading
 import time
 from pathlib import Path
 
+import gemini
 import nucleo
 
 _estado = {"t": 0, "datos": None}
+MODOS = ("auto", "claude", "gemini")
+CLAUDE_MAX = 10 * 60  # si Claude no termina en 10 minutos, se corta (antes se quedaba colgado para siempre)
+
+
+def modo():
+    m = nucleo.CONFIG.get("ia")
+    return m if m in MODOS else "auto"
+
+
+def elegir_modo(m):
+    if m not in MODOS:
+        raise ValueError("Modo de IA no válido")
+    nucleo.guardar_config({"ia": m})
 
 
 def encontrar():
@@ -33,7 +51,7 @@ def _sin_ventana():
     return {"creationflags": 0x08000000} if os.name == "nt" else {}
 
 
-def estado(forzar=False):
+def estado_claude(forzar=False):
     if not forzar and _estado["datos"] and time.time() - _estado["t"] < 30:
         return _estado["datos"]
     ruta = encontrar()
@@ -49,6 +67,52 @@ def estado(forzar=False):
     return out
 
 
+def quien(c=None, g=None):
+    """Qué IA haría el próximo pedido: «claude», «gemini» o None si no hay ninguna lista."""
+    c = c or estado_claude()
+    g = g or gemini.estado()
+    m = modo()
+    if m == "claude":
+        return "claude" if c["sesion"] else None
+    if m == "gemini":
+        return "gemini" if g["instalado"] else None
+    return "claude" if c["sesion"] else "gemini" if g["instalado"] else None
+
+
+def estado(forzar=False):
+    """Las dos IA: {claude: {instalado, sesion}, gemini: {instalado}, modo, usa}. (instalado y sesion de Claude
+    también arriba, como antes, para la cuenta y las otras partes que ya los leían.)"""
+    c, g = estado_claude(forzar), gemini.estado()
+    return {**c, "claude": c, "gemini": g, "modo": modo(), "usa": quien(c, g)}
+
+
+# Errores de Claude que no se arreglan reintentando con Claude: en «automático» el pedido sigue con Gemini
+_CLAUDE_CAIDO = ("sesión iniciada", "login", "no encuentro claude", "limit", "límite", "usage", "quota", "rate", "credit",
+                 "overloaded", "no respondió", "tardó demasiado", "demasiado largo")
+
+
+def correr(prompt, avance=print, max_turnos=20, que="pedido"):
+    """Pasa el pedido a la IA que toque y devuelve su texto final (en el que viene el JSON)."""
+    usa = quien()
+    if not usa:
+        m = modo()
+        raise RuntimeError("Claude no tiene la sesión iniciada en esta PC. Inicia sesión (Configuración → IA) o cambia a Gemini." if m == "claude"
+                           else "Antigravity no está instalado en esta PC. Instálalo (antigravity.google) o cambia a Claude en Configuración → IA." if m == "gemini"
+                           else "No hay ninguna IA lista: inicia sesión en Claude o instala Antigravity (Configuración → IA).")
+    if usa == "gemini":
+        return gemini.correr(prompt, que, avance)
+    try:
+        return correr_claude(prompt, avance, max_turnos)
+    except nucleo.Cancelado:
+        raise
+    except RuntimeError as e:
+        if modo() != "auto" or not gemini.estado()["instalado"] or not any(x in str(e).lower() for x in _CLAUDE_CAIDO):
+            raise
+        avance(f"Claude no pudo ({str(e)[:120]}). Sigue Gemini en Antigravity…")
+        _estado["datos"] = None
+        return gemini.correr(prompt, que, avance)
+
+
 def iniciar_sesion():
     ruta = encontrar()
     if not ruta:
@@ -57,40 +121,74 @@ def iniciar_sesion():
     subprocess.Popen(["cmd", "/c", "start", "Claude - iniciar sesion", "/wait", ruta, "auth", "login", "--claudeai"], cwd=str(nucleo.DATOS))
 
 
-def correr(prompt, avance=print, max_turnos=20):
-    """Corre Claude Code sin ventana, solo para responder (sin tocar archivos). Devuelve el texto final."""
+def correr_claude(prompt, avance=print, max_turnos=20):
+    """Corre Claude Code sin ventana, solo para responder (sin tocar archivos). Devuelve el texto final.
+    El pedido va por la entrada (stdin) y no en la línea de comandos: Windows corta las órdenes de más de 32.767 letras
+    (8.191 con claude.cmd), y un pedido con el guion de un video de referencia las pasa."""
     ruta = encontrar()
     if not ruta:
-        raise RuntimeError("No encuentro Claude Code en esta PC (Configuración → Claude)")
-    cmd = [ruta, "-p", prompt, "--output-format", "stream-json", "--verbose", "--disallowedTools", "Bash", "Write", "Edit",
+        raise RuntimeError("No encuentro Claude Code en esta PC (Configuración → IA)")
+    cmd = [ruta, "-p", "--output-format", "stream-json", "--verbose", "--disallowedTools", "Bash", "Write", "Edit",
            "WebFetch", "WebSearch", "--max-turns", str(max_turnos)]
-    p = subprocess.Popen(cmd, cwd=str(nucleo.DATOS), stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
+    p = subprocess.Popen(cmd, cwd=str(nucleo.DATOS), stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
                          text=True, encoding="utf-8", errors="replace", **_sin_ventana())
     nucleo.PROCESOS.add(p)
+    errores = []  # stderr se lee aparte: si se llena sin leerlo, Claude se queda trabado esperando
+    lector = threading.Thread(target=lambda: errores.append(p.stderr.read()), daemon=True)
+    lector.start()
+    vencido = threading.Event()
+
+    def cortar():
+        vencido.set()
+        p.kill()
+    reloj = threading.Timer(CLAUDE_MAX, cortar)
+    reloj.daemon = True
+    reloj.start()
     final = None
-    for linea in p.stdout:
-        try:
-            ev = json.loads(linea)
-        except ValueError:
-            continue
-        if ev.get("type") == "assistant":
-            for b in ev.get("message", {}).get("content", []):
-                if b.get("type") == "text" and b.get("text", "").strip():
-                    avance("Claude · " + b["text"].strip().splitlines()[0][:140])
-        elif ev.get("type") == "result":
-            final = ev
-    err = p.stderr.read()
-    p.wait()
-    nucleo.PROCESOS.discard(p)
+    try:
+        p.stdin.write(prompt)
+        p.stdin.close()
+        for linea in p.stdout:
+            try:
+                ev = json.loads(linea)
+            except ValueError:
+                continue
+            if ev.get("type") == "assistant":
+                for b in ev.get("message", {}).get("content", []):
+                    t = b.get("text", "").strip() if b.get("type") == "text" else ""
+                    if t and not t.startswith(("{", "`")):  # el JSON de la respuesta no es un avance
+                        avance("Claude · " + t.splitlines()[0][:140])
+            elif ev.get("type") == "result":
+                final = ev
+        p.wait()
+    except OSError:
+        p.kill()
+    finally:
+        reloj.cancel()
+        nucleo.PROCESOS.discard(p)
     nucleo.revisar_cancelado()
+    if vencido.is_set():
+        raise RuntimeError(f"Claude tardó demasiado (más de {CLAUDE_MAX // 60} minutos) y se cortó. Intenta de nuevo.")
     if not final:
-        raise RuntimeError("Claude no respondió. " + err.strip()[-300:])
+        lector.join(2)
+        raise RuntimeError("Claude no respondió. " + "".join(errores).strip()[-300:])
     if final.get("is_error"):
         texto = final.get("result") or final.get("subtype") or "error"
         if "login" in texto.lower():
             raise RuntimeError("Claude Code no tiene la sesión iniciada: Configuración → «Iniciar sesión en Claude».")
         raise RuntimeError("Claude: " + texto[:300])
     return final.get("result") or ""
+
+
+def _json_de(texto, falta):
+    """El JSON que viene en la respuesta de la IA; si no hay o está roto, un error que se entiende."""
+    inicio, fin = texto.find("{"), texto.rfind("}")
+    if inicio < 0 or fin < 0:
+        raise RuntimeError(f"La IA no devolvió {falta}. Intenta de nuevo.")
+    try:
+        return json.loads(texto[inicio:fin + 1])
+    except ValueError:
+        raise RuntimeError(f"La IA devolvió {falta} con un error de formato. Intenta de nuevo.") from None
 
 
 def escribir_pieza(pieza, idea, marca, avance=print):
@@ -112,11 +210,7 @@ texto y la acción). En un post, el CTA va al final del copy.
 Marca con *asteriscos* la palabra que va resaltada en el título.
 Responde SOLO con JSON, sin texto antes ni después:
 {{"laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}"""
-    texto = correr(prompt, avance=avance)
-    inicio, fin = texto.find("{"), texto.rfind("}")
-    if inicio < 0 or fin < 0:
-        raise RuntimeError("Claude no devolvió la pieza. Intenta de nuevo.")
-    datos = json.loads(texto[inicio:fin + 1])
+    datos = _json_de(correr(prompt, avance=avance, que="escribir"), "la pieza")
     if pieza.get("tipo") != "post":
         datos["laminas"] = con_cta(datos.get("laminas", []), marca)
     return datos
@@ -138,13 +232,9 @@ Marca y reglas (respétalas al pie de la letra): {json.dumps(reglas, ensure_asci
 El prompt lleva el encuadre del formato: {ORIENTACION.get(pieza.get('formato', '4:5'), 'vertical 4:5')}.
 Escribe el prompt nuevo completo en inglés (no solo el cambio): corrige lo que dice el equipo y mantén lo que estaba bien.
 Responde SOLO con JSON, sin texto antes ni después: {{"flow": "…", "cambio": "qué cambiaste, en una frase en español"}}"""
-    texto = correr(prompt, avance=avance, max_turnos=10)
-    inicio, fin = texto.find("{"), texto.rfind("}")
-    if inicio < 0 or fin < 0:
-        raise RuntimeError("Claude no devolvió el prompt nuevo. Intenta de nuevo.")
-    datos = json.loads(texto[inicio:fin + 1])
+    datos = _json_de(correr(prompt, avance=avance, max_turnos=10, que="foto"), "el prompt nuevo")
     if not str(datos.get("flow", "")).strip():
-        raise RuntimeError("Claude no devolvió el prompt nuevo. Intenta de nuevo.")
+        raise RuntimeError("La IA no devolvió el prompt nuevo. Intenta de nuevo.")
     return datos
 
 
@@ -169,6 +259,21 @@ y no uses «--ar». Si la marca trae «direccion_visual», síguela."""
 
 
 ORIENTACION = {"4:5": "vertical 4:5", "1:1": "square 1:1", "9:16": "tall vertical 9:16 (story), leave the top and bottom 15% clean"}
+# los estilos visuales de la sala (los mismos del selector «Estilo» del editor)
+ESTILOS = {"A": "nariz a cámara", "B": "color sólido", "C": "metáfora", "D": "garabatos", "E": "lifestyle"}
+ESTILOS_TEXTO = ", ".join(f"{k} ({v})" for k, v in ESTILOS.items())
+# por si Claude responde con palabras en vez de la letra
+ESTILO_POR_PALABRA = (("A", ("nariz", "cámara", "camara", "primer plano", "close")), ("B", ("sólido", "solido", "color plano", "liso")),
+                      ("C", ("metáfora", "metafora")), ("D", ("garabato", "doodle")), ("E", ("lifestyle", "estilo de vida", "cotidian")))
+
+
+def estilo_letra(valor):
+    """«B», «b · Color sólido» o «una metáfora visual…» -> la letra A–E; si no se entiende, vacío."""
+    t = str(valor or "").strip()
+    if t[:1].upper() in ESTILOS and (len(t) == 1 or not t[1].isalpha()):
+        return t[0].upper()
+    t = t.lower()
+    return next((letra for letra, palabras in ESTILO_POR_PALABRA if any(p in t for p in palabras)), "")
 
 
 def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referencia=None):
@@ -204,18 +309,16 @@ Marca con *asteriscos* la palabra resaltada del título.
 {FOTOS}
 El prompt de Flow lleva el encuadre del formato: {json.dumps(ORIENTACION)}.
 Si son varias piezas, sus portadas llevan fondos distintos entre sí.
+En «estilo» va SOLO una letra: {ESTILOS_TEXTO}.
 Responde SOLO con JSON, sin texto antes ni después:
-{{"piezas": [{{"tipo": "carrusel", "formato": "4:5", "dia": "", "titulo": "…", "nivel": "TOFU | MOFU | BOFU", "publico": "…", "estilo": "…",
+{{"piezas": [{{"tipo": "carrusel", "formato": "4:5", "dia": "", "titulo": "…", "nivel": "TOFU | MOFU | BOFU", "publico": "…", "estilo": "A | B | C | D | E",
   "laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
-    avance("Claude está leyendo el pedido…")
-    respuesta = correr(prompt, avance=avance, max_turnos=25)
-    inicio, fin = respuesta.find("{"), respuesta.rfind("}")
-    if inicio < 0 or fin < 0:
-        raise RuntimeError("Claude no devolvió las piezas. Intenta de nuevo.")
-    datos = json.loads(respuesta[inicio:fin + 1])
+    avance(("Claude" if quien() == "claude" else "Gemini") + " está leyendo el pedido…")
+    datos = _json_de(correr(prompt, avance=avance, max_turnos=25, que="pedido"), "las piezas")
     if not datos.get("piezas"):
-        raise RuntimeError("Claude no encontró ninguna pieza en el pedido. Escríbelo con más detalle.")
+        raise RuntimeError("La IA no encontró ninguna pieza en el pedido. Escríbelo con más detalle.")
     for p in datos["piezas"]:
+        p["estilo"] = estilo_letra(p.get("estilo"))
         if p.get("tipo") != "post" and len(p.get("laminas") or []) > 1:
             p["laminas"] = con_cta(p.get("laminas", []), marca)
     return datos

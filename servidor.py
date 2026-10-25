@@ -3,6 +3,7 @@
 Abrir:  python servidor.py   →   http://localhost:8767   (o SalaDiseno.exe)
 """
 import base64
+import datetime as dt
 import json
 import mimetypes
 import os
@@ -18,6 +19,7 @@ import actualizador
 import asistente
 import conexion
 import cuenta
+import gemini
 import importar_marca
 import marca
 import nucleo
@@ -27,16 +29,18 @@ import videos as videos_edicion
 
 PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else int(os.environ.get("DISENO_PUERTO") or 8767)
 FUENTES = nucleo.RAIZ / "fuentes"
-TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "resultado": None}
+TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "resultado": None, "id": None, "lamina": None, "nota": None}
 LATIDO = {"ultimo": 0.0, "adios": 0.0}
 INICIO = time.time()
 
 
-def lanzar(accion, fn):
-    """Corre algo largo (Claude) en segundo plano; la página pregunta por /api/trabajo."""
+def lanzar(accion, fn, pid=None, lamina=None, nota=None):
+    """Corre algo largo (la IA) en segundo plano; la página pregunta por /api/trabajo.
+    pid, lamina y nota dicen de qué pieza es, para que la página lo retome si se recarga a mitad."""
     if TRABAJO["activo"]:
-        raise RuntimeError("Ya hay un trabajo en curso. Espera a que termine.")
-    TRABAJO.update(activo=True, accion=accion, mensaje="Empezando…", error=None, resultado=None)
+        raise RuntimeError("Ya hay un trabajo en curso. Espera a que termine o cancélalo.")
+    nucleo.CANCELAR.clear()  # un «Cancelar» de antes no corta este trabajo
+    TRABAJO.update(activo=True, accion=accion, mensaje="Empezando…", error=None, resultado=None, id=pid, lamina=lamina, nota=nota)
 
     def avance(m):
         TRABAJO["mensaje"] = m
@@ -72,6 +76,7 @@ def estado():
     sem = piezas.semana_actual()
     return {"version": nucleo.VERSION, "drive": conexion.estado(), "cuenta": cuenta.estado(), "marca": marca.datos(), "quien": piezas.quien(),
             "semana": sem, "semanas": piezas.semanas(), "piezas": piezas.listar(sem), "formatos": piezas.FORMATOS,
+            "tiene_brief": bool(piezas.videos_de_la_semana(sem)),  # sin brief, «Los videos de esta semana» no sirve
             "recortador": {"listo": recorte.modelo_listo(), **recorte.ESTADO_MODELO}}
 
 
@@ -162,8 +167,8 @@ class H(BaseHTTPRequestHandler):
                 datos, editando = piezas.leer(pid)
                 piezas.marcar_editando(pid)
                 self._json({"id": pid, "datos": datos, "imagenes": piezas.imagenes(pid), "editando": editando})
-            elif u.path == "/api/trabajo":
-                self._json(TRABAJO)
+            elif u.path == "/api/trabajo":  # gemini: si se está esperando a Gemini, la carpeta y el mensaje para pegar
+                self._json({**TRABAJO, "gemini": dict(gemini.ACTUAL) if TRABAJO["activo"] and gemini.ACTUAL else None})
             elif u.path == "/api/claude":
                 self._json(asistente.estado())
             elif u.path == "/api/version":
@@ -202,7 +207,14 @@ class H(BaseHTTPRequestHandler):
                 b = self._cuerpo()
                 if b.get("accion") == "crear":
                     plan = b.get("plan") if isinstance(b.get("plan"), list) else None
-                    rel = piezas.crear_semana(str(b["fecha"]), str(b.get("tema") or "")[:40], plan)
+                    fecha = str(b.get("fecha") or "").strip()
+                    if not fecha:
+                        raise ValueError("Elige una fecha de la semana")
+                    try:
+                        dt.date.fromisoformat(fecha)
+                    except ValueError:
+                        raise ValueError("Esa fecha no es válida. Elígela en el calendario.") from None
+                    rel = piezas.crear_semana(fecha, str(b.get("tema") or "")[:40], plan)
                     piezas.subir()
                 else:
                     piezas.elegir_semana(str(b["rel"]))
@@ -241,17 +253,23 @@ class H(BaseHTTPRequestHandler):
                 b = self._cuerpo()
                 if b.get("accion") == "login":
                     asistente.iniciar_sesion()
+                elif b.get("accion") == "modo":  # qué IA usar: auto (Claude y si no, Gemini), claude o gemini
+                    asistente.elegir_modo(str(b.get("modo", "")))
+                    return self._json({"ok": True, **asistente.estado()})
+                elif b.get("accion") == "gemini_abrir":  # volver a abrir Antigravity con el pedido y copiar el mensaje
+                    return self._json({"ok": True, "abierto": gemini.abrir(), "copiado": gemini.copiar_mensaje()})
                 elif b.get("accion") == "escribir":
                     pieza, _ = piezas.leer(b["id"])
                     datos_marca = marca.datos()
-                    lanzar("escribir", lambda av: asistente.escribir_pieza(pieza, str(b.get("idea", ""))[:2000], datos_marca, av))
+                    lanzar("escribir", lambda av: asistente.escribir_pieza(pieza, str(b.get("idea", ""))[:2000], datos_marca, av), pid=b["id"])
                 elif b.get("accion") == "rehacer":  # la nota del equipo sobre una foto -> el prompt de Flow nuevo de esa lámina
                     nota = str(b.get("nota", "")).strip()[:1000]
                     if len(nota) < 3:
                         raise ValueError("Escribe qué hay que cambiar en la foto")
                     pieza, _ = piezas.leer(b["id"])
                     datos_marca = marca.datos()
-                    lanzar("rehacer", lambda av: asistente.rehacer_foto(pieza, int(b.get("lamina", 0)), nota, datos_marca, av))
+                    n = int(b.get("lamina", 0))
+                    lanzar("rehacer", lambda av: asistente.rehacer_foto(pieza, n, nota, datos_marca, av), pid=b["id"], lamina=n, nota=nota)
                 else:
                     raise ValueError("Acción no válida")
                 self._json({"ok": True})
@@ -261,6 +279,8 @@ class H(BaseHTTPRequestHandler):
                 if len(texto) < 5:
                     raise ValueError("Escribe qué quieres que se haga")
                 videos = piezas.videos_de_la_semana() if b.get("videos") else None
+                if b.get("videos") and not videos:
+                    raise ValueError("Esta semana no tiene brief con sus videos. Elige «Nada» o un video de la Sala de edición.")
                 semana, datos_marca = piezas.semana_actual(), marca.datos()
                 ruta_video = str(b.get("video") or "")
 
@@ -311,8 +331,8 @@ class H(BaseHTTPRequestHandler):
                 else:
                     raise ValueError("Acción no válida")
             elif u.path == "/api/marca_base":
-                marca.crear_base(str(self._cuerpo().get("nombre", ""))[:60])
-                self._json({"ok": True, "marca": marca.datos()})
+                creada = marca.crear_base(str(self._cuerpo().get("nombre", ""))[:60])
+                self._json({"ok": True, "creada": creada, "marca": marca.datos()})
             elif u.path == "/api/miniatura":  # la lámina 1 en chico, para la biblioteca (?id=&rel=)
                 piezas.guardar_miniatura(q["id"][0], self._crudo(4 * 1024 * 1024), q.get("rel", [None])[0])
                 self._json({"ok": True})

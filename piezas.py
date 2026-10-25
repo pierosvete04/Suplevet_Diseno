@@ -212,8 +212,19 @@ def marcar_editando(pid):
     (c / "editando.json").write_text(json.dumps({"quien": quien(), "t": time.time(), "hora": time.strftime("%H:%M")}), encoding="utf-8")
 
 
+def _con_semana(datos, c):
+    """Anota en pieza.json la semana de la estrategia (S03) y un código fijo (S03-D-C01): con eso el Publicador
+    la pone en la semana correcta y la junta con su brief."""
+    semana = c.parent.name.split(" · ")[0]
+    num = next((x for x in c.name.split(" · ") if re.fullmatch(r"[CP]\d+", x)), c.name)
+    if re.fullmatch(r"S\d+", semana):
+        datos["semana"], datos["codigo"] = semana, f"{semana}-D-{num}"
+    return datos
+
+
 def guardar(pid, datos):
     c = carpeta(pid)
+    _con_semana(datos, c)
     c.mkdir(parents=True, exist_ok=True)
     datos["actualizado"] = time.strftime("%Y-%m-%d %H:%M")
     datos["por"] = quien()
@@ -237,6 +248,7 @@ def nueva(titulo, tipo="carrusel", laminas=None, dia="", rel=None, nivel="", pub
              "publico": publico, "estilo": estilo, "copy": "", "laminas": [vacia() for _ in range(n)]}
     c = semana_dir(rel) / pid
     (c / "Flow").mkdir(parents=True, exist_ok=True)
+    _con_semana(datos, c)
     (c / "pieza.json").write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
     return pid, datos
 
@@ -366,8 +378,9 @@ def biblioteca():
                         "nivel": p.get("nivel", ""), "publico": p.get("publico", ""), "estilo": p.get("estilo", ""),
                         "laminas": len(p.get("laminas", [])), "exportado": bool(finales), "miniatura": mini,
                         "actualizado": p.get("actualizado", ""), "por": p.get("por", ""), "pedido": p.get("pedido", ""),
+                        # «Foto de fondo» sin foto elegida todavía no cuenta como foto
                         "con_fotos": any(c2.get("tipo") == "imagen" for l in p.get("laminas", []) for c2 in l.get("capas", []))
-                        or any(l.get("fondo", {}).get("tipo") == "imagen" for l in p.get("laminas", []))})
+                        or any(l.get("fondo", {}).get("tipo") == "imagen" and l.get("fondo", {}).get("src") for l in p.get("laminas", []))})
     return sorted(out, key=lambda x: (x["fecha"], x["id"]), reverse=True)
 
 

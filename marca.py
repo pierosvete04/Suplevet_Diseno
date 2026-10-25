@@ -65,13 +65,16 @@ def ruta_archivo(rel):
 
 
 def crear_base(nombre):
-    """marca.json de partida para un proyecto nuevo (se completa a mano o con Claude)."""
+    """marca.json de partida para un proyecto nuevo (se completa a mano o con Claude).
+    Devuelve True si lo creó y False si ya existía (no se pisa)."""
     d = carpeta()
     (d / "logos").mkdir(parents=True, exist_ok=True)
     (d / "productos").mkdir(exist_ok=True)
-    if not (d / "marca.json").exists():
+    creada = not (d / "marca.json").exists()
+    if creada:
         (d / "marca.json").write_text(json.dumps({**NEUTRA, "nombre": nombre}, ensure_ascii=False, indent=1), encoding="utf-8")
     conexion.en_segundo_plano(conexion.subir, CARPETA)
+    return creada
 
 
 def bajar():

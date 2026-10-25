@@ -34,9 +34,8 @@ try { const t = localStorage.getItem("sala_tema") || (matchMedia("(prefers-color
 [hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--ink); font: 13px/1.45 var(--f); overflow: hidden; }
-.cabeza { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.cabeza h1 { font: 700 15px var(--fd); margin: 0; letter-spacing: .02em; }
-.logo-app { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: linear-gradient(135deg,#7c3aed,#ec4899 60%,#f59e0b); color: #fff; font: 800 14px var(--fd); }
+/* La cabecera es la misma en las tres apps: sus clases (app-*) y el menú de tu cuenta vienen de cuenta.js */
+.cabeza { position: relative; z-index: 30; padding: 10px 20px 9px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .pastilla { font: 600 11px var(--mono); padding: 3px 8px; border-radius: 99px; border: 1px solid var(--line2); color: var(--muted); }
 .pastilla.ok { color: var(--ok); border-color: var(--ok); } .pastilla.mal { color: var(--warn); border-color: var(--warn); }
 .banda { padding: 7px 14px; background: rgba(61,139,255,.12); border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: center; }
@@ -66,7 +65,8 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .barra .sep { width: 1px; height: 22px; background: var(--line2); margin: 0 4px; }
 .lienzo-zona { flex: 1; display: grid; place-items: center; overflow: hidden; padding: 14px;
   background: repeating-conic-gradient(var(--surface2) 0 25%, var(--bg) 0 50%) 0 0/24px 24px; }
-#lienzo { height: 100%; max-height: calc(100vh - 230px); max-width: 100%; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.45); touch-action: none; cursor: default; background: #fff; }
+/* el tamaño en pantalla lo pone ajustarLienzo(): la lámina entera cabe en su zona, sea 4:5, 1:1 o 9:16 */
+#lienzo { max-width: 100%; max-height: 100%; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.45); touch-action: none; cursor: default; background: #fff; }
 .tira { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); background: var(--surface); overflow-x: auto; align-items: center; }
 .mini { position: relative; flex: none; border: 2px solid transparent; border-radius: 7px; padding: 0; background: none; cursor: pointer; line-height: 0; }
 .mini canvas { width: 64px; height: 80px; border-radius: 5px; }
@@ -82,7 +82,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .foto img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .foto .tijera { position: absolute; right: 3px; bottom: 3px; border: 0; border-radius: 6px; background: rgba(4,6,11,.8); color: #fff; font-size: 11px; padding: 2px 5px; cursor: pointer; }
 .foto.recortada::after { content: "sin fondo"; position: absolute; left: 3px; top: 3px; font: 600 9px var(--mono); background: var(--ok); color: #04210f; border-radius: 4px; padding: 1px 4px; }
-.soltar { border: 1.5px dashed var(--line2); border-radius: 10px; padding: 12px; text-align: center; color: var(--muted); cursor: pointer; }
+.soltar { display: block; border: 1.5px dashed var(--line2); border-radius: 10px; padding: 12px; text-align: center; color: var(--muted); cursor: pointer; }
 .soltar.encima { border-color: var(--accent); color: var(--ink); background: rgba(61,139,255,.08); }
 .colores { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .color { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line2); cursor: pointer; padding: 0; }
@@ -96,6 +96,10 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .menu .lista canvas { width: 100%; height: 100%; }
 .aviso { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line2); border-radius: 10px; padding: 9px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.4); z-index: 50; max-width: 80vw; }
 .aviso.err { border-color: var(--err); }
+/* los selects del editor no se aplastan: si no entran en la fila, bajan a la siguiente */
+#nuevoDia { min-width: 72px; } #nuevoTipo { min-width: 100px; } #nuevoFormato { min-width: 116px; } #clNivel { min-width: 80px; } #clEstilo { min-width: 120px; }
+#dlgPregunta { width: min(420px, 92vw); }
+#dlgPregunta p { margin: 4px 0 16px; font-size: 14px; white-space: pre-line; }
 .guion-l { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
 .guion-l b { display: block; }
 .guion-l code { display: block; font: 11px var(--mono); color: var(--muted); white-space: pre-wrap; margin: 4px 0; max-height: 70px; overflow: auto; }
@@ -118,6 +122,21 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .conf-cab > div:first-child { flex: 1 1 320px; } .conf-cab h2 { margin: 0 0 2px; font-size: 16px; } .conf-cab p { margin: 0; font-size: 12.5px; }
 .estado-grande { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--line); font-size: 13.5px; }
 .estado-grande:empty { display: none; }
+/* IA: Claude y Gemini (Configuración) y la caja de espera de Gemini, visible en todas las pestañas */
+.ia-modos { display: grid; gap: 6px; }
+.ia-modos label { display: flex; gap: 8px; align-items: baseline; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.ia-modos label:has(input:checked) { border-color: var(--accent2); background: var(--surface2); }
+.ia-tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 12px; }
+.ia-tarjeta { display: grid; gap: 8px; align-content: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+.ia-tarjeta p { margin: 0; font-size: 13px; }
+.ia-tarjeta .pill { font-size: 12px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line2); color: var(--muted); }
+.ia-tarjeta .pill.ok { color: var(--ok, #22c55e); border-color: currentColor; }
+.ia-tarjeta .btn { justify-self: start; }
+.gemini-caja { position: fixed; right: 16px; bottom: 16px; z-index: 50; width: min(380px, calc(100vw - 32px)); display: grid; gap: 10px;
+  padding: 14px 16px; border-radius: 14px; background: var(--surface2); border: 1px solid var(--accent2); box-shadow: 0 10px 30px rgba(0,0,0,.35); font-size: 13px; }
+.gemini-caja[hidden] { display: none; }
+.gemini-caja ol { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.gemini-caja .fila { display: flex; gap: 6px; flex-wrap: wrap; }
 .estado-grande b.dato { font: 600 13px var(--mono); color: var(--accent2); padding: 2px 8px; border-radius: 7px; background: var(--bg2); border: 1px solid var(--line2); }
 @media (max-width: 860px) { .conf { grid-template-columns: 1fr; } .conf-menu { position: static; grid-auto-flow: column; overflow-x: auto; } .conf-tit { display: none; } }
 
@@ -175,7 +194,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .im-colores { display: flex; gap: 8px; flex-wrap: wrap; }
 .im-colores label { display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--ink); }
 .im-colores input[type=color] { width: 28px; height: 24px; padding: 0; border: 0; background: none; }
-.im-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.im-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .im-item { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface2); font-size: 12px; min-width: 0; }
 .im-item.ignorar { opacity: .55; }
 .im-img { height: 96px; border-radius: 8px; display: grid; place-items: center; overflow: hidden; background: repeating-conic-gradient(#d9dee8 0 25%, #fff 0 50%) 0 0/12px 12px; }
@@ -185,28 +204,46 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .im-item select { width: 100%; }
 @media (max-width: 900px) { .mk-importar { grid-template-columns: 1fr; } }
 .marca-fotos img { height: 110px; border-radius: 10px; border: 1px solid var(--line); background: repeating-conic-gradient(#d9dee8 0 25%, #fff 0 50%) 0 0/12px 12px; padding: 6px; }
+/* pantallas chicas (900 px): los 7 días bajan de fila y el editor angosta sus paneles */
+@media (max-width: 1100px) {
+  .dias7 { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .app { grid-template-columns: 220px minmax(0, 1fr) 260px; }
+  .tira { flex-wrap: wrap; }
+}
+@media (max-width: 900px) { .dos-col { grid-template-columns: 1fr; } .vista { padding: 14px; } }
 </style>
 </head>
 <body>
 <header class="cabeza" id="cabeza">
-  <div class="logo-app">D</div>
-  <h1>Sala de diseño <span class="muted" id="version" style="font-weight:500"></span></h1>
-  <span class="pastilla" id="estMarca"></span>
-  <span style="flex:1"></span>
-  <span class="pastilla" id="estClaude"></span>
-  <button class="btn sec chico" id="btnTema" title="Claro / oscuro">◐</button>
-  <button class="btn sec chico" id="btnConfig">⚙ Configuración</button>
-  <span id="cuentaChip"></span>
+  <div class="app-cab">
+    <div class="app-marca"><div class="app-logo" aria-hidden="true" style="background:linear-gradient(135deg,#7c3aed,#ec4899 60%,#f59e0b)">D</div>
+      <div class="app-tit"><span class="app-nombre">Sala de diseño</span><h1 class="app-titulo" id="cabTitulo">Esta semana</h1></div></div>
+    <div class="app-iconos">
+      <button class="app-pastilla" id="estMarca" type="button" data-conf="confMarca" title="La marca del proyecto (colores, logos, productos)"></button>
+      <button class="app-pastilla" id="estClaude" type="button" data-conf="confClaude" title="La IA que escribe las piezas (Claude o Gemini): toca para ver o cambiar"></button>
+      <span id="cuentaChip"></span>
+    </div>
+  </div>
 </header>
 <nav class="pestanas" id="pestanas" role="tablist">
-  <button data-vista="inicio" aria-selected="true">Inicio</button>
-  <button data-vista="biblioteca" aria-selected="false">Biblioteca</button>
-  <button data-vista="crear" aria-selected="false">✦ Crear con IA</button>
-  <button data-vista="videos" aria-selected="false">Videos</button>
-  <button data-vista="editor" aria-selected="false">Editor</button>
-  <button data-vista="marca" aria-selected="false">Marca</button>
-  <button data-vista="config" aria-selected="false">Configuración</button>
+  <button role="tab" id="tab-inicio" aria-controls="v-inicio" data-vista="inicio" aria-selected="true">Inicio</button>
+  <button role="tab" id="tab-biblioteca" aria-controls="v-biblioteca" data-vista="biblioteca" aria-selected="false" tabindex="-1">Biblioteca</button>
+  <button role="tab" id="tab-crear" aria-controls="v-crear" data-vista="crear" aria-selected="false" tabindex="-1">✦ Crear con IA</button>
+  <button role="tab" id="tab-videos" aria-controls="v-videos" data-vista="videos" aria-selected="false" tabindex="-1">Videos</button>
+  <button role="tab" id="tab-editor" aria-controls="v-editor" data-vista="editor" aria-selected="false" tabindex="-1">Editor</button>
+  <button role="tab" id="tab-marca" aria-controls="v-marca" data-vista="marca" aria-selected="false" tabindex="-1">Marca</button>
 </nav>
+<aside class="gemini-caja" id="geminiCaja" role="status" aria-live="polite" hidden>
+  <b>✦ Esta vez escribe Gemini, en Antigravity</b>
+  <ol><li id="gmPaso1">Se abrió Antigravity con el pedido (si no lo ves, búscalo en la barra de tareas).</li>
+    <li class="gm-manual">En su panel del agente, empieza una conversación nueva con Gemini Flash.</li>
+    <li class="gm-manual"><span id="gmPaso3">Pega el mensaje (ya está copiado: Ctrl+V) y envíalo.</span></li>
+    <li>Cuando Gemini termine, la sala toma la respuesta sola. No toques nada aquí.</li></ol>
+  <small class="muted" id="gmTiempo"></small>
+  <div class="fila"><button class="btn chico" type="button" id="gmCopiar">Copiar el mensaje otra vez</button>
+    <button class="btn sec chico" type="button" id="gmAbrir">Abrir Antigravity</button>
+    <button class="btn sec chico" type="button" id="gmCancelar">Cancelar</button></div>
+</aside>
 <div class="banda" id="bandaVersion" hidden><span id="textoVersion"></span><button class="btn chico" id="btnActualizar">Actualizar ahora</button></div>
 <dialog id="dlgImpMarca" aria-labelledby="imTit">
   <div style="padding:6px 4px;display:grid;gap:14px">
@@ -218,15 +255,12 @@ main { display: flex; flex-direction: column; overflow: hidden; }
       <button class="btn" type="button" id="imGuardar">Guardar en mi marca</button></div>
   </div>
 </dialog>
-<dialog id="dlgPedido">
-  <h2 style="margin-top:0">✦ Pedido</h2>
-  <p class="muted" style="margin-top:0">Escribe lo que quieres, como se lo dirías a un diseñador. Puedes pegar tu propio contenido: Claude lo ordena y arma las piezas con sus textos, el prompt de Flow de cada foto y el copy.</p>
-  <textarea id="pedTexto" rows="9" placeholder="Ej.: Hazme 3 posts 1:1 sobre los beneficios del omega 3 para el martes.&#10;Ej.: Una historia 9:16 para el sábado con este texto: …&#10;Ej.: Un carrusel de 6 láminas con este contenido: …"></textarea>
-  <label class="fila" style="margin-top:8px;font-weight:600"><input type="checkbox" id="pedVideos"> Basarse en los videos de esta semana (los ángulos del brief)</label>
-  <p class="muted" id="pedEstado" style="min-height:18px"></p>
-  <div class="fila" style="justify-content:flex-end"><button class="btn sec chico" id="btnPedCerrar">Cerrar</button><button class="btn" id="btnPedir">Pedir a Claude</button></div>
+<!-- preguntar(): en la ventana del programa no se ven los confirm() del navegador, por eso la sala pregunta con su propio diálogo -->
+<dialog id="dlgPregunta" aria-labelledby="pregTexto">
+  <p id="pregTexto"></p>
+  <div class="fila" style="justify-content:flex-end"><button class="btn sec" type="button" id="pregNo">Cancelar</button><button class="btn" type="button" id="pregSi">Sí</button></div>
 </dialog>
-<section class="vista" id="v-inicio">
+<section class="vista" id="v-inicio" role="tabpanel" aria-labelledby="tab-inicio">
   <h2 id="iniTitulo">Esta semana</h2>
   <p class="sub" id="iniSub"></p>
   <div class="cifras" id="iniCifras"></div>
@@ -237,7 +271,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
       <div class="fila"><button class="btn" data-ir="crear">✦ Crear con IA</button><button class="btn sec" data-ir="videos">Crear a partir de un video</button><button class="btn sec" data-ir="biblioteca">Ver la biblioteca</button></div></div>
   </div>
 </section>
-<section class="vista" id="v-biblioteca" hidden>
+<section class="vista" id="v-biblioteca" role="tabpanel" aria-labelledby="tab-biblioteca" hidden>
   <h2>Biblioteca</h2>
   <p class="sub">Todo lo que se creó en la Sala de diseño, de todas las semanas. Toca una pieza para abrirla en el editor.</p>
   <div class="filtros">
@@ -254,32 +288,32 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   </div>
   <div class="rejilla" id="bRejilla"></div>
 </section>
-<section class="vista" id="v-crear" hidden>
+<section class="vista" id="v-crear" role="tabpanel" aria-labelledby="tab-crear" hidden>
   <div class="dos-col">
     <div>
       <h2>✦ Crear con IA</h2>
-      <p class="sub">Escribe lo que quieres como se lo dirías a un diseñador, o pega tu propio contenido. Claude arma las piezas (textos, prompts de Flow y copy) y quedan maquetadas en la semana.</p>
+      <p class="sub">Escribe lo que quieres como se lo dirías a un diseñador, o pega tu propio contenido. La IA (Claude o Gemini) arma las piezas (textos, prompts de Flow y copy) y quedan maquetadas en la semana.</p>
       <textarea id="crTexto" rows="9" placeholder="Ej.: Hazme un carrusel de 6 láminas y 2 posts 1:1 sobre los beneficios del omega 3 para el martes.&#10;Ej.: Una historia 9:16 para el sábado con este texto: …"></textarea>
       <p class="etq" style="margin-top:12px">Usar como referencia</p>
       <div class="fila">
         <label class="fila"><input type="radio" name="crRef" value="" checked> Nada</label>
-        <label class="fila"><input type="radio" name="crRef" value="semana"> Los videos de esta semana (brief)</label>
+        <label class="fila" id="crRefSemana"><input type="radio" name="crRef" value="semana"> Los videos de esta semana (brief)<small class="muted" id="crSinBrief" hidden>· esta semana no tiene brief</small></label>
         <label class="fila"><input type="radio" name="crRef" value="video"> Un video de la Sala de edición</label>
       </div>
       <div id="crVideo"></div>
-      <div class="fila" style="margin-top:12px"><span class="muted">Se crea en la semana</span><b id="crSemana"></b><span style="flex:1"></span><button class="btn" id="crPedir">✦ Pedir a Claude</button></div>
+      <div class="fila" style="margin-top:12px"><span class="muted">Se crea en la semana</span><b id="crSemana"></b><span style="flex:1"></span><button class="btn" id="crPedir">✦ Pedir a la IA</button></div>
       <p class="muted" id="crEstado" style="min-height:18px"></p>
     </div>
     <div><h2 style="font-size:15px">Pedidos anteriores</h2><div id="crHistorial" class="muted">—</div></div>
   </div>
 </section>
-<section class="vista" id="v-videos" hidden>
+<section class="vista" id="v-videos" role="tabpanel" aria-labelledby="tab-videos" hidden>
   <h2>Videos de la Sala de edición</h2>
   <p class="sub">Los videos terminados (V.FINALES) de cada producción. Úsalos de referencia para crear posts y carruseles con el mismo mensaje.</p>
   <div class="filtros"><input type="search" id="vBuscar" placeholder="Buscar video" style="min-width:200px"><select id="vProduccion"><option value="">Todas las producciones</option></select><button class="btn sec chico" id="vRecargar">Actualizar lista</button><span class="muted" id="vCuenta"></span></div>
   <div class="rejilla" id="vRejilla"><p class="muted">Cargando videos de Drive…</p></div>
 </section>
-<section class="vista" id="v-marca" hidden>
+<section class="vista" id="v-marca" role="tabpanel" aria-labelledby="tab-marca" hidden>
   <h2 id="mNombre">Marca</h2>
   <p class="sub">Lo que la sala lee de la carpeta _MARCA del Drive del proyecto. Es la misma marca de la Sala de edición: se carga una vez y sirve para las dos.</p>
   <div class="mk-importar">
@@ -311,8 +345,8 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <div class="conf">
     <aside class="conf-menu" aria-label="Secciones de configuración">
       <div class="conf-tit"><span class="conf-ico">⚙</span><div><b>Configuración</b><small>De esta PC</small></div></div>
-      <a href="#confCuenta" class="activo">👤 Cuenta y dispositivos <span class="punto-estado ok"></span></a>
-      <a href="#confClaude">✦ Claude <span class="punto-estado" id="confPClaude"></span></a>
+      <a href="#confCuenta" class="activo">👤 Cuenta y dispositivos <span class="punto-estado" id="confPCuenta"></span></a>
+      <a href="#confClaude">✦ IA (Claude y Gemini) <span class="punto-estado" id="confPClaude"></span></a>
       <a href="#confMarca">🎨 Marca del proyecto <span class="punto-estado" id="confPMarca"></span></a>
       <a href="#confNombre">✎ Tu nombre</a>
       <a href="#confAct">⟳ Actualizaciones <span class="punto-estado" id="confPAct"></span></a>
@@ -324,10 +358,24 @@ main { display: flex; flex-direction: column; overflow: hidden; }
         <div id="cfgCuenta"></div>
       </section>
       <section class="caja conf-sec" id="confClaude">
-        <div class="conf-cab"><div><h2>Claude</h2>
-          <p class="muted">Escribe las piezas (textos, prompts de Flow y copy). Usa la app de escritorio de Claude de esta PC, con tu suscripción.</p></div>
-          <button class="btn sec" id="btnLoginClaude">Iniciar sesión en Claude</button></div>
-        <div class="estado-grande" id="cfgClaude"></div>
+        <div class="conf-cab"><div><h2>IA: Claude y Gemini</h2>
+          <p class="muted">La IA escribe las piezas (textos, prompts de Flow y copy). Hay dos: Claude y Gemini (en Antigravity). Con una sola ya funciona; con las dos, si una falla, sigue la otra.</p></div></div>
+        <p class="etq">¿Cuál usar?</p>
+        <div class="ia-modos" id="iaModos" role="radiogroup" aria-label="Qué IA usar">
+          <label><input type="radio" name="iaModo" value="auto"> <b>Automático</b> <small class="muted">(recomendado) Claude, y si no está o se cae, Gemini</small></label>
+          <label><input type="radio" name="iaModo" value="claude"> <b>Solo Claude</b></label>
+          <label><input type="radio" name="iaModo" value="gemini"> <b>Solo Gemini</b> <small class="muted">en Antigravity</small></label>
+        </div>
+        <div class="estado-grande" id="cfgIaUsa" style="margin-top:10px"></div>
+        <div class="ia-tarjetas">
+          <div class="ia-tarjeta"><div class="fila" style="justify-content:space-between"><b>Claude</b><span class="pill" id="cfgClaudePill"></span></div>
+            <p class="muted" id="cfgClaude"></p>
+            <small class="muted">Trabaja solo, sin abrir ventanas. Usa la app de escritorio de Claude de esta PC, con tu suscripción.</small>
+            <button class="btn sec chico" id="btnLoginClaude">Iniciar sesión en Claude</button></div>
+          <div class="ia-tarjeta"><div class="fila" style="justify-content:space-between"><b>Gemini (Antigravity)</b><span class="pill" id="cfgGeminiPill"></span></div>
+            <p class="muted" id="cfgGemini"></p>
+            <small class="muted">La sala abre Antigravity y le pasa el pedido a Gemini sola; cuando termina, toma la respuesta. Si algún día no puede, te copia el mensaje para que lo pegues.</small></div>
+        </div>
       </section>
       <section class="caja conf-sec" id="confMarca">
         <div class="conf-cab"><div><h2>Marca del proyecto</h2>
@@ -349,18 +397,19 @@ main { display: flex; flex-direction: column; overflow: hidden; }
     </div>
   </div>
 </section>
-<div class="app" id="v-editor" hidden>
+<div class="app" id="v-editor" role="tabpanel" aria-labelledby="tab-editor" hidden>
   <aside>
     <div>
       <p class="etq">Semana</p>
-      <div class="fila"><select id="selSemana" style="flex:1"></select><button class="btn sec chico" id="btnSemana" title="Crear una semana">+ Semana</button></div>
+      <select id="selSemana" aria-label="Semana"></select>
+      <div class="fila" style="justify-content:flex-end;margin-top:6px"><button class="btn sec chico" id="btnSemana" title="Crear una semana">+ Semana</button></div>
       <div id="formSemana" class="caja" style="margin-top:8px" hidden>
         <div class="prop"><label>Cualquier día de la semana</label><input type="date" id="semFecha"></div>
         <div class="prop"><label>Tema (opcional)</label><input type="text" id="semTema" placeholder="Picazón"></div>
         <div class="prop"><label>Brief de la semana (opcional)</label><input type="file" id="semBrief" accept=".json"></div>
         <button class="btn chico" id="btnCrearSemana">Crear semana</button>
       </div>
-      <button class="btn" id="btnPedido" style="width:100%;margin-top:10px">✦ Pedido</button>
+      <button class="btn" id="btnPedido" style="width:100%;margin-top:10px" title="Pedirle a Claude piezas nuevas para la semana">✦ Crear con IA</button>
       <p class="etq" style="margin-top:12px">Piezas de la semana</p>
       <div id="avisoEditando"></div>
       <div class="lista-c" id="listaC"></div>
@@ -415,7 +464,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <aside class="der">
     <div class="caja" id="props"></div>
     <div class="caja">
-      <p class="etq">Escribir con Claude</p>
+      <p class="etq">Escribir con IA</p>
       <div class="prop"><label>Idea o enfoque</label><textarea id="clIdea" rows="2" placeholder="Qué quieres que cuente, a quién y con qué tono"></textarea></div>
       <div class="fila">
         <select id="clNivel" style="width:auto"><option value="">Nivel</option><option>TOFU</option><option>MOFU</option><option>BOFU</option></select>
@@ -426,7 +475,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
       <div id="clGuion"></div>
     </div>
     <div class="caja">
-      <p class="etq">Copy del carrusel</p>
+      <p class="etq" id="copyEtq">Copy del carrusel</p>
       <textarea id="copy" rows="5" placeholder="Texto que va con el carrusel en Instagram y TikTok"></textarea>
     </div>
   </aside>
@@ -458,6 +507,10 @@ const GARABATOS = {
   equis: "M14 14 L86 86 M86 14 L14 86",
 };
 const FORMAS = ["circulo", "pastilla", "cuadro", "huella", "manchon"];
+// cómo se ven sus nombres en pantalla (los de arriba son internos y quedan así en las piezas guardadas)
+const NOMBRES = { rayas: "Rayas", rayas2: "Rayas 2", flecha: "Flecha", pregunta: "Pregunta", corazon: "Corazón", estrella: "Estrella", circulo: "Círculo",
+  subrayado: "Subrayado", chispas: "Chispas", rizo: "Rizo", check: "Check", equis: "Equis", pastilla: "Pastilla", cuadro: "Cuadro", huella: "Huella", manchon: "Manchón" };
+const nombreBonito = k => NOMBRES[k] || k;
 
 // ---------- Estado ----------
 let lista = [], marca = [], C = null, cid = null, imgs = [], actual = 0, sel = null, historia = [], recortador = {};
@@ -476,10 +529,30 @@ function imagen(src) {
 const L = () => C.laminas[actual];
 const nuevoId = () => Math.random().toString(36).slice(2, 9);
 
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : (varios || uno + "s")}`;
 function avisar(t, tipo) {
   const a = $("aviso"); a.textContent = t; a.className = "aviso " + (tipo || ""); a.hidden = false;
+  // con un diálogo abierto, el aviso va adentro: si no, queda detrás del fondo oscuro
+  const dlg = [...document.querySelectorAll("dialog[open]")].pop();
+  if (a.parentNode !== (dlg || document.body)) (dlg || document.body).appendChild(a);
   clearTimeout(avisar.t); avisar.t = setTimeout(() => a.hidden = true, tipo === "err" ? 7000 : 3500);
 }
+// el confirm() de la sala: devuelve true si toca «Sí» (en la ventana del programa no se ven los del navegador)
+function preguntar(texto, si = "Sí", no = "Cancelar") {
+  const d = $("dlgPregunta");
+  $("pregTexto").textContent = texto; $("pregSi").textContent = si; $("pregNo").textContent = no;
+  return new Promise(ok => {
+    const fin = v => {
+      ["cancel", "close"].forEach(t => d.removeEventListener(t, alCerrar)); $("pregSi").onclick = $("pregNo").onclick = null;
+      if (d.open) d.close(); ok(v);
+    };
+    const alCerrar = () => fin(false);  // Escape también es «no»
+    ["cancel", "close"].forEach(t => d.addEventListener(t, alCerrar));
+    $("pregSi").onclick = () => fin(true); $("pregNo").onclick = () => fin(false);
+    d.showModal(); $("pregSi").focus();
+  });
+}
+const SIN_PIEZA = "Primero elige o crea una pieza";
 async function api(ruta, cuerpo) {
   const r = await fetch(ruta, cuerpo === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
   const d = await r.json();
@@ -651,6 +724,16 @@ function dibujarLamina(ctx, lam, conSeleccion) {
   }
   ctx.restore();
 }
+// la lámina entera cabe en su zona (sin cortarse abajo), sea 4:5, 1:1 o 9:16
+function ajustarLienzo() {
+  const z = document.querySelector(".lienzo-zona"), cs = getComputedStyle(z);
+  const anchoZ = z.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const altoZ = z.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  if (anchoZ <= 0 || altoZ <= 0) return;  // el editor está escondido
+  const k = Math.min(anchoZ / W, altoZ / H);
+  $("lienzo").style.width = Math.floor(W * k) + "px"; $("lienzo").style.height = Math.floor(H * k) + "px";
+}
+new ResizeObserver(ajustarLienzo).observe(document.querySelector(".lienzo-zona"));
 function pintar() {
   if (!C) return;
   const ctx = $("lienzo").getContext("2d");
@@ -663,8 +746,9 @@ function pintarTira() {
   if (!C) { $("tira").innerHTML = ""; return; }
   $("tira").innerHTML = C.laminas.map((_, i) => `<button class="mini ${i === actual ? "activa" : ""}" data-lam="${i}" title="Lámina ${i + 1}"><canvas width="216" height="270"></canvas><span>${i + 1}</span></button>`).join("")
     + `<button class="btn sec chico" id="btnLamina">+ Lámina</button><button class="btn sec chico" id="btnDuplicarL">Duplicar</button>
-       <button class="btn sec chico" id="btnMoverI" title="Mover a la izquierda">←</button><button class="btn sec chico" id="btnMoverD" title="Mover a la derecha">→</button>
-       <button class="btn sec chico" id="btnBorrarL">Borrar lámina</button>`;
+       <button class="btn sec chico" id="btnMoverI" title="${actual === 0 ? "Ya es la primera lámina" : "Mover a la izquierda"}" ${actual === 0 ? "disabled" : ""}>←</button>
+       <button class="btn sec chico" id="btnMoverD" title="${actual >= C.laminas.length - 1 ? "Ya es la última lámina" : "Mover a la derecha"}" ${actual >= C.laminas.length - 1 ? "disabled" : ""}>→</button>
+       <button class="btn sec chico" id="btnBorrarL" ${C.laminas.length < 2 ? 'disabled title="La pieza necesita al menos una lámina"' : ""}>Borrar lámina</button>`;
   $("tira").querySelectorAll(".mini canvas").forEach((cv, i) => {
     const ctx = cv.getContext("2d"); ctx.scale(216 / W, 270 / H); dibujarLamina(ctx, C.laminas[i], false);
   });
@@ -679,7 +763,7 @@ const rango = (id, et, v, min, max, paso = 1) =>
   `<div class="prop"><label>${et}<span>${Math.round(v * 100) / 100}</span></label><input type="range" data-r="${id}" min="${min}" max="${max}" step="${paso}" value="${v}"></div>`;
 function pintarProps() {
   const p = $("props");
-  if (!C) { p.innerHTML = `<p class="muted">Elige o crea un carrusel.</p>`; return; }
+  if (!C) { p.innerHTML = `<p class="muted">${SIN_PIEZA} en la lista de la izquierda.</p>`; return; }
   const c = L().capas.find(x => x.id === sel);
   if (!c) {
     const f = L().fondo;
@@ -687,7 +771,7 @@ function pintarProps() {
       <div class="prop"><label>Tipo</label><select data-f="tipo"><option value="color">Color sólido</option><option value="degradado">Degradado</option><option value="imagen">Foto de fondo</option></select></div>
       <div class="prop"><label>Color</label>${colores("fcolor", f.color)}</div>
       ${f.tipo === "degradado" ? `<div class="prop"><label>Hacia</label>${colores("fcolor2", f.color2)}</div>` : ""}
-      ${f.tipo === "imagen" ? `<p class="muted">Toca una foto de la izquierda para ponerla de fondo.</p>${rango("fzoom", "Zoom", f.zoom || 1, 1, 3, 0.01)}${rango("fdx", "Mover ↔", f.dx || 0, -800, 800)}${rango("fdy", "Mover ↕", f.dy || 0, -800, 800)}${cajaRehacer()}` : ""}
+      ${f.tipo === "imagen" ? `<p class="muted">Toca una foto de la izquierda para ponerla de fondo.</p>${rango("fzoom", "Zoom", f.zoom || 1, 1, 3, 0.01)}${rango("fdx", "Mover ↔", f.dx || 0, -800, 800)}${rango("fdy", "Mover ↕", f.dy || 0, -800, 800)}${f.src ? cajaRehacer() : ""}` : ""}
       <p class="muted">Toca algo de la lámina para editarlo. Arrastra para moverlo, el punto de abajo agranda y el de arriba gira.</p>`;
     p.querySelector('[data-f="tipo"]').value = f.tipo || "color";
     return;
@@ -719,12 +803,12 @@ function pintarProps() {
       ${c.src.tipo === "img" ? cajaRehacer() : ""}
       ${comun}`;
   } else if (c.tipo === "garabato") {
-    p.innerHTML = `<p class="etq">Garabato · ${esc(c.forma)}</p>
+    p.innerHTML = `<p class="etq">Garabato · ${esc(nombreBonito(c.forma))}</p>
       ${rango("w", "Tamaño", c.w, 30, 900, 5)}${rango("grosor", "Grosor del trazo", c.grosor || 7, 2, 30, 0.5)}
       <div class="prop"><label>Color</label>${colores("color", c.color)}</div>
       <label class="fila" style="font-weight:600"><input type="checkbox" data-t="relleno" ${c.relleno ? "checked" : ""}> Relleno</label>${comun}`;
   } else if (c.tipo === "forma") {
-    p.innerHTML = `<p class="etq">Forma · ${esc(c.forma)}</p>
+    p.innerHTML = `<p class="etq">Forma · ${esc(nombreBonito(c.forma))}</p>
       ${rango("w", "Ancho", c.w, 20, 1600, 5)}${c.forma !== "huella" ? rango("h", "Alto", c.h || c.w, 20, 1600, 5) : ""}
       <div class="prop"><label>Color</label>${colores("color", c.color)}</div>${comun}`;
   }
@@ -762,7 +846,21 @@ function guardarMiniatura() {  // la lámina 1 en chico, para la biblioteca y el
   }, 1500);
 }
 function cambio(fn, sinHistoria) { if (!sinHistoria) recordar(); fn(); pintar(); pintarTira(); guardarLuego(); }
-function todo() { pintar(); pintarTira(); pintarProps(); pintarLista(); pintarFotos(); $("copy").value = C?.copy || ""; pintarGuion(); }
+function todo() { pintar(); pintarTira(); pintarProps(); pintarLista(); pintarFotos(); $("copy").value = C?.copy || ""; pintarGuion(); pintarBotones(); }
+// «Post» solo si es de una lámina; con varias se dice cuántas (sea post o carrusel)
+const etiquetaTipo = p => p.laminas > 1 ? `${p.laminas} láminas` : p.tipo === "post" ? "Post" : "1 lámina";
+const nombreTipo = () => C?.tipo === "post" ? "post" : "carrusel";
+// sin pieza abierta, los botones del editor no hacen nada: se apagan y dicen por qué
+function pintarBotones() {
+  ["btnTexto", "btnGarabato", "btnForma", "btnDeshacer", "btnCarpeta", "btnExportar", "btnClaude"].forEach(id => {
+    const b = $(id);
+    if (!C) { b.disabled = true; b.dataset.titulo ??= b.title; b.title = SIN_PIEZA; }
+    else if (b.dataset.titulo !== undefined) { b.disabled = false; b.title = b.dataset.titulo; delete b.dataset.titulo; }
+  });
+  $("copyEtq").textContent = "Copy del " + nombreTipo();
+  $("copy").placeholder = `Texto que va con el ${nombreTipo()} en Instagram y TikTok`;
+  $("lienzo").setAttribute("aria-label", C?.tipo === "post" ? "Lámina del post" : "Lámina del carrusel");
+}
 
 // ---------- Capas nuevas ----------
 function agregar(capa) {
@@ -792,14 +890,15 @@ function pintarFotos() {
     || `<p class="muted" style="grid-column:1/-1">Pon el logo y las fotos del producto sin fondo en _MARCA/logos y _MARCA/productos del Drive.</p>`;
 }
 async function subirFotos(archivos) {
-  if (!C) return avisar("Primero crea o elige un carrusel", "err");
+  if (!C) return avisar(SIN_PIEZA, "err");
+  let n = 0;
   for (const a of archivos) {
     const r = await fetch(`/api/imagen?id=${encodeURIComponent(cid)}&nombre=${encodeURIComponent(a.name)}`, { method: "POST", body: a });
     const d = await r.json();
-    if (d.ok === false) avisar(d.error, "err"); else imgs.push(d.archivo);
+    if (d.ok === false) avisar(d.error, "err"); else { imgs.push(d.archivo); n++; }
   }
   pintarFotos();
-  avisar(`${archivos.length} foto(s) agregada(s)`);
+  if (n) avisar(`${plural(n, "foto agregada", "fotos agregadas")}`);
 }
 async function quitarFondo(nombre) {
   avisar("Quitando el fondo… (la primera vez tarda un poco más)");
@@ -852,8 +951,8 @@ async function quitarFondo(nombre) {
 // ---------- Carruseles ----------
 function pintarLista() {
   $("listaC").innerHTML = lista.map(c => `<button class="${c.id === cid ? "activa" : ""}" data-c-id="${esc(c.id)}">${c.dia ? `<b>${esc(c.dia)}</b> · ` : ""}${esc(c.titulo)}
-    <small>${c.tipo === "post" ? "Post" : c.laminas + " láminas"} · ${esc(c.formato || "4:5")}${c.estilo ? " · estilo " + esc(c.estilo) : ""}${c.nivel ? " · " + esc(c.nivel) : ""}${c.exportado ? " · ✓ exportado" : ""}</small></button>`).join("")
-    || `<p class="muted">Aún no hay carruseles en esta semana.</p>`;
+    <small>${etiquetaTipo(c)} · ${esc(c.formato || "4:5")}${c.estilo ? " · estilo " + esc(c.estilo) : ""}${c.nivel ? " · " + esc(c.nivel) : ""}${c.exportado ? " · ✓ exportado" : ""}</small></button>`).join("")
+    || `<p class="muted">Aún no hay piezas en esta semana.</p>`;
 }
 let semana = "";
 async function cargarLista() {
@@ -862,7 +961,8 @@ async function cargarLista() {
   aplicarMarca(d.marca); pintarCabeza();
   const meses = [...new Set(d.semanas.map(s => s.mes))];
   $("selSemana").innerHTML = meses.map(m => `<optgroup label="${esc(m)}">${d.semanas.filter(s => s.mes === m)
-    .map(s => `<option value="${esc(s.rel)}" ${s.rel === semana ? "selected" : ""}>${esc(s.semana)} (${s.carruseles})</option>`).join("")}</optgroup>`).join("");
+    .map(s => `<option value="${esc(s.rel)}" ${s.rel === semana ? "selected" : ""}>${esc(s.semana)} (${s.piezas ?? 0})</option>`).join("")}</optgroup>`).join("");
+  $("selSemana").title = $("selSemana").selectedOptions[0]?.textContent || "";
   pintarLista(); pintarFotos();
   return d;
 }
@@ -875,7 +975,7 @@ async function abrir(id) {
   const d = await api("/api/pieza?id=" + encodeURIComponent(id));
   cid = id; C = d.datos; imgs = d.imagenes; actual = 0; sel = null; historia = [];
   [W, H] = (ESTADO.formatos || {})[C.formato || "4:5"] || [1080, 1350];
-  $("lienzo").width = W; $("lienzo").height = H; $("lienzo").style.aspectRatio = `${W}/${H}`;
+  $("lienzo").width = W; $("lienzo").height = H; $("lienzo").style.aspectRatio = `${W}/${H}`; ajustarLienzo();
   C.laminas.forEach(l => { if (!l.fondo.color) l.fondo.color = PALETA[1] || "#FFFFFF"; });
   $("avisoEditando").innerHTML = d.editando ? `<div class="editando">⚠ ${esc(d.editando.quien)} la abrió a las ${esc(d.editando.hora)}. Si los dos guardan, queda lo último.</div>` : "";
   try { localStorage.setItem("pieza_abierta", id); } catch (e) {}
@@ -891,35 +991,70 @@ function pintarGuion() {
       <button class="btn sec chico" data-copiar="${i}">Copiar prompt de Flow</button></div>`).join("")
       + `<button class="btn chico" id="btnAplicar" style="margin-top:8px">Poner estos textos en las láminas</button>` : "";
 }
-async function esperarTrabajo() {  // Claude corre en segundo plano: se pregunta cada 1,5 s hasta que termina
-  for (;;) {
-    await new Promise(ok => setTimeout(ok, 1500));
-    const t = await api("/api/trabajo");
-    $("clEstado").textContent = t.mensaje || "";
-    if (!t.activo) { if (t.error) throw new Error(t.error); return t; }
-  }
+async function esperarTrabajo(donde = "clEstado") {  // la IA corre en segundo plano: se pregunta cada 1,5 s hasta que termina
+  try {
+    for (;;) {
+      await new Promise(ok => setTimeout(ok, 1500));
+      const t = await api("/api/trabajo");
+      $(donde).textContent = t.mensaje || "";
+      pintarGemini(t.gemini);
+      if (!t.activo) { if (t.error) throw new Error(t.error === "Cancelado" ? "Se canceló." : t.error); return t; }
+    }
+  } finally { pintarGemini(null); }
+}
+// mientras se espera a Gemini: la caja con los pasos, en cualquier pestaña
+function pintarGemini(g) {
+  $("geminiCaja").hidden = !g;
+  if (!g) return;
+  // si la sala le pasó el pedido sola, no hay nada que pegar: los pasos a mano y sus botones se esconden
+  document.querySelectorAll("#geminiCaja .gm-manual").forEach(x => x.hidden = !!g.enviado);
+  $("gmCopiar").hidden = !!g.enviado;
+  $("gmPaso1").textContent = g.enviado ? "La sala le pasó el pedido a Gemini en Antigravity: ya está escribiendo (puedes verlo en Antigravity)."
+    : g.abierto ? "Se abrió Antigravity con el pedido (si no lo ves, búscalo en la barra de tareas)."
+    : "Abre Antigravity y, en Archivo → Abrir carpeta, elige: " + g.carpeta;
+  $("gmPaso3").textContent = g.copiado ? "Pega el mensaje (ya está copiado: Ctrl+V) y envíalo." : "Toca «Copiar el mensaje otra vez», pégalo en su chat y envíalo.";
+  const s = Math.max(0, Math.round(Date.now() / 1000 - g.desde));
+  $("gmTiempo").textContent = `Esperando a Gemini desde hace ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}. Si en 30 minutos no responde, se corta solo.`;
+}
+$("gmCopiar").onclick = async () => {
+  try { const r = await api("/api/claude", { accion: "gemini_abrir" }); avisar(r.copiado ? "Mensaje copiado: pégalo en el chat de Antigravity" : "No pude copiarlo", r.copiado ? "" : "err"); }
+  catch (e) { avisar(e.message, "err"); }
+};
+$("gmAbrir").onclick = $("gmCopiar").onclick;
+$("gmCancelar").onclick = async () => { try { await api("/api/cancelar", {}); } catch (e) { avisar(e.message, "err"); } };
+// lo que hizo Claude va a su pieza: si es la abierta, en pantalla; si no (se cambió de pieza mientras esperaba), se guarda en la suya
+async function enSuPieza(t, fn) {
+  if (!t.id || t.id === cid) { if (C) { cambio(() => fn(C)); pintarGuion(); } return; }
+  const d = await api("/api/pieza?id=" + encodeURIComponent(t.id));
+  fn(d.datos);
+  await api("/api/pieza", { id: t.id, datos: d.datos });
+  avisar(`La IA terminó: quedó guardado en «${t.id}»`);
+}
+function ponerEscrito(t) {
+  if (t.accion !== "escribir" || !t.resultado?.laminas) return;
+  return enSuPieza(t, p => {
+    p.guion = t.resultado;
+    if (p === C && !$("copy").value.trim()) { C.copy = t.resultado.copy || ""; $("copy").value = C.copy; }
+    else if (p !== C && !(p.copy || "").trim()) p.copy = t.resultado.copy || "";
+  });
 }
 async function escribirConClaude() {
-  if (!C) return;
+  if (!C) return avisar(SIN_PIEZA, "err");
   $("btnClaude").disabled = true;
   try {
     if ($("clNivel").value) C.nivel = $("clNivel").value;
     if ($("clEstilo").value) C.estilo = $("clEstilo").value;
     await api("/api/pieza", { id: cid, datos: limpio(C) });
     await api("/api/claude", { accion: "escribir", id: cid, idea: $("clIdea").value });
-    const t = await esperarTrabajo();
-    if (t.accion === "escribir" && t.resultado?.laminas) {
-      cambio(() => { C.guion = t.resultado; if (!$("copy").value.trim()) { C.copy = t.resultado.copy || ""; $("copy").value = C.copy; } });
-      pintarGuion();
-    }
-  } catch (e) { avisar("Claude: " + e.message, "err"); }
-  $("btnClaude").disabled = false;
+    await ponerEscrito(await esperarTrabajo());
+  } catch (e) { avisar("IA: " + e.message, "err"); }
+  $("btnClaude").disabled = !C;
 }
 function cajaRehacer() {  // en una foto: qué está mal -> Claude reescribe el prompt de Flow de esta lámina
   return `<div class="prop" style="margin-top:8px"><label>¿Qué está mal en esta foto?</label>
     <textarea id="notaFoto" rows="2" placeholder="Ej.: sin frutas ni salmón, que se vea el polvo encima de las croquetas"></textarea>
     <button class="btn chico" data-rehacer>✎ Rehacer foto</button>
-    <span class="muted" style="font-size:11px">Claude escribe el prompt nuevo de Flow con tu nota. La nota queda guardada en la pieza.</span></div>`;
+    <span class="muted" style="font-size:11px">La IA escribe el prompt nuevo de Flow con tu nota. La nota queda guardada en la pieza.</span></div>`;
 }
 async function rehacerFoto(boton) {
   const nota = ($("notaFoto")?.value || "").trim(), n = actual;
@@ -929,20 +1064,22 @@ async function rehacerFoto(boton) {
   try {
     await api("/api/pieza", { id: cid, datos: limpio(C) });
     await api("/api/claude", { accion: "rehacer", id: cid, lamina: n, nota });
-    const t = await esperarTrabajo();
-    if (t.accion !== "rehacer" || !t.resultado?.flow) return;
-    cambio(() => {
-      C.guion = C.guion || { laminas: [], copy: C.copy || "" };
-      while (C.guion.laminas.length <= n) C.guion.laminas.push({ rol: "", titulo: "", texto: "", flow: "" });
-      const l = C.guion.laminas[n];
-      l.flow = t.resultado.flow;
-      (l.notas = l.notas || []).push({ fecha: new Date().toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }), quien: ESTADO.quien || "", nota, foto });
-    });
-    pintarGuion();
-    try { await navigator.clipboard.writeText(t.resultado.flow); } catch (e) {}
-    avisar(`Prompt nuevo de la lámina ${n + 1} copiado: pégalo en Flow. ${t.resultado.cambio || ""}`);
-  } catch (e) { avisar("Claude: " + e.message, "err"); }
+    await ponerRehecho(await esperarTrabajo(), { lamina: n, nota, foto });
+  } catch (e) { avisar("IA: " + e.message, "err"); }
   finally { boton.disabled = false; }
+}
+async function ponerRehecho(t, extra = {}) {  // el prompt nuevo de Flow va a su lámina, con la nota del equipo
+  if (t.accion !== "rehacer" || !t.resultado?.flow) return;
+  const n = t.lamina ?? extra.lamina ?? 0, nota = t.nota ?? extra.nota ?? "";
+  await enSuPieza(t, p => {
+    p.guion = p.guion || { laminas: [], copy: p.copy || "" };
+    while (p.guion.laminas.length <= n) p.guion.laminas.push({ rol: "", titulo: "", texto: "", flow: "" });
+    const l = p.guion.laminas[n];
+    l.flow = t.resultado.flow;
+    (l.notas = l.notas || []).push({ fecha: new Date().toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }), quien: ESTADO.quien || "", nota, foto: extra.foto || "" });
+  });
+  try { await navigator.clipboard.writeText(t.resultado.flow); } catch (e) {}
+  avisar(`Prompt nuevo de la lámina ${n + 1} copiado: pégalo en Flow. ${t.resultado.cambio || ""}`);
 }
 function conCta(laminas) {  // todo carrusel termina con la lámina de CTA de la marca
   if (C.tipo === "post" || !laminas.length || laminas[laminas.length - 1].rol === "cta") return laminas;
@@ -997,15 +1134,32 @@ async function esperarImagenes() {  // ninguna lámina sale sin sus fotos
   const falta = srcs.find(s => !imagen(s));
   if (falta) throw new Error(`No pude cargar la foto ${falta.f}`);
 }
+function faltasParaExportar() {  // láminas vacías y fotos que faltan, dichas en palabras
+  const num = l => l.map(i => i + 1).join(", ");
+  const vacias = [], sinFoto = [];
+  C.laminas.forEach((l, i) => {
+    const conFoto = l.fondo.tipo === "imagen" && l.fondo.src;
+    if (!l.capas.length && !conFoto) vacias.push(i);
+    else if (l.fondo.tipo === "imagen" && !l.fondo.src) sinFoto.push(i);
+  });
+  const hayFotos = C.laminas.some(l => (l.fondo.tipo === "imagen" && l.fondo.src) || l.capas.some(c => c.tipo === "imagen"));
+  const out = [];
+  if (vacias.length) out.push(vacias.length === 1 ? `La lámina ${num(vacias)} está vacía.` : `Las láminas ${num(vacias)} están vacías.`);
+  if (sinFoto.length) out.push(sinFoto.length === 1 ? `La lámina ${num(sinFoto)} tiene «Foto de fondo» pero sin foto.` : `Las láminas ${num(sinFoto)} tienen «Foto de fondo» pero sin foto.`);
+  if (!hayFotos) out.push(`El ${nombreTipo()} no tiene ninguna foto.`);
+  return out;
+}
 async function exportar() {
-  if (!C) return;
+  if (!C) return avisar(SIN_PIEZA, "err");
+  const faltas = faltasParaExportar();
+  if (faltas.length && !await preguntar(faltas.join("\n") + "\n\n¿Igual quieres exportar?", "Exportar igual")) return;
   $("btnExportar").disabled = true;
   try {
     await esperarImagenes();
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     const laminas = C.laminas.map(lam => { const cx = cv.getContext("2d"); cx.clearRect(0, 0, W, H); dibujarLamina(cx, lam, false); return cv.toDataURL("image/png"); });
     const d = await api("/api/exportar", { id: cid, laminas, copy: $("copy").value });
-    avisar(`Exportado: ${laminas.length} lámina(s) en FINAL. El Publicador ya la ve.`);
+    avisar(`Exportado: ${plural(laminas.length, "lámina", "láminas")} en FINAL. El Publicador ya la ve.`);
     await cargarLista();
   } catch (e) { avisar("No se exportó: " + e.message, "err"); }
   $("btnExportar").disabled = false;
@@ -1080,6 +1234,11 @@ $("lienzo").addEventListener("pointermove", e => {
 });
 $("lienzo").addEventListener("pointerup", () => { if (arrastre) { arrastre = null; pintarTira(); pintarProps(); guardarLuego(); } });
 
+document.addEventListener("keydown", e => {  // Escape cierra los menús de garabatos y formas
+  if (e.key !== "Escape" || ($("listaGarabatos").hidden && $("listaFormas").hidden)) return;
+  const abierto = !$("listaGarabatos").hidden ? "btnGarabato" : "btnForma";
+  $("listaGarabatos").hidden = $("listaFormas").hidden = true; $(abierto).focus();
+});
 document.addEventListener("keydown", e => {
   if (!C || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); return deshacer(); }
@@ -1115,12 +1274,12 @@ function accion(a) {
 
 // ---------- Menús de garabatos y formas ----------
 function miniaturas() {
-  $("listaGarabatos").innerHTML = Object.keys(GARABATOS).map(g => `<button data-garabato="${g}" title="${g}"><canvas width="72" height="72"></canvas></button>`).join("");
+  $("listaGarabatos").innerHTML = Object.keys(GARABATOS).map(g => `<button data-garabato="${g}" title="${nombreBonito(g)}" aria-label="${nombreBonito(g)}"><canvas width="72" height="72"></canvas></button>`).join("");
   $("listaGarabatos").querySelectorAll("canvas").forEach((cv, i) => {
     const cx = cv.getContext("2d"); cx.translate(36, 36);
     dibujarGarabato(cx, { forma: Object.keys(GARABATOS)[i], w: 60, color: getComputedStyle(document.body).color, grosor: 6, relleno: false });
   });
-  $("listaFormas").innerHTML = FORMAS.map(f => `<button data-forma="${f}" title="${f}"><canvas width="72" height="72"></canvas></button>`).join("");
+  $("listaFormas").innerHTML = FORMAS.map(f => `<button data-forma="${f}" title="${nombreBonito(f)}" aria-label="${nombreBonito(f)}"><canvas width="72" height="72"></canvas></button>`).join("");
   $("listaFormas").querySelectorAll("canvas").forEach((cv, i) => {
     const cx = cv.getContext("2d"); cx.translate(36, 36);
     dibujarForma(cx, { forma: FORMAS[i], w: 56, h: FORMAS[i] === "pastilla" ? 28 : 56, color: PALETA[3] || "#F59E0B" });
@@ -1154,7 +1313,12 @@ document.addEventListener("click", async e => {
   if (t.id === "btnAplicar") return aplicarGuion();
   if (t.id === "btnLamina") { cambio(() => C.laminas.push({ fondo: { tipo: "color", color: L().fondo.color || PALETA[1] }, capas: [] })); actual = C.laminas.length - 1; sel = null; return todo(); }
   if (t.id === "btnDuplicarL") { cambio(() => { const d = limpio(L()); d.capas.forEach(c => c.id = nuevoId()); C.laminas.splice(actual + 1, 0, d); }); actual++; return todo(); }
-  if (t.id === "btnBorrarL") { if (C.laminas.length < 2) return; if (!confirm(`¿Borrar la lámina ${actual + 1}?`)) return; cambio(() => C.laminas.splice(actual, 1)); actual = Math.max(0, actual - 1); sel = null; return todo(); }
+  if (t.id === "btnBorrarL") {
+    if (C.laminas.length < 2) return avisar("La pieza necesita al menos una lámina", "err");
+    const n = actual;
+    if (!await preguntar(`¿Borrar la lámina ${n + 1}?`, "Borrar")) return;
+    cambio(() => C.laminas.splice(n, 1)); actual = Math.max(0, n - 1); sel = null; return todo();
+  }
   if (t.id === "btnMoverI" && actual > 0) { cambio(() => { const [l] = C.laminas.splice(actual, 1); C.laminas.splice(actual - 1, 0, l); }); actual--; return todo(); }
   if (t.id === "btnMoverD" && actual < C.laminas.length - 1) { cambio(() => { const [l] = C.laminas.splice(actual, 1); C.laminas.splice(actual + 1, 0, l); }); actual++; return todo(); }
 });
@@ -1178,7 +1342,7 @@ document.addEventListener("input", e => {
 // los deslizadores guardan un paso de «deshacer» al empezar a moverse
 document.addEventListener("pointerdown", e => { if (e.target.matches?.("input[type=range], input[type=color]")) recordar(); });
 document.addEventListener("focusin", e => { if (e.target.matches?.("textarea[data-t]")) recordar(); });
-$("btnTexto").onclick = () => C && agregarTexto();
+$("btnTexto").onclick = () => C ? agregarTexto() : avisar(SIN_PIEZA, "err");
 $("btnGarabato").onclick = () => { $("listaGarabatos").hidden = !$("listaGarabatos").hidden; $("listaFormas").hidden = true; };
 $("btnForma").onclick = () => { $("listaFormas").hidden = !$("listaFormas").hidden; $("listaGarabatos").hidden = true; };
 $("btnDeshacer").onclick = deshacer;
@@ -1186,7 +1350,7 @@ $("btnExportar").onclick = exportar;
 $("btnClaude").onclick = escribirConClaude;
 $("btnNuevo").onclick = async () => {
   const titulo = $("nuevoTitulo").value.trim();
-  if (!titulo) return $("nuevoTitulo").focus();
+  if (!titulo) { $("nuevoTitulo").focus(); return avisar("Escribe el tema de la pieza nueva", "err"); }
   try { const d = await api("/api/pieza_nueva", { titulo, tipo: $("nuevoTipo").value, dia: $("nuevoDia").value, formato: $("nuevoFormato").value }); $("nuevoTitulo").value = ""; await cargarLista(); await abrir(d.id); }
   catch (e) { avisar(e.message, "err"); }
 };
@@ -1194,15 +1358,18 @@ $("selSemana").onchange = async e => {
   try { await api("/api/semana", { accion: "elegir", rel: e.target.value }); await cargarLista(); await abrirPrimero(); }
   catch (er) { avisar(er.message, "err"); }
 };
-$("btnSemana").onclick = () => { $("formSemana").hidden = !$("formSemana").hidden; if (!$("semFecha").value) $("semFecha").value = new Date().toISOString().slice(0, 10); };
+// la fecha de hoy en esta PC (toISOString usa la hora universal: desde las 7 p. m. en Perú ya da la de mañana)
+const hoyLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+$("btnSemana").onclick = () => { $("formSemana").hidden = !$("formSemana").hidden; if (!$("semFecha").value) $("semFecha").value = hoyLocal(); };
 $("btnCrearSemana").onclick = async () => {
+  if (!$("semFecha").value) { $("semFecha").focus(); return avisar("Elige una fecha de la semana", "err"); }
   try {
     let plan = null, tema = $("semTema").value.trim();
     const f = $("semBrief").files[0];
     if (f) { const b = JSON.parse(await f.text()); plan = b.carruseles || null; }
     await api("/api/semana", { accion: "crear", fecha: $("semFecha").value, tema, plan });
     $("formSemana").hidden = true; await cargarLista(); await abrirPrimero();
-    avisar(plan ? `Semana creada con ${plan.length} piezas del brief` : "Semana creada (si la estrategia dejó el brief en _SEMANAS, ya trae sus piezas)");
+    avisar(plan ? `Semana creada con ${plural(plan.length, "pieza", "piezas")} del brief` : "Semana creada (si la estrategia dejó el brief en _SEMANAS, ya trae sus piezas)");
   } catch (e) { avisar("No se creó la semana: " + e.message, "err"); }
 };
 $("archivo").onchange = e => { subirFotos([...e.target.files]); e.target.value = ""; };
@@ -1221,24 +1388,56 @@ function esOscuro(hex) {
 function aplicarMarca(m) {
   MARCA = m;
   const propios = (m.colores || []).map(c => (c.hex || c).toUpperCase());
+  const antes = PALETA.join();
   PALETA = [...new Set([...propios, "#FFFFFF", "#111111"])];
   marca = [...(m.productos || []), ...(m.logos || [])];
   $("fondoColores").innerHTML = PALETA.map(c => `<button class="color" style="background:${c}" data-fondo="${c}" title="${c}"></button>`).join("");
+  if (PALETA.join() !== antes) { pintarProps(); miniaturas(); }  // la marca cambió (por ejemplo, al importarla): el panel derecho y las formas usan sus colores
 }
 function pintarCabeza() {
   const d = ESTADO;
-  $("version").textContent = "v" + d.version;
-  $("estMarca").textContent = d.marca.tiene_marca ? (d.marca.nombre || "Marca") : "Sin marca";
-  $("estMarca").className = "pastilla " + (d.marca.tiene_marca ? "ok" : "mal");
+  $("estMarca").textContent = d.marca.tiene_marca ? "● " + (d.marca.nombre || "Marca") : "Sin marca";
+  $("estMarca").className = "app-pastilla " + (d.marca.tiene_marca ? "ok" : "mal");
+  // los puntos de Configuración (también salen en el menú de tu cuenta)
+  $("confPCuenta").className = "punto-estado " + (d.cuenta?.conectado ? "ok" : "warn");
+  $("confPMarca").className = "punto-estado " + (d.marca.tiene_marca ? "ok" : "warn");
 }
-async function revisarClaude() {
-  try { const c = await api("/api/claude"); $("estClaude").textContent = c.sesion ? "Claude listo" : (c.instalado ? "Claude sin sesión" : "Sin Claude");
-    if ($("confPClaude")) $("confPClaude").className = "punto-estado " + (c.sesion ? "ok" : "warn");
-    $("estClaude").className = "pastilla " + (c.sesion ? "ok" : "mal"); $("cfgClaude").textContent = $("estClaude").textContent; } catch (e) {}
+async function revisarClaude() { pintarIA(await api("/api/claude").catch(() => null)); }
+// las dos IA: la pastilla de arriba dice cuál va a escribir; Configuración muestra las dos y deja elegir
+function pintarIA(c) {
+  if (!c) return;
+  const g = c.gemini || {}, usa = c.usa;
+  $("estClaude").textContent = usa === "claude" ? "IA: Claude" : usa === "gemini" ? "IA: Gemini" : "Sin IA";
+  $("estClaude").className = "app-pastilla " + (usa ? "ok" : "mal");
+  $("confPClaude").className = "punto-estado " + (usa ? "ok" : "warn");
+  document.querySelectorAll('input[name="iaModo"]').forEach(r => r.checked = r.value === (c.modo || "auto"));
+  const otra = usa === "claude" && g.instalado ? " Si Claude se cae (por ejemplo, se acaba el uso del plan), sigue Gemini." : "";
+  $("cfgIaUsa").textContent = usa === "claude" ? "✓ Ahora escribe Claude." + (c.modo === "auto" ? otra : "")
+    : usa === "gemini" ? "✓ Ahora escribe Gemini, en Antigravity." + (c.modo === "auto" ? " (Claude no tiene la sesión iniciada en esta PC.)" : "")
+    : c.modo === "claude" ? "Elegiste «Solo Claude», pero Claude no tiene la sesión iniciada: inicia sesión abajo o elige Automático."
+    : c.modo === "gemini" ? "Elegiste «Solo Gemini», pero Antigravity no está instalado: instálalo desde antigravity.google o elige Automático."
+    : "Ninguna IA está lista: inicia sesión en Claude o instala Antigravity (con una basta).";
+  $("cfgClaudePill").textContent = c.sesion ? "● Listo" : c.instalado ? "Sin sesión" : "No instalado";
+  $("cfgClaudePill").className = "pill " + (c.sesion ? "ok" : "");
+  // con la sesión ya iniciada, el botón solo sirve para entrar de nuevo (por ejemplo, con otra cuenta)
+  $("btnLoginClaude").textContent = c.sesion ? "Volver a iniciar sesión" : "Iniciar sesión en Claude";
+  $("btnLoginClaude").hidden = !c.instalado;
+  $("cfgClaude").textContent = c.sesion ? "La sesión ya está iniciada en esta PC."
+    : c.instalado ? "Está instalado pero sin sesión: toca «Iniciar sesión en Claude» y entra con tu cuenta (una sola vez)."
+    : "No está en esta PC: instala la app de escritorio de Claude.";
+  $("cfgGeminiPill").textContent = g.instalado ? "● Instalado" : "No instalado";
+  $("cfgGeminiPill").className = "pill " + (g.instalado ? "ok" : "");
+  $("cfgGemini").textContent = g.instalado ? "Antigravity está en esta PC. Entra en él con tu cuenta de Google una vez."
+    : "No está en esta PC: instálalo desde antigravity.google y entra con tu cuenta de Google.";
 }
+document.querySelectorAll('input[name="iaModo"]').forEach(r => r.addEventListener("change", async () => {
+  try { pintarIA(await api("/api/claude", { accion: "modo", modo: r.value })); avisar("Listo: la sala usará " + (r.value === "auto" ? "Claude y, si no está, Gemini" : r.value === "claude" ? "solo Claude" : "solo Gemini")); }
+  catch (e) { avisar(e.message, "err"); }
+}));
 async function revisarVersion(forzar) {
   try {
     const v = INFO_VERSION = await api("/api/version" + (forzar ? "?forzar=1" : ""));
+    if (!v.error) $("confPAct").className = "punto-estado " + (v.nueva ? "warn" : "ok");
     $("bandaVersion").hidden = !v.nueva;
     if (v.nueva) $("textoVersion").textContent = `Hay una versión nueva de la Sala de diseño: ${v.nueva}`;
   } catch (e) {}
@@ -1247,10 +1446,11 @@ function pintarConfig() {
   const d = ESTADO;
   Cuenta.pintarEn($("cfgCuenta"));
   $("cfgNombre").value = d.quien || "";
-  $("cfgMarca").textContent = d.marca.tiene_marca ? `${d.marca.nombre || "La marca"}: ${d.marca.colores.length} colores, ${d.marca.logos.length} logos y ${d.marca.productos.length} productos en _MARCA del Drive.` : "Este proyecto aún no tiene _MARCA en su Drive.";
+  $("cfgMarca").textContent = d.marca.tiene_marca ? `${d.marca.nombre || "La marca"}: ${plural(d.marca.colores.length, "color", "colores")}, ${plural(d.marca.logos.length, "logo")} y ${plural(d.marca.productos.length, "producto")} en _MARCA del Drive.` : "Este proyecto aún no tiene _MARCA en su Drive.";
   $("actVersion").textContent = d.version;
   $("confPMarca").className = "punto-estado " + (d.marca.tiene_marca ? "ok" : "warn");
   revisarClaude();
+  revisarVersion();  // sin forzar: pinta el punto de Actualizaciones sin esperar a que toquen «Buscar»
 }
 let INFO_VERSION = null;
 async function buscarActualizaciones() {
@@ -1271,50 +1471,64 @@ document.addEventListener("click", e => {
   const a = e.target.closest(".conf-menu a");
   if (a) { document.querySelectorAll(".conf-menu a").forEach(x => x.classList.toggle("activo", x === a)); }
 });
-$("btnConfig").onclick = () => irA("config");
+// ir a una página de Configuración (desde el menú de tu cuenta o las pastillas de arriba)
+function irConf(id) {
+  irA("config");
+  document.querySelectorAll("#v-config .conf-menu a").forEach(x => x.classList.toggle("activo", x.getAttribute("href") === "#" + id));
+  $(id)?.scrollIntoView({ block: "start" });
+}
+document.querySelectorAll("#cabeza [data-conf]").forEach(b => b.onclick = () => irConf(b.dataset.conf));
+// las opciones del menú de tu cuenta: las mismas páginas que el menú de Configuración, con sus puntitos de estado
+function menuCuenta() {
+  const enConf = vista === "config", activa = document.querySelector("#v-config .conf-menu a.activo")?.getAttribute("href");
+  return [...document.querySelectorAll("#v-config .conf-menu a[href^='#conf']")].map(a => {
+    const id = a.getAttribute("href").slice(1), txt = a.cloneNode(true);
+    txt.querySelectorAll("span").forEach(x => x.remove());
+    const [icono, ...resto] = txt.textContent.trim().split(" ");
+    const punto = a.querySelector(".punto-estado[id]");
+    return { icono, texto: resto.join(" "), al: () => irConf(id), actual: enConf && activa === "#" + id, extra: punto ? `<span class="${punto.className}"></span>` : "" };
+  });
+}
+function cambiarTema() {
+  const t = document.documentElement.dataset.tema === "claro" ? "oscuro" : "claro";
+  document.documentElement.dataset.tema = t; try { localStorage.setItem("sala_tema", t); } catch (e) {}
+  miniaturas();
+}
 $("btnGuardarNombre").onclick = async () => {
-  const n = $("cfgNombre").value.trim();
-  try { await api("/api/nombre", { nombre: n }); avisar("Guardado"); await cargarLista(); } catch (e) { avisar(e.message, "err"); }
+  const n = $("cfgNombre").value.replace(/\s+/g, " ").trim();
+  $("cfgNombre").value = n;
+  try {
+    await api("/api/nombre", { nombre: n }); await cargarLista();
+    if (!n) $("cfgNombre").value = ESTADO.quien || "";  // vacío: vuelve el de tu cuenta
+    avisar(n ? `Guardado: los demás verán «${n}»` : "Se usará el nombre de tu cuenta de Google");
+  } catch (e) { avisar(e.message, "err"); }
 };
 
 $("btnLoginClaude").onclick = async () => { try { await api("/api/claude", { accion: "login" }); avisar("Se abrió una ventana para entrar a Claude"); } catch (e) { avisar(e.message, "err"); } };
-$("btnMarcaBase").onclick = async () => { try { await api("/api/marca_base", { nombre: $("cfgMarcaNombre").value }); await cargarLista(); pintarConfig(); avisar("Se creó _MARCA en el Drive del proyecto"); } catch (e) { avisar(e.message, "err"); } };
-$("btnCarpeta").onclick = () => cid && api("/api/abrir_carpeta", { id: cid }).catch(e => avisar(e.message, "err"));
+$("btnMarcaBase").onclick = async () => {
+  try {
+    const r = await api("/api/marca_base", { nombre: $("cfgMarcaNombre").value.trim() }); await cargarLista(); pintarConfig();
+    avisar(r.creada === false ? "Ya existía _MARCA en el Drive del proyecto: no se cambió nada. Para cambiarla, importa tu marca en la pestaña Marca." : "Se creó _MARCA en el Drive del proyecto");
+  } catch (e) { avisar(e.message, "err"); }
+};
+$("btnCarpeta").onclick = () => cid ? api("/api/abrir_carpeta", { id: cid }).catch(e => avisar(e.message, "err")) : avisar(SIN_PIEZA, "err");
 $("btnActualizar").onclick = async () => {
   try { await Actualizar.instalar({ app: "la Sala de diseño", nueva: INFO_VERSION?.nueva, version: "/api/version", botones: [$("btnActualizar"), $("actAhora")] }); }
   catch (e) { avisar("No se pudo actualizar: " + e.message, "err"); }
 };
-$("btnTema").onclick = () => { const t = document.documentElement.dataset.tema === "claro" ? "oscuro" : "claro"; document.documentElement.dataset.tema = t; try { localStorage.setItem("sala_tema", t); } catch (e) {} miniaturas(); };
 const latir = () => fetch("/api/latido").catch(() => {});
 setInterval(latir, 60000); latir();
 addEventListener("pagehide", () => navigator.sendBeacon("/api/adios"));
-document.documentElement.style.setProperty("--alto-cabeza", ($("cabeza").offsetHeight + 1) + "px");
-
-// ---------- Pedido ----------
-$("btnPedido").onclick = () => irA("crear");
-$("btnPedCerrar").onclick = () => $("dlgPedido").close();
-$("btnPedir").onclick = async () => {
-  const texto = $("pedTexto").value.trim();
-  if (texto.length < 5) return $("pedTexto").focus();
-  $("btnPedir").disabled = true;
-  try {
-    await api("/api/pedido", { texto, videos: $("pedVideos").checked });
-    for (;;) {
-      await new Promise(ok => setTimeout(ok, 1500));
-      const t = await api("/api/trabajo");
-      $("pedEstado").textContent = t.mensaje || "";
-      if (t.activo) continue;
-      if (t.error) throw new Error(t.error);
-      const hechas = t.resultado?.piezas || [];
-      await cargarLista();
-      if (hechas[0]) await abrir(hechas[0]);
-      $("pedTexto").value = ""; $("dlgPedido").close();
-      avisar(`Listo: ${hechas.length} pieza(s) creadas en la semana. Genera sus fotos con los prompts de Flow.`);
-      break;
-    }
-  } catch (e) { $("pedEstado").textContent = "No se pudo: " + e.message; }
-  $("btnPedir").disabled = false;
+// el alto de la cabecera y de las pestañas se mide siempre (cambian con el tamaño de la ventana y con el menú de la cuenta)
+const medirAltos = () => {
+  document.documentElement.style.setProperty("--alto-cabeza", ($("cabeza").offsetHeight + 1) + "px");
+  document.documentElement.style.setProperty("--alto-pestanas", $("pestanas").offsetHeight + "px");
 };
+const altos = new ResizeObserver(medirAltos);
+altos.observe($("cabeza")); altos.observe($("pestanas")); medirAltos();
+
+// el botón «✦ Crear con IA» del editor lleva a su pestaña
+$("btnPedido").onclick = () => irA("crear");
 
 // ---------- Vistas ----------
 let vista = "inicio", BIB = null, VIDEOS = null, refVideo = null;
@@ -1324,7 +1538,7 @@ const fechaCorta = f => { if (!f) return ""; const [a, m, d] = f.split("-"); ret
 const proporcion = f => ({ "1:1": "1/1", "9:16": "9/16" }[f] || "4/5");
 function irA(v) {
   vista = v;
-  document.querySelectorAll("#pestanas button").forEach(b => b.setAttribute("aria-selected", b.dataset.vista === v));
+  document.querySelectorAll("#pestanas button").forEach(b => { b.setAttribute("aria-selected", b.dataset.vista === v); b.tabIndex = b.dataset.vista === v ? 0 : -1; });
   ["inicio", "biblioteca", "crear", "videos", "editor", "marca", "config"].forEach(n => $("v-" + n).hidden = n !== v);
   if (v === "config") pintarConfig();
   if (v === "inicio") pintarInicio();
@@ -1332,15 +1546,24 @@ function irA(v) {
   if (v === "crear") pintarCrear();
   if (v === "videos") cargarVideos();
   if (v === "marca") pintarMarcaVista();
-  if (v === "editor") { pintar(); pintarTira(); }
+  if (v === "editor") { ajustarLienzo(); pintar(); pintarTira(); }
   try { localStorage.setItem("diseno_vista", v); } catch (e) {}
 }
+// pestañas con el teclado: ← → (y Inicio / Fin) pasan de una a otra
+$("pestanas").addEventListener("keydown", e => {
+  const bs = [...$("pestanas").querySelectorAll("button")], i = bs.indexOf(document.activeElement);
+  if (i < 0) return;
+  const k = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: bs.length - 1 }[e.key];
+  if (k === undefined) return;
+  e.preventDefault();
+  const b = bs[(k + bs.length) % bs.length]; b.focus(); irA(b.dataset.vista);
+});
 function ficha(p, extra = "") {
   const mini = p.miniatura ? `<img src="/archivo?rel=${encodeURIComponent(p.rel)}&id=${encodeURIComponent(p.id)}&f=${encodeURIComponent(p.miniatura)}&v=${encodeURIComponent(p.actualizado || "")}" alt="" loading="lazy">`
     : `<div class="marcador">${esc(p.titulo)}</div>`;
   return `<button class="ficha" data-abrir-rel="${esc(p.rel)}" data-abrir-id="${esc(p.id)}" ${extra}>
-    <div class="mini" style="aspect-ratio:${proporcion(p.formato)}">${mini}<span class="chip">${p.tipo === "post" ? "Post" : p.laminas + " láminas"} · ${esc(p.formato)}</span></div>
-    <div class="info"><b>${esc(p.titulo)}</b><small>${p.dia ? DIAS_C[p.dia] + " " : ""}${fechaCorta(p.fecha)} · ${esc(p.semana.split(" · ").slice(0, 2).join(" · "))}</small>
+    <div class="mini" style="aspect-ratio:${proporcion(p.formato)}">${mini}<span class="chip">${etiquetaTipo(p)} · ${esc(p.formato)}</span></div>
+    <div class="info"><b>${esc(p.titulo)}</b><small>${p.dia && DIAS_C[p.dia] ? DIAS_C[p.dia] + " " + fechaCorta(p.fecha) : "Sin día"} · ${esc(p.semana.split(" · ").slice(0, 2).join(" · "))}</small>
       <div class="insignias">${p.nivel ? `<span class="insignia">${esc(p.nivel)}</span>` : ""}${p.exportado ? '<span class="insignia ok">Exportada</span>' : '<span class="insignia">Borrador</span>'}${p.con_fotos ? "" : '<span class="insignia warn">Sin fotos</span>'}</div></div></button>`;
 }
 async function abrirDesdeFicha(rel, id) {
@@ -1354,11 +1577,17 @@ async function cargarBiblioteca(forzar) {
   if (!BIB || forzar) {
     $("bRejilla").innerHTML = '<p class="muted">Cargando…</p>';
     try { BIB = await api("/api/biblioteca"); } catch (e) { $("bRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
-    const meses = [...new Set(BIB.semanas.map(s => s.mes))];
-    $("bMes").innerHTML = '<option value="">Todos los meses</option>' + meses.map(m => `<option>${esc(m)}</option>`).join("");
-    $("bSemana").innerHTML = '<option value="">Todas las semanas</option>' + BIB.semanas.map(s => `<option value="${esc(s.rel)}">${esc(s.semana)}</option>`).join("");
   }
+  llenarFiltros();  // siempre: BIB también lo cargan Inicio y Crear con IA, que no llenan los filtros
   pintarBiblioteca();
+}
+function llenarFiltros() {  // los meses y semanas que hay, sin perder lo que estaba elegido
+  const mes = $("bMes").value, sem = $("bSemana").value;
+  const meses = [...new Set(BIB.semanas.map(s => s.mes))];
+  $("bMes").innerHTML = '<option value="">Todos los meses</option>' + meses.map(m => `<option>${esc(m)}</option>`).join("");
+  $("bSemana").innerHTML = '<option value="">Todas las semanas</option>' + BIB.semanas.map(s => `<option value="${esc(s.rel)}">${esc(s.semana)}</option>`).join("");
+  if (meses.includes(mes)) $("bMes").value = mes;
+  if (BIB.semanas.some(s => s.rel === sem)) $("bSemana").value = sem;
 }
 function pintarBiblioteca() {
   if (!BIB) return;
@@ -1376,6 +1605,7 @@ async function pintarInicio() {
   try { BIB = await api("/api/biblioteca"); } catch (e) { return; }
   const deSemana = BIB.piezas.filter(p => p.rel === semana);
   $("iniTitulo").textContent = (semana.split("/")[1] || "Esta semana");
+  $("cabTitulo").textContent = $("iniTitulo").textContent;
   $("iniSub").textContent = deSemana.length ? "Lo que sale cada día de esta semana. Toca una pieza para abrirla." : "Esta semana aún no tiene piezas: pídelas en ✦ Crear con IA.";
   const n = (f) => deSemana.filter(f).length;
   $("iniCifras").innerHTML = [["Piezas", deSemana.length], ["Exportadas", n(p => p.exportado)], ["Sin exportar", n(p => !p.exportado)], ["Sin fotos", n(p => !p.con_fotos)], ["En toda la biblioteca", BIB.piezas.length]]
@@ -1387,11 +1617,16 @@ async function pintarInicio() {
 function historialPedidos(max) {
   const ps = (BIB?.pedidos || []).slice(0, max);
   return ps.length ? ps.map(p => `<div class="historial-p"><q>${esc(p.pedido.length > 220 ? p.pedido.slice(0, 220) + "…" : p.pedido)}</q>
-    <small class="muted">${esc(p.fecha)} · ${esc(p.quien || "")} · ${p.piezas.length} pieza(s) · ${esc(p.semana.split(" · ").slice(0, 2).join(" · "))}</small></div>`).join("") : '<p class="muted">Aún no hay pedidos.</p>';
+    <small class="muted">${esc(p.fecha)} · ${esc(p.quien || "")} · ${plural(p.piezas.length, "pieza")} · ${esc(p.semana.split(" · ").slice(0, 2).join(" · "))}</small></div>`).join("") : '<p class="muted">Aún no hay pedidos.</p>';
 }
 // Crear con IA
 function pintarCrear() {
   $("crSemana").textContent = semana.split("/")[1] || "";
+  // sin brief no hay «videos de esta semana» (si el servidor no lo dice, se deja elegir y él avisa)
+  const sinBrief = ESTADO.tiene_brief === false, radio = document.querySelector('input[name="crRef"][value="semana"]');
+  radio.disabled = sinBrief; $("crSinBrief").hidden = !sinBrief;
+  $("crRefSemana").title = sinBrief ? "Esta semana no tiene brief de la estrategia (_SEMANAS), así que no hay videos en que basarse" : "";
+  if (sinBrief && radio.checked) document.querySelector('input[name="crRef"][value=""]').checked = true;
   const sel = document.querySelector('input[name="crRef"]:checked').value;
   $("crVideo").innerHTML = sel !== "video" ? "" : refVideo
     ? `<div class="refvideo"><img src="/video_mini?ruta=${encodeURIComponent(refVideo.ruta)}" alt=""><div><b>${esc(refVideo.nombre)}</b><br><small class="muted">${esc(refVideo.sesion)}</small></div><span style="flex:1"></span><button class="btn sec chico" data-ir="videos">Cambiar</button></div>`
@@ -1402,28 +1637,43 @@ function pintarCrear() {
 document.querySelectorAll('input[name="crRef"]').forEach(r => r.addEventListener("change", pintarCrear));
 $("crPedir").onclick = async () => {
   const texto = $("crTexto").value.trim();
-  if (texto.length < 5) return $("crTexto").focus();
+  if (texto.length < 5) { $("crTexto").focus(); return avisar("Escribe qué quieres que haga la IA (al menos 5 letras)", "err"); }
   const sel = document.querySelector('input[name="crRef"]:checked').value;
   if (sel === "video" && !refVideo) return avisar("Elige primero el video de referencia", "err");
+  if (sel === "semana" && ESTADO.tiene_brief === false) return avisar("Esta semana no tiene brief: elige «Nada» o un video de la Sala de edición", "err");
   $("crPedir").disabled = true;
   try {
     await api("/api/pedido", { texto, videos: sel === "semana", video: sel === "video" ? refVideo.ruta : "" });
-    for (;;) {
-      await new Promise(ok => setTimeout(ok, 1500));
-      const t = await api("/api/trabajo");
-      $("crEstado").textContent = t.mensaje || "";
-      if (t.activo) continue;
-      if (t.error) throw new Error(t.error);
-      const hechas = t.resultado?.piezas || [];
-      BIB = null; await cargarLista();
-      $("crTexto").value = ""; $("crEstado").textContent = `Listo: ${hechas.length} pieza(s) creadas.`;
-      if (hechas[0]) { await abrir(hechas[0]); irA("editor"); }
-      avisar(`Listo: ${hechas.length} pieza(s) creadas. Genera sus fotos con los prompts de Flow.`);
-      break;
-    }
+    await terminarPedido(await esperarTrabajo("crEstado"));
   } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
   $("crPedir").disabled = false;
 };
+async function terminarPedido(t) {  // las piezas que creó Claude: se abre la primera en el editor
+  const hechas = t.resultado?.piezas || [];
+  BIB = null; await cargarLista();
+  $("crTexto").value = ""; $("crEstado").textContent = `Listo: ${plural(hechas.length, "pieza creada", "piezas creadas")}.`;
+  if (hechas[0]) { await abrir(hechas[0]); irA("editor"); }
+  avisar(`Listo: ${plural(hechas.length, "pieza creada", "piezas creadas")}. Genera sus fotos con los prompts de Flow.`);
+}
+// si se recarga la página mientras Claude trabaja, se sigue esperando y su resultado no se pierde
+async function retomarTrabajo() {
+  let t;
+  try { t = await api("/api/trabajo"); } catch (e) { return; }
+  if (!t.activo) return;
+  if (t.accion === "pedido") {
+    irA("crear"); $("crPedir").disabled = true; $("crEstado").textContent = t.mensaje || "La IA sigue trabajando en tu pedido…";
+    try { await terminarPedido(await esperarTrabajo("crEstado")); } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
+    $("crPedir").disabled = false;
+  } else if (t.accion === "escribir" || t.accion === "rehacer") {
+    $("btnClaude").disabled = true; $("clEstado").textContent = t.mensaje || "La IA sigue escribiendo…";
+    avisar("La IA sigue trabajando en lo que pediste antes de recargar. Espera, no se pierde.");
+    try {
+      const fin = await esperarTrabajo();
+      if (fin.accion === "escribir") await ponerEscrito(fin); else await ponerRehecho(fin);
+    } catch (e) { avisar("IA: " + e.message, "err"); }
+    $("btnClaude").disabled = !C;
+  }
+}
 // Videos
 async function cargarVideos(forzar) {
   if (!VIDEOS || forzar) {
@@ -1476,7 +1726,6 @@ document.addEventListener("click", e => {
 // ---------- Importar la marca sin Claude: plantilla, subir carpeta o .zip y revisar antes de guardar ----------
 // (lo mismo que la Sala de edición; el que acomoda es importar_marca.py, común a las dos)
 let IM = null;
-const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : (varios || uno + "s")}`;
 const imOpc = (lista, v) => lista.map(([k, t]) => `<option value="${k}" ${k === v ? "selected" : ""}>${esc(t)}</option>`).join("");
 const IM_USOS_LOGO = [["principal", "Logo principal"], ["horizontal", "Horizontal"], ["icono", "Ícono"], ["otro", "Otro"]];
 const IM_FONDOS = [["oscuro", "Va sobre fondo oscuro"], ["claro", "Va sobre fondo claro"], ["cualquiera", "Va sobre cualquier fondo"]];
@@ -1526,7 +1775,7 @@ function pintarImportar() {
       ${IM.ficha ? `<span class="ok">✓ Ficha de marca leída</span>` : `<span>Sin ficha de marca</span>`}</div>
     ${IM.avisos.length ? `<p class="muted" style="margin:0">${IM.avisos.map(esc).join("<br>")}</p>` : ""}
     <div class="im-marca">
-      <label>Nombre de la marca<input id="imNombre" value="${esc(m.nombre || (MARCA || {}).nombre || "")}" placeholder="Ej.: Suplevet"></label>
+      <label>Nombre de la marca<input type="text" id="imNombre" value="${esc(m.nombre || (MARCA || {}).nombre || "")}" placeholder="Ej.: Suplevet"></label>
       ${(m.colores || []).length ? `<div style="display:grid;gap:6px"><span class="etq">Colores ${IM.colores_de === "logo" ? "(sacados de tu logo)" : IM.colores_de === "ficha y logo" ? "(de la ficha; el principal, de tu logo)" : "(de la ficha)"}</span>
         <div class="im-colores">${m.colores.map((c, k) => `<label title="${esc(c.uso)}"><input type="color" data-imc="${k}" value="${esc(c.hex.toLowerCase())}">${esc(c.nombre)} · ${esc(c.uso)}</label>`).join("")}</div>
         <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--ink)"><input type="checkbox" id="imUsarColores" ${IM.usarColores ? "checked" : ""}> Usar estos colores${tiene ? " (reemplazan los que tiene ahora la marca)" : ""}</label></div>` : ""}
@@ -1559,18 +1808,21 @@ $("imCuerpo").addEventListener("change", e => {
 });
 $("imCerrar").onclick = () => $("dlgImpMarca").close();
 $("imGuardar").onclick = async () => {
-  if (!IM) return;
+  if (!IM || $("imGuardar").disabled) return;
   IM.marca.nombre = $("imNombre")?.value.trim() || IM.marca.nombre;
   const propuesta = { archivos: IM.archivos, marca: { ...IM.marca, colores: IM.usarColores ? IM.marca.colores : [] } };
+  // apagado mientras guarda: un doble clic mandaría dos pedidos
+  $("imGuardar").disabled = true; $("imGuardar").textContent = "Guardando…";
   try {
     const r = await api("/api/marca_importar?accion=aplicar", { id: IM.id, propuesta });
     $("dlgImpMarca").close();
-    await cargarLista(); pintarMarcaVista();
+    await cargarLista(); pintarMarcaVista();  // cargarLista repinta la paleta del panel derecho con los colores nuevos
     const h = r.hechos;
     avisar(`Marca importada: ${[h.logos && plural(h.logos, "logo"), h.fuentes && plural(h.fuentes, "tipografía", "tipografías"), h.productos && plural(h.productos, "foto", "fotos"),
       h.manual && plural(h.manual, "documento")].filter(Boolean).join(", ") || "datos de la ficha"}. Se sube sola al Drive del proyecto.`);
     IM = null;
   } catch (e) { avisar("Error: " + e.message, "err"); }
+  finally { $("imGuardar").disabled = false; $("imGuardar").textContent = "Guardar en mi marca"; }
 };
 // elegir una carpeta (con sus subcarpetas) o varios archivos / un .zip
 $("mkImpCarpeta").onchange = e => { const l = [...e.target.files].map(f => ({ file: f, ruta: f.webkitRelativePath || f.name })); e.target.value = ""; importarMarca(l); };
@@ -1606,17 +1858,18 @@ let ARRANCO = false;
     .map(f => document.fonts.load(f).catch(() => null)));
   miniaturas();
   await Cuenta.iniciar({ app: "Sala de diseño", letra: "D", fondo: "linear-gradient(135deg,#7c3aed,#ec4899 60%,#f59e0b)",
-                         lugar: $("cuentaChip"), alVolver: () => location.reload(), alAbrirCuenta: () => irA("config"),
+                         lugar: $("cuentaChip"), alVolver: () => location.reload(),
+                         menu: menuCuenta, version: () => ESTADO?.version, alCambiarTema: cambiarTema, avisar,
                          alElegirCarpeta: () => { if (ARRANCO) location.reload(); } });  // otra carpeta: se recarga todo
   ARRANCO = true;
   try {
     await cargarLista();
     await abrirPrimero();
-    document.documentElement.style.setProperty("--alto-pestanas", ($("pestanas").offsetHeight) + "px");
     let v0 = "inicio"; try { v0 = localStorage.getItem("diseno_vista") || "inicio"; } catch (e) {}
     irA(v0);
     revisarClaude(); revisarVersion();
     setInterval(revisarVersion, 3600 * 1000);
+    retomarTrabajo();
   } catch (e) { avisar("No pude leer los carruseles: " + e.message, "err"); }
 })();
 </script>

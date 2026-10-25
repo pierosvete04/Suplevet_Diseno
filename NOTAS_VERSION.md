@@ -1,3 +1,12 @@
+Versión 0.10.0:
+- **La IA ya no depende solo de Claude: Claude o Gemini, siempre.** En Configuración → «IA: Claude y Gemini» eliges Automático (recomendado), Solo Claude o Solo Gemini. En Automático escribe Claude y, si no tiene la sesión iniciada o se cae (por ejemplo, se acabó el uso del plan), el mismo pedido sigue con Gemini sin que hagas nada.
+- **Gemini trabaja solo en Antigravity**: la sala abre Antigravity, le pasa el pedido a Gemini y toma la respuesta apenas termina (un carrusel tarda alrededor de 1 minuto y medio). Mientras tanto, una caja abajo a la derecha dice qué pasa y tiene «Cancelar». Si algún día no puede pasárselo sola, te copia el mensaje para que lo pegues en Antigravity.
+- La pastilla de arriba dice qué IA va a escribir: «IA: Claude», «IA: Gemini» o «Sin IA».
+- **Arreglo: pedidos largos con un video de referencia ya no fallan** (Windows cortaba el pedido cuando pasaba de unas 32.000 letras).
+- **Arreglo: si Claude se cuelga, ya no se queda trabado para siempre**: a los 10 minutos se corta, y «Cancelar» funciona también mientras se espera a Gemini.
+- Si la IA responde algo roto, sale un mensaje que se entiende en vez de un error en inglés.
+- **Cabecera nueva, igual en las tres apps**: la Configuración se abre desde el menú de tu cuenta (tu foto, arriba a la derecha).
+- Unos 35 arreglos más: el trabajo de la IA se retoma si recargas la página, lo que escribe la IA va siempre a su pieza aunque cambies de pieza, filtros de la Biblioteca, el lienzo, y preguntas con el diálogo de la sala en vez de las del navegador.
 Versión 0.9.1 (baja el instalador completo: cambia el programa que abre la sala):
 - **Arreglo: el Publicador ya no abre la Sala de diseño.** Las dos usaban el mismo puerto interno de la PC: si la sala estaba abierta, al abrir el Publicador salía la sala. Ahora la sala usa el suyo (8767).
 - Si otro programa ocupa el puerto de la sala, avisa en vez de abrir la ventana de ese programa.
