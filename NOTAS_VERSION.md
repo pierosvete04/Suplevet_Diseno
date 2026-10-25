@@ -1,3 +1,7 @@
+Versión 0.10.2:
+- **El Publicador sabe con qué video va cada post:** al crear piezas con «✦ Crear con IA» a partir de un video de la Sala de edición, la pieza guarda ese video. En el Publicador el post dice «Va con: …» y el video «Tiene post».
+- Cada pieza guarda su **semana** (S03) y un código fijo (S03-D-C01), para que el Publicador la ponga en la semana correcta.
+- **Arreglo:** la lista de videos de referencia ya muestra también los que la Sala de edición exporta por día (V.FINALES/DIA_1…), sin las partes sueltas.
 Versión 0.10.1:
 - **Configuración por páginas**, como en la Sala de edición: cada opción del menú de la izquierda (Cuenta y dispositivos, IA, Marca del proyecto, Tu nombre, Actualizaciones) abre solo su página, en vez de una página larga que baja. Ya no quedan dos opciones marcadas a la vez.
 Versión 0.10.0:

@@ -29,13 +29,13 @@ def listar(forzar=False):
         return []
     filtros = []
     for f in FINALES:
-        filtros += ["--include", f"*/{f}/*", "--include", f"*/*/{f}/*"]
+        filtros += ["--include", f"**/{f}/**"]   # también los que la Sala exporta por día (V.FINALES/DIA_1/…)
     archivos = json.loads(cuenta.rc("lsjson", f"{cuenta.REMOTO}:", "-R", "--files-only", *filtros, timeout=180) or "[]")
     por_ruta = {a["Path"]: a for a in archivos}
     out = []
     for a in archivos:
         ruta = a["Path"]
-        if Path(ruta).suffix.lower() not in EXT_VIDEO:
+        if Path(ruta).suffix.lower() not in EXT_VIDEO or "POR_PARTES" in ruta.split("/"):
             continue
         base = ruta.rsplit(".", 1)[0]
         partes = ruta.split("/")

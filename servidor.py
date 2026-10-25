@@ -290,7 +290,7 @@ class H(BaseHTTPRequestHandler):
                         av("Leyendo el video de referencia y su guion…")
                         referencia = videos_edicion.contexto(ruta_video)
                     r = asistente.resolver_pedido(texto, datos_marca, semana, videos, av, referencia=referencia)
-                    hechas = piezas.crear_desde_pedido(texto, r, semana)
+                    hechas = piezas.crear_desde_pedido(texto, r, semana, video=ruta_video)
                     piezas.subir()
                     return {"piezas": hechas}
                 lanzar("pedido", hacer)

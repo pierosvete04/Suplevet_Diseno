@@ -225,6 +225,12 @@ def _con_semana(datos, c):
 def guardar(pid, datos):
     c = carpeta(pid)
     _con_semana(datos, c)
+    try:  # con qué video va el post: la pantalla no lo manda de vuelta, que no se pierda al guardar
+        antes = json.loads((c / "pieza.json").read_text(encoding="utf-8"))
+        if antes.get("video") and not datos.get("video"):
+            datos["video"] = antes["video"]
+    except (FileNotFoundError, ValueError):
+        pass
     c.mkdir(parents=True, exist_ok=True)
     datos["actualizado"] = time.strftime("%Y-%m-%d %H:%M")
     datos["por"] = quien()
@@ -253,8 +259,10 @@ def nueva(titulo, tipo="carrusel", laminas=None, dia="", rel=None, nivel="", pub
     return pid, datos
 
 
-def crear_desde_pedido(texto, resultado, rel=None):
-    """Crea las piezas que propuso Claude (con sus textos y prompts de Flow) y anota el pedido en pedidos.json."""
+def crear_desde_pedido(texto, resultado, rel=None, video=""):
+    """Crea las piezas que propuso Claude (con sus textos y prompts de Flow) y anota el pedido en pedidos.json.
+    video: la ruta en Drive del video de la Sala de edición que se usó de referencia; queda en pieza.json («video»)
+    para que el Publicador sepa con qué video va el post."""
     rel = rel or semana_actual()
     hechas = []
     for p in resultado.get("piezas", []):
@@ -265,6 +273,8 @@ def crear_desde_pedido(texto, resultado, rel=None):
         datos["guion"] = {"laminas": laminas, "copy": p.get("copy", "")}
         datos["copy"] = p.get("copy", "")
         datos["pedido"] = texto.strip()[:500]
+        if video:
+            datos["video"] = video
         (semana_dir(rel) / pid / "pieza.json").write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
         hechas.append(pid)
     registro = semana_dir(rel) / "pedidos.json"
