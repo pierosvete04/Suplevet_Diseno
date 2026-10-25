@@ -118,6 +118,7 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .punto-estado.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); } .punto-estado.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
 .conf-cuerpo { display: grid; gap: 16px; min-width: 0; }
 .conf-sec { scroll-margin-top: 12px; padding: 16px 18px; }
+.conf-sec[hidden] { display: none; }
 .conf-cab { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
 .conf-cab > div:first-child { flex: 1 1 320px; } .conf-cab h2 { margin: 0 0 2px; font-size: 16px; } .conf-cab p { margin: 0; font-size: 12.5px; }
 .estado-grande { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--line); font-size: 13.5px; }
@@ -1466,17 +1467,23 @@ async function buscarActualizaciones() {
   } catch (e) { $("actResultado").textContent = "No pude revisar: " + e.message; }
 }
 $("actBuscar").onclick = buscarActualizaciones;
-document.addEventListener("click", e => {
-  if (e.target.id === "actAhora") return $("btnActualizar").click();
-  const a = e.target.closest(".conf-menu a");
-  if (a) { document.querySelectorAll(".conf-menu a").forEach(x => x.classList.toggle("activo", x === a)); }
-});
-// ir a una página de Configuración (desde el menú de tu cuenta o las pastillas de arriba)
+document.addEventListener("click", e => { if (e.target.id === "actAhora") return $("btnActualizar").click(); });
+// Configuración: cada opción es su propia página (se ve solo esa sección), como en la Sala de edición; no una página
+// larga que baja. Se llega desde el menú de la izquierda, el menú de tu cuenta o las pastillas de arriba.
+let confActual = "confCuenta";
 function irConf(id) {
-  irA("config");
-  document.querySelectorAll("#v-config .conf-menu a").forEach(x => x.classList.toggle("activo", x.getAttribute("href") === "#" + id));
-  $(id)?.scrollIntoView({ block: "start" });
+  if (!$(id)) id = "confCuenta";
+  confActual = id;
+  if (vista !== "config") irA("config");
+  mostrarConf();
+  scrollTo({ top: 0 });
 }
+function mostrarConf() {
+  document.querySelectorAll("#v-config .conf-sec").forEach(x => x.hidden = x.id !== confActual);
+  document.querySelectorAll("#v-config .conf-menu a").forEach(x => x.classList.toggle("activo", x.getAttribute("href") === "#" + confActual));
+}
+mostrarConf();
+document.querySelectorAll("#v-config .conf-menu a").forEach(a => a.onclick = e => { e.preventDefault(); irConf(a.getAttribute("href").slice(1)); });
 document.querySelectorAll("#cabeza [data-conf]").forEach(b => b.onclick = () => irConf(b.dataset.conf));
 // las opciones del menú de tu cuenta: las mismas páginas que el menú de Configuración, con sus puntitos de estado
 function menuCuenta() {

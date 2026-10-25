@@ -1,3 +1,5 @@
+Versión 0.10.1:
+- **Configuración por páginas**, como en la Sala de edición: cada opción del menú de la izquierda (Cuenta y dispositivos, IA, Marca del proyecto, Tu nombre, Actualizaciones) abre solo su página, en vez de una página larga que baja. Ya no quedan dos opciones marcadas a la vez.
 Versión 0.10.0:
 - **La IA ya no depende solo de Claude: Claude o Gemini, siempre.** En Configuración → «IA: Claude y Gemini» eliges Automático (recomendado), Solo Claude o Solo Gemini. En Automático escribe Claude y, si no tiene la sesión iniciada o se cae (por ejemplo, se acabó el uso del plan), el mismo pedido sigue con Gemini sin que hagas nada.
 - **Gemini trabaja solo en Antigravity**: la sala abre Antigravity, le pasa el pedido a Gemini y toma la respuesta apenas termina (un carrusel tarda alrededor de 1 minuto y medio). Mientras tanto, una caja abajo a la derecha dice qué pasa y tiene «Cancelar». Si algún día no puede pasárselo sola, te copia el mensaje para que lo pegues en Antigravity.
