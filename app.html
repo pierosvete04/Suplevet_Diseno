@@ -237,6 +237,19 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .mas-filtros summary { cursor: pointer; color: var(--muted); font-weight: 600; width: max-content; }
 .mas-filtros[open] summary { margin-bottom: 8px; }
 .mas-filtros .filtros { margin: 0; }
+/* Crear con IA: los diseños con su vista previa, para marcar los que se quieren */
+.dis-grupos { display: grid; gap: 12px; }
+.dis-grupo > b { display: block; font-size: 12.5px; margin-bottom: 6px; }
+.dis-grupo > b small { color: var(--muted); font-weight: 400; }
+.dis-lista { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+.dis-op { flex: none; width: 104px; display: grid; gap: 4px; padding: 4px; border: 2px solid var(--line); border-radius: 10px; background: var(--surface); color: inherit;
+  cursor: pointer; text-align: center; font: 600 11px var(--f); line-height: 1.25; }
+.dis-op canvas { width: 100%; aspect-ratio: 4/5; border-radius: 6px; display: block; }
+.dis-op:hover { border-color: var(--line2); }
+.dis-op[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.dis-op[aria-pressed="true"] span::before { content: "✓ "; color: var(--accent); }
+.btn-link { background: none; border: 0; padding: 4px 6px; border-radius: 6px; font: 600 12.5px var(--f); color: var(--accent2); cursor: pointer; }
+.btn-link:hover { background: var(--surface2); }
 /* la franja de Inicio: qué dejó la estrategia y qué falta */
 .franja { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; padding: 12px 14px; margin: 0 0 14px; border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
@@ -393,6 +406,10 @@ main { display: flex; flex-direction: column; overflow: hidden; }
         <label class="fila"><input type="radio" name="crRef" value="video"> Un video de la Sala de edición</label>
       </div>
       <div id="crVideo"></div>
+      <div class="fila" style="margin-top:16px;justify-content:space-between"><p class="etq" style="margin:0">Diseños</p>
+        <button class="btn-link" type="button" id="crDisLimpiar" hidden>Quitar lo marcado</button></div>
+      <p class="muted" style="margin:4px 0 8px;font-size:12.5px">Marca los que quieras (puedes marcar varios). En la fila que no marques nada, la IA elige.</p>
+      <div id="crDisenos" class="dis-grupos"></div>
       <div class="fila" style="margin-top:12px"><span class="muted">Se crea en la semana</span><b id="crSemana"></b><span style="flex:1"></span>
         <button class="btn sec chico" type="button" id="crCancelar" hidden>Cancelar</button><button class="btn btn-ia" id="crPedir">✦ Pedir a la IA</button></div>
       <p class="muted" id="crEstado" role="status" style="min-height:18px"></p>
@@ -1416,9 +1433,9 @@ function aplicarGuion() {
 // Sin «diseno», la lámina sale como siempre (titular, clásica, producto). Los mismos nombres están en asistente.py → DISENOS.
 const DISENOS = {
   portada: { titular: "Titular", revista: "Revista", pregunta: "Pregunta en burbuja", dato: "Dato grande", franja: "Franja de color",
-    apilado: "Título apilado", circulo: "Animal en círculo" },
+    apilado: "Título apilado", circulo: "Animal en círculo", tapa: "Tapa de revista", mensajes: "Mensajes" },
   interna: { clasica: "Clásica", numero: "Número grande", lista: "Checklist", mito: "Mito vs. realidad", chat: "Chat dueño y veterinario", cita: "Cita de un dueño",
-    senales: "Señales alrededor del animal" },
+    senales: "Señales alrededor del animal", mensajes: "Mensajes" },
   cta: { producto: "Producto y botón", comenta: "Comenta una palabra", guardar: "Guárdalo", pregunta: "Pregunta con botones", oferta: "Oferta o envío", testimonio: "Testimonio" },
 };
 const grupoDe = (l, i) => l?.rol === "cta" ? "cta" : i === 0 ? "portada" : "interna";
@@ -1448,7 +1465,32 @@ function capasDe(i) {  // las capas de la lámina i según su diseño (con «rol
   const boton = (t, o) => t ? T("accion", t, { tam: cuadrado ? 56 : 64, y: y(historia ? 0.8 : 0.9), ancho: 900, color: oscuro ? tinta : claro, pastilla: oscuro ? claro : tinta, ...o }) : null;
   const sinAst = s => s.replace(/\*/g, "");
   const yT = y(historia ? 0.2 : cuadrado ? 0.17 : grupo === "portada" ? 0.19 : 0.16);
+  const lineas = (max = 4) => texto.split(/\n|\\n|;\s*/).map(s => s.trim()).filter(Boolean).slice(0, max);
+  if (d === "mensajes") {  // «Nos llegó un mensaje»: el título arriba y burbujas de chat giradas alrededor del animal
+    const pos = historia ? [[0.66, 0.34, -4], [0.32, 0.47, 3], [0.66, 0.6, -3], [0.32, 0.73, 4]] : [[0.66, 0.3, -4], [0.32, 0.47, 3], [0.66, 0.64, -3], [0.32, 0.8, 4]];
+    const tamB = historia ? 48 : 44;
+    return [tit({ y: y(historia ? 0.16 : 0.09), tam: (grupo === "portada" ? 130 : 110) * k, fuente: "Anton", espaciado: 1 }),
+      ...lineas().flatMap((s, j) => {
+        const [fx, fy, rot] = pos[j], filas = Math.ceil(s.length / 19), h = filas * tamB * 1.25 + 56;
+        return [F(`d_bur${j}`, "cuadro", { x: W * fx, y: y(fy), w: 520, h, radio: 50, color: "#4F6BF2", rot }),
+          X(`l${j}`, s, { x: W * fx, y: y(fy), ancho: 450, tam: tamB, rot, color: "#FFFFFF", pastilla: null, alinear: "left", interlineado: 1.2 })];
+      })];
+  }
   if (grupo === "portada") {
+    if (d === "tapa") {  // tapa de revista: la marca enorme detrás del animal, titulares a los lados, el título abajo y un sticker
+      const tema = (semana.split(" · ")[2] || "").trim() || "ESPECIAL", cl = lineas(4);
+      const col = (s, j) => X(`l${j}`, s, { fuente: "Bebas", peso: 400, mayus: true, tam: (historia ? 60 : 56) * k, espaciado: 1, interlineado: 0.95, ancho: 330,
+        x: j % 2 ? W - 60 - 165 : 60 + 165, y: y((historia ? 0.3 : 0.27) + Math.floor(j / 2) * 0.17), alinear: j % 2 ? "right" : "left",
+        color: claro, acento: naranja, pastilla: null, contorno: foto ? 8 : 0, colorContorno: tinta });
+      return [T("d_cabecera", (MARCA.nombre || "Suplevet").toUpperCase(), { fuente: "Anton", tam: 250 * k, y: y(historia ? 0.12 : 0.1), ancho: 1040,
+          espaciado: 4, color: claro, alFondo: true }),
+        T("d_numero", `Nº ${(semana.match(/S(\d+)/) || [])[1] || "01"} · ${new Date().getFullYear()}`, { tam: 34, x: 60 + 160, y: y(historia ? 0.2 : 0.185), ancho: 320,
+          alinear: "left", color: claro, ...sobre }),
+        ...cl.map(col),
+        tit({ y: y(historia ? 0.74 : 0.8), tam: 110 * k, ancho: 760, x: 60 + 380, alinear: "left", color: claro, acento: naranja, fondoAcento: null, contorno: 10, colorContorno: tinta }),
+        F("d_sticker", "circulo", { x: W - 175, y: y(historia ? 0.74 : 0.8), w: 250, h: 250, color: naranja, rot: -12 }),
+        T("d_sticker_t", `ESPECIAL\n${tema}`, { tam: 54, x: W - 175, y: y(historia ? 0.74 : 0.8), ancho: 220, rot: -12, color: tinta, interlineado: 0.95 })];
+    }
     const tamT = 150 * k;
     if (d === "revista") return [  // tapa de revista: el nombre de la marca arriba y el título enorme abajo
       T("d_cabecera", (MARCA.nombre || "Suplevet").toUpperCase(), { tam: 110 * k, y: y(historia ? 0.12 : 0.08), color: claro, espaciado: 14, ...sobre }),
@@ -1568,6 +1610,53 @@ function ponerDiseno(i, rehacer) {
     else if (n.tipo === "forma") lam.capas.splice(fotos, 0, n); else lam.capas.push(n);
   }
 }
+// ---------- Vistas previas de los diseños (Crear con IA): una lámina de ejemplo armada con el mismo motor del editor ----------
+const EJEMPLO = [
+  { rol: "portada", titulo: "7 señales de que tu perro tiene *picazón*", texto: "Y no son pulgas" },
+  { rol: "idea", titulo: "Se lame las *patas*", texto: "Omega 3 para la piel\nZinc para el pelo\nCalostro para defensas" },
+  { rol: "cta", titulo: "¿Tu perro se *rasca*?", texto: "Escríbenos y te decimos qué hacer", accion: "PIEL" }];
+function vistaDiseno(grupo, d) {
+  const i = { portada: 0, interna: 1, cta: 2 }[grupo];
+  const falsa = { tipo: "carrusel", laminas: [0, 1, 2].map(k => ({ fondo: { tipo: "color", color: PALETA[k] || "#FFFFFF" }, capas: [] })),
+    guion: { laminas: EJEMPLO.map(x => ({ ...x })) } };
+  falsa.guion.laminas[i].diseno = d;
+  if (grupo === "cta" && d === "pregunta") falsa.guion.laminas[i].accion = "SÍ / A VECES";
+  // los diseños que usan varias líneas de texto se muestran con un ejemplo que las tenga
+  const muestra = { tapa: "Lo que nadie te *dice*\nSeñales que no son pulgas\nEl plato que lo *calma*\n¿Cuánto tarda?",
+    mensajes: "¡Ya no se rasca!\nLe encanta el sabor\nUna cuchara al día\nSu pelo brilla otra vez" }[d];
+  if (muestra) falsa.guion.laminas[i].texto = muestra;
+  if (d === "mensajes") falsa.guion.laminas[i].titulo = "¡Nos llegó un *mensaje*!";
+  const cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1350;
+  // el motor trabaja con la pieza abierta (C) y su tamaño (W, H): se cambian un momento y vuelven a ser los de antes
+  const conFalsa = fn => { const antes = [C, W, H]; C = falsa; W = 1080; H = 1350; try { fn(); } finally { [C, W, H] = antes; } };
+  const dibujar = () => conFalsa(() => { const cx = cv.getContext("2d"); cx.clearRect(0, 0, W, H); dibujarLamina(cx, falsa.laminas[i], false); });
+  conFalsa(() => ponerDiseno(i, true));
+  dibujar(); setTimeout(dibujar, 700);  // otra vez cuando ya cargaron la bolsa y las tipografías
+  return cv;
+}
+function pintarDisenosCrear() {
+  if ($("crDisenos").childElementCount || !ESTADO.marca) return;  // se arman una sola vez, ya con los colores de la marca
+  const nombres = { portada: "Portada", interna: "Láminas internas", cta: "CTA (la última)" };
+  $("crDisenos").innerHTML = Object.keys(DISENOS).map(g => `<div class="dis-grupo"><b>${nombres[g]} <small id="crDisN_${g}">· la IA elige</small></b>
+    <div class="dis-lista" role="group" aria-label="${nombres[g]}">${Object.entries(DISENOS[g]).map(([d, t]) =>
+      `<button type="button" class="dis-op" data-dis-g="${g}" data-dis-d="${d}" aria-pressed="false" title="${esc(t)}"><span>${esc(t)}</span></button>`).join("")}</div></div>`).join("");
+  $("crDisenos").querySelectorAll(".dis-op").forEach(b => b.prepend(vistaDiseno(b.dataset.disG, b.dataset.disD)));
+}
+function disenosElegidos() {  // {portada: [...], interna: [...], cta: [...]} solo con las filas donde se marcó algo
+  const out = {};
+  $("crDisenos").querySelectorAll('.dis-op[aria-pressed="true"]').forEach(b => (out[b.dataset.disG] ||= []).push(b.dataset.disD));
+  return out;
+}
+function contarDisenos() {
+  const el = disenosElegidos();
+  Object.keys(DISENOS).forEach(g => $("crDisN_" + g).textContent = el[g] ? `· ${plural(el[g].length, "elegido", "elegidos")}` : "· la IA elige");
+  $("crDisLimpiar").hidden = !Object.keys(el).length;
+}
+$("crDisenos").addEventListener("click", e => {
+  const b = e.target.closest(".dis-op"); if (!b) return;
+  b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); contarDisenos();
+});
+$("crDisLimpiar").onclick = () => { $("crDisenos").querySelectorAll(".dis-op").forEach(b => b.setAttribute("aria-pressed", "false")); contarDisenos(); };
 function cambiarDiseno(d) {  // desde el panel de la lámina: «Diseño de la lámina» o «↻ Otro»
   const g = C.guion?.laminas?.[actual]; if (!g) return;
   cambio(() => { g.diseno = d; ponerDiseno(actual, true); });
@@ -2258,6 +2347,7 @@ function historialPedidos(max) {
 // Crear con IA
 function pintarCrear() {
   $("crSemana").textContent = semana.split("/")[1] || "";
+  pintarDisenosCrear();
   // sin brief no hay «videos de esta semana» (si el servidor no lo dice, se deja elegir y él avisa)
   const sinBrief = ESTADO.tiene_brief === false, radio = document.querySelector('input[name="crRef"][value="semana"]');
   radio.disabled = sinBrief; $("crSinBrief").hidden = !sinBrief;
@@ -2279,7 +2369,7 @@ $("crPedir").onclick = async () => {
   if (sel === "semana" && ESTADO.tiene_brief === false) return avisar("Esta semana no tiene brief: elige «Nada» o un video de la Sala de edición", "err");
   $("crPedir").disabled = true;
   try {
-    await api("/api/pedido", { texto, videos: sel === "semana", video: sel === "video" ? refVideo.ruta : "" });
+    await api("/api/pedido", { texto, videos: sel === "semana", video: sel === "video" ? refVideo.ruta : "", disenos: disenosElegidos() });
     await terminarPedido(await esperarTrabajo("crEstado"));
   } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
   $("crPedir").disabled = false;

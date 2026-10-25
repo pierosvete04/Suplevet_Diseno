@@ -1,3 +1,7 @@
+Versión 0.15.0:
+- **Dos diseños nuevos**: «Tapa de revista» (portada: la marca enorme detrás del animal, titulares a los costados, el título abajo y un sticker «Especial» con el tema de la semana) y «Mensajes» (portada o interna: burbujas de chat azules alrededor del animal, para testimonios o preguntas de dueños). Ya son 23.
+- **Crear con IA → «Diseños»**: todos los diseños con su vista previa (con tus colores, tu tipografía y tu bolsa), en tres filas: Portada, Láminas internas y CTA. Marca los que quieras (varios por fila); en la fila que no marques nada, la IA elige.
+- La IA usa solo los diseños marcados y los reparte sin repetirlos seguidos. Si se sale, la sala lo corrige sola.
 Versión 0.14.0:
 - **Diseños de lámina con variaciones**: la IA elige un diseño para cada lámina y los va rotando, para que los carruseles no salgan todos iguales.
   - **Portada (7):** Titular, Revista, Pregunta en burbuja, Dato grande, Franja de color, Título apilado y Animal en círculo.

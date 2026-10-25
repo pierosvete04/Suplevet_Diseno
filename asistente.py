@@ -323,8 +323,8 @@ y no uses «--ar». Si la marca trae «direccion_visual», síguela."""
 
 
 # los diseños de lámina que la sala sabe armar (los mismos de DISENOS en app.html): la IA elige uno por lámina y los rota
-DISENOS = {"portada": ("titular", "revista", "pregunta", "dato", "franja", "apilado", "circulo"),
-           "interna": ("clasica", "numero", "lista", "mito", "chat", "cita", "senales"),
+DISENOS = {"portada": ("titular", "revista", "pregunta", "dato", "franja", "apilado", "circulo", "tapa", "mensajes"),
+           "interna": ("clasica", "numero", "lista", "mito", "chat", "cita", "senales", "mensajes"),
            "cta": ("producto", "comenta", "guardar", "pregunta", "oferta", "testimonio")}
 DISENOS_TEXTO = """Cada lámina lleva su «diseno» (cómo se arma en la sala). Elige según lo que dice la lámina y varía: en un carrusel,
 dos láminas internas seguidas no repiten diseño, y si son varias piezas, sus portadas y sus CTA tampoco se repiten.
@@ -332,7 +332,12 @@ dos láminas internas seguidas no repiten diseño, y si son varias piezas, sus p
   «pregunta» (el título es una pregunta, va en una burbuja), «dato» (el título empieza con un número o cifra: «7 señales…»),
   «franja» (título en una franja de color sobre la foto), «apilado» (título gigante de 3 a 7 palabras en varias líneas a la
   izquierda; la foto deja libre el lado izquierdo y el animal va a la derecha), «circulo» (el animal recortado dentro de un
-  círculo de color y el título enorme abajo; su fondo es «color»).
+  círculo de color y el título enorme abajo; su fondo es «color»), «tapa» (tapa de revista: el nombre de la marca enorme
+  arriba, detrás de la cabeza del animal; el texto son 2 a 4 titulares cortos de revista, uno por línea con \\n, que van a los
+  costados; la foto es un retrato de estudio del animal centrado, mirando a la cámara, con la cabeza a un tercio de la altura).
+- Portada o interna: «mensajes» (el título es como «¡Nos llegó un mensaje!»; el texto son 3 o 4 mensajes cortos de dueños,
+  de 3 a 8 palabras, uno por línea con \\n, que van en burbujas de chat alrededor del animal; la foto muestra al animal
+  mirando un celular o con cara de sorpresa, al centro, con espacio libre a los lados).
 - Internas: «clasica» (título y texto), «numero» (paso o señal numerada: número gigante), «lista» (el texto son 2 a 4 puntos,
   uno por línea, con \\n), «mito» (el título es el mito, el texto es la realidad), «chat» (el título es lo que pregunta un dueño,
   el texto es lo que responde el veterinario), «cita» (el texto es una frase de un dueño entre comillas; el título, quién la dijo),
@@ -363,11 +368,32 @@ def estilo_letra(valor):
     return next((letra for letra, palabras in ESTILO_POR_PALABRA if any(p in t for p in palabras)), "")
 
 
-def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referencia=None):
+def solo_elegidos(disenos):
+    """{grupo: [diseños]} de «Diseños» en Crear con IA, solo con nombres que la sala conoce."""
+    return {g: [d for d in (disenos or {}).get(g) or [] if d in DISENOS[g]] for g in DISENOS if (disenos or {}).get(g)}
+
+
+def respetar_disenos(laminas, elegidos):
+    """Cada lámina usa uno de los diseños elegidos para su parte (portada, internas o CTA). Si la IA puso otro, se cambia
+    por uno de los elegidos, rotando para que dos internas seguidas no repitan."""
+    for i, l in enumerate(laminas):
+        grupo = "cta" if l.get("rol") == "cta" else "portada" if i == 0 else "interna"
+        lista, previo = elegidos.get(grupo), laminas[i - 1].get("diseno") if i else None
+        if lista and (l.get("diseno") not in lista or (len(lista) > 1 and l.get("diseno") == previo)):
+            l["diseno"] = next((d for d in lista[i % len(lista):] + lista if d != previo), lista[0])
+    return laminas
+
+
+def resolver_pedido(texto, marca, semana="", videos=None, avance=print, referencia=None, disenos=None):
     """Un pedido libre («3 posts 1:1 sobre omega 3», «una historia 9:16 con esto: …») -> las piezas a crear.
     videos: los ángulos de los videos de la semana (del brief), para que las piezas los acompañen.
+    disenos: los que se marcaron en «Diseños» ({portada: [...], interna: [...], cta: [...]}); en lo que no se marcó, elige la IA.
     Devuelve {"piezas": [{tipo, formato, dia, titulo, nivel, publico, estilo, laminas: [{rol, titulo, texto, flow}], copy}]}."""
     reglas = {k: marca.get(k) for k in CLAVES_MARCA if marca.get(k)}
+    elegidos = solo_elegidos(disenos)
+    nombres = {"portada": "portadas", "interna": "láminas internas", "cta": "CTA"}
+    usar = ("El equipo eligió los diseños. Usa SOLO estos (repártelos entre las piezas y las láminas, sin repetir seguidos): "
+            + "; ".join(f"{nombres[g]}: {', '.join(v)}" for g, v in elegidos.items()) + ". En lo demás, elige tú.") if elegidos else ""
     base = ""
     if videos:
         base = "Videos de esta semana (las piezas deben acompañarlos, con el mismo tema y nivel):\n" + json.dumps(videos, ensure_ascii=False)
@@ -398,6 +424,7 @@ El prompt de Flow lleva el encuadre del formato: {json.dumps(ORIENTACION)}.
 Si son varias piezas, sus portadas llevan fondos distintos entre sí.
 En «estilo» va SOLO una letra: {ESTILOS_TEXTO}.
 {DISENOS_TEXTO}
+{usar}
 Responde SOLO con JSON, sin texto antes ni después:
 {{"piezas": [{{"tipo": "carrusel", "formato": "4:5", "dia": "", "titulo": "…", "nivel": "TOFU | MOFU | BOFU", "publico": "…", "estilo": "A | B | C | D | E",
   "laminas": [{{"rol": "portada | idea | señal | cta", "diseno": "…", "titulo": "…", "texto": "…", "accion": "solo en el CTA", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
@@ -409,4 +436,6 @@ Responde SOLO con JSON, sin texto antes ni después:
         p["estilo"] = estilo_letra(p.get("estilo"))
         if p.get("tipo") != "post" and len(p.get("laminas") or []) > 1:
             p["laminas"] = con_cta(p.get("laminas", []), marca)
+        if elegidos:  # aunque la IA se salga de lo elegido, cada lámina queda con uno de los diseños marcados
+            respetar_disenos(p.get("laminas") or [], elegidos)
     return datos

@@ -320,13 +320,14 @@ class H(BaseHTTPRequestHandler):
                     raise ValueError("Esta semana no tiene brief con sus videos. Elige «Nada» o un video de la Sala de edición.")
                 semana, datos_marca = piezas.semana_actual(), marca.datos()
                 ruta_video = str(b.get("video") or "")
+                disenos = b.get("disenos") if isinstance(b.get("disenos"), dict) else {}  # los que se marcaron en «Diseños»
 
                 def hacer(av):
                     referencia = None
                     if ruta_video:
                         av("Leyendo el video de referencia y su guion…")
                         referencia = videos_edicion.contexto(ruta_video)
-                    r = asistente.resolver_pedido(texto, datos_marca, semana, videos, av, referencia=referencia)
+                    r = asistente.resolver_pedido(texto, datos_marca, semana, videos, av, referencia=referencia, disenos=disenos)
                     hechas = piezas.crear_desde_pedido(texto, r, semana, video=ruta_video)
                     piezas.subir()
                     return {"piezas": hechas}
