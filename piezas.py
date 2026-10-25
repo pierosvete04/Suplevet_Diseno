@@ -187,7 +187,7 @@ def listar(rel=None):
         out.append({"id": c.name, "titulo": p.get("titulo", c.name), "tipo": p.get("tipo", "carrusel"), "dia": p.get("dia", ""),
                     "laminas": len(p.get("laminas", [])), "formato": p.get("formato", "4:5"), "estilo": p.get("estilo", ""), "nivel": p.get("nivel", ""),
                     "publico": p.get("publico", ""), "exportado": any((c / "FINAL").glob("L*.png")),
-                    "con_textos": _con_textos(p), "laminas_con_foto": sum(1 for l in p.get("laminas", []) if _con_foto(l)),
+                    "con_textos": _con_textos(p), "laminas_con_foto": sum(1 for l in p.get("laminas", []) if _con_foto(l, c)),
                     "editando": _editando(c)})
     orden = {d: i for i, d in enumerate(DIAS)}
     return sorted(out, key=lambda x: (orden.get(x["dia"], 9), x["id"]))
@@ -371,10 +371,21 @@ def _lunes_de_semana(nombre):
     return lunes_base + dt.timedelta(days=7 * (int(m.group(1)) - num))
 
 
-def _con_foto(lam):
+def _foto_existe(src, c):
+    """La foto está de verdad: en Flow/ de la pieza o en _MARCA. Una pieza escrita por la IA ya trae el nombre
+    de cada foto (C05_N1.jpg) antes de que se genere en Flow: eso todavía no cuenta."""
+    import marca
+    try:
+        return (marca.ruta_archivo(src.get("f", "")) if src.get("tipo") == "marca" else c / "Flow" / Path(src.get("f", "")).name).is_file()
+    except ValueError:
+        return False
+
+
+def _con_foto(lam, c):
     """La lámina tiene una foto puesta (de Flow o del producto). «Foto de fondo» sin foto elegida no cuenta."""
     f = lam.get("fondo", {})
-    return any(c.get("tipo") == "imagen" for c in lam.get("capas", [])) or (f.get("tipo") == "imagen" and bool(f.get("src")))
+    return any(x.get("tipo") == "imagen" and _foto_existe(x.get("src") or {}, c) for x in lam.get("capas", [])) \
+        or (f.get("tipo") == "imagen" and bool(f.get("src")) and _foto_existe(f["src"], c))
 
 
 def _con_textos(p):
@@ -416,8 +427,8 @@ def biblioteca():
                         "nivel": p.get("nivel", ""), "publico": p.get("publico", ""), "estilo": p.get("estilo", ""),
                         "laminas": len(laminas), "exportado": bool(finales), "miniatura": mini, "origen": origen,
                         "actualizado": p.get("actualizado", ""), "por": p.get("por", ""), "pedido": p.get("pedido", ""),
-                        "con_textos": _con_textos(p), "con_fotos": any(_con_foto(l) for l in laminas),
-                        "laminas_con_foto": sum(1 for l in laminas if _con_foto(l))})
+                        "con_textos": _con_textos(p), "con_fotos": any(_con_foto(l, c) for l in laminas),
+                        "laminas_con_foto": sum(1 for l in laminas if _con_foto(l, c))})
     return sorted(out, key=lambda x: (x["fecha"], x["id"]), reverse=True)
 
 

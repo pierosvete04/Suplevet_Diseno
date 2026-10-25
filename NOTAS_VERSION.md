@@ -1,3 +1,5 @@
+Versión 0.11.1:
+- **Arreglo: una pieza ya no sale «Lista» si sus fotos no existen.** Cuando la IA escribe una pieza, anota qué foto de Flow va en cada lámina (por ejemplo C05_N1.jpg) antes de que se genere. La sala la contaba como puesta; ahora solo cuenta si la foto está de verdad en la carpeta Flow de la pieza (o en _MARCA). Esas piezas salen como «Faltan fotos», con «Textos listos · Faltan las fotos de Flow» en la tarjeta, y en el editor cada lámina sin su foto dice «sin foto».
 Versión 0.11.0:
 - **Cada pieza dice en qué paso va**, con las mismas palabras en todas partes: **Por escribir · Faltan fotos · Lista · Exportada** (antes decía «Borrador» aunque la pieza estuviera terminada).
 - **Cada tarjeta trae el botón del paso que sigue**: «✦ Escribir con IA», «Poner fotos (2 de 4)» o «Exportar», y una barrita de 3 pasos (textos, fotos, exportar). El botón abre la pieza y lleva directo a esa caja.

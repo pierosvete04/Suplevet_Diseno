@@ -950,8 +950,10 @@ function pasoDe(p) {  // p: lo que manda el servidor (o resumenAbierta)
   if (!p.con_textos) return "escribir";
   return (p.laminas_con_foto ?? 0) < p.laminas ? "fotos" : "lista";
 }
-// la lámina tiene una foto puesta (de Flow o del producto); «Foto de fondo» sin foto elegida no cuenta
-const conFoto = l => l.capas.some(c => c.tipo === "imagen") || (l.fondo.tipo === "imagen" && !!l.fondo.src);
+// la lámina tiene una foto puesta (de Flow o del producto); «Foto de fondo» sin foto elegida no cuenta, y tampoco
+// el nombre de una foto que la IA anotó pero que aún no se generó en Flow (no está en la carpeta Flow de la pieza)
+const fotoEsta = s => !!s && (s.tipo === "marca" ? marca.includes(s.f) : imgs.includes(s.f));
+const conFoto = l => l.capas.some(c => c.tipo === "imagen" && fotoEsta(c.src)) || (l.fondo.tipo === "imagen" && fotoEsta(l.fondo.src));
 function resumenAbierta() {  // lo mismo que manda el servidor, pero de la pieza abierta (cambia mientras se edita)
   return { exportado: !!lista.find(x => x.id === cid)?.exportado, laminas: C.laminas.length, laminas_con_foto: C.laminas.filter(conFoto).length,
     con_textos: !!C.guion?.laminas?.length || C.laminas.some(l => l.capas.some(c => c.tipo === "texto" && (c.texto || "").trim())) };
@@ -1781,6 +1783,7 @@ function ficha(p) {
   const paso = pasoDe(p), fotosOk = (p.laminas_con_foto ?? 0) >= p.laminas, cod = p.semana.split(" · ")[0];
   const mini = p.miniatura ? `<img src="/archivo?rel=${encodeURIComponent(p.rel)}&id=${encodeURIComponent(p.id)}&f=${encodeURIComponent(p.miniatura)}&v=${encodeURIComponent(p.actualizado || "")}" alt="" loading="lazy">`
     : paso === "escribir" ? `<div class="por-llenar"><div class="lams" aria-hidden="true">${"<i></i>".repeat(Math.min(p.laminas, 6))}</div><b>${plural(p.laminas, "lámina", "láminas")} por llenar</b><small>La IA escribe los textos y los prompts de Flow</small></div>`
+    : paso === "fotos" ? `<div class="por-llenar"><b>Textos listos</b><small>Faltan las fotos de Flow (${p.laminas_con_foto ?? 0} de ${p.laminas})</small></div>`
     : `<div class="marcador">${esc(p.titulo)}</div>`;
   const fotos = `${p.laminas_con_foto ?? 0} de ${p.laminas}`;
   const boton = paso === "escribir" ? `<button class="btn chico" data-paso="escribir">✦ Escribir con IA</button>`
@@ -1859,7 +1862,8 @@ async function pintarInicio() {
   const delBrief = deSemana.filter(p => p.origen === "brief").length, porEscribir = n("escribir");
   $("iniFranja").hidden = !delBrief && !porEscribir && !escribiendoTodas;
   $("iniFranjaTexto").innerHTML = (delBrief ? `<b>La estrategia dejó ${plural(delBrief, "pieza", "piezas")} en el brief de la ${esc(semana.split("/")[1]?.split(" · ")[0] || "semana")}</b> y la sala las creó sola, una por día, con su tema, nivel y estilo. ` : "")
-    + (porEscribir ? `Faltan escribir ${porEscribir}: la IA les pone los textos y los prompts de Flow.` : "Todas ya tienen textos: sigue con las fotos de Flow.");
+    + (porEscribir === 1 ? "Falta escribir 1: la IA le pone los textos y los prompts de Flow."
+      : porEscribir ? `Faltan escribir ${porEscribir}: la IA les pone los textos y los prompts de Flow.` : "Todas ya tienen textos: sigue con las fotos de Flow.");
   if (!escribiendoTodas) {
     $("iniEscribirTodas").hidden = !porEscribir;
     $("iniEscribirTodas").textContent = porEscribir === 1 ? "✦ Escribirla con IA" : `✦ Escribir las ${porEscribir} con IA`;
