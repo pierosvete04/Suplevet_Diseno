@@ -20,7 +20,8 @@ try { const t = localStorage.getItem("sala_tema") || (matchMedia("(prefers-color
   --bg: #04060b; --bg2: #070b14; --surface: #0b111e; --surface2: #101829; --raise: #152038;
   --ink: #edf3ff; --muted: #8494b4; --line: #1a2740; --line2: #24365a;
   --accent: #3d8bff; --accent2: #5ee1ff; --ok: #4ade9b; --warn: #ffb547; --err: #ff6b7d;
-  --f: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; --fd: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --btn: #2b6fe6;  /* el azul de los botones: más oscuro que --accent para que el texto blanco se lea */
+  --f:"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; --fd: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
   --tarjeta: linear-gradient(180deg, rgba(16,24,41,.9), rgba(11,17,30,.92));
 }
@@ -28,7 +29,7 @@ try { const t = localStorage.getItem("sala_tema") || (matchMedia("(prefers-color
   color-scheme: light;
   --bg: #f3f6fb; --bg2: #ffffff; --surface: #ffffff; --surface2: #eef3fb; --raise: #e2eaf8;
   --ink: #0b1527; --muted: #5a6b88; --line: #dce4f0; --line2: #c5d2e6;
-  --accent: #2563eb; --accent2: #0377b8; --ok: #15924f; --warn: #c26a00; --err: #d6283f; --tarjeta: #ffffff;
+  --accent: #2563eb; --accent2: #0377b8; --ok: #15924f; --warn: #9a5300; --err: #d6283f; --tarjeta: #ffffff; --btn: #2563eb;
 }
 * { box-sizing: border-box; min-width: 0; }
 [hidden] { display: none !important; }
@@ -38,7 +39,7 @@ body { background: var(--bg); color: var(--ink); font: 13px/1.45 var(--f); overf
 .cabeza { position: relative; z-index: 30; padding: 10px 20px 9px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .pastilla { font: 600 11px var(--mono); padding: 3px 8px; border-radius: 99px; border: 1px solid var(--line2); color: var(--muted); }
 .pastilla.ok { color: var(--ok); border-color: var(--ok); } .pastilla.mal { color: var(--warn); border-color: var(--warn); }
-.banda { padding: 7px 14px; background: rgba(61,139,255,.12); border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: center; }
+.banda { padding: 7px 14px; background: color-mix(in srgb, var(--accent) 12%, transparent); border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: center; }
 dialog { background: var(--surface); color: var(--ink); border: 1px solid var(--line2); border-radius: 14px; width: min(520px, 92vw); }
 dialog::backdrop { background: rgba(0,0,0,.5); }
 .editando { margin: 6px 0; padding: 7px 10px; border-radius: 8px; background: rgba(255,181,71,.14); color: var(--warn); }
@@ -48,10 +49,18 @@ textarea { resize: vertical; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 input[type=color] { width: 30px; height: 26px; padding: 0; border: 1px solid var(--line2); border-radius: 6px; background: none; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn { padding: 7px 13px; border-radius: 8px; border: 1px solid transparent; background: linear-gradient(180deg, #4a95ff, #2b6fe6); color: #fff; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn { padding: 7px 13px; border-radius: 8px; border: 1px solid transparent; background: var(--btn); color: #fff; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .btn:hover { filter: brightness(1.08); }
 .btn.sec { background: var(--surface2); border-color: var(--line2); color: var(--ink); }
-.btn.chico { padding: 4px 9px; font-size: 12px; }
+.btn.chico { padding: 4px 9px; font-size: 12px; min-height: 30px; }
+/* mientras la IA trabaja: el botón gira y dice qué hace (ver esperarTrabajo) */
+[aria-busy="true"] .btn-ia::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px;
+  border: 2px solid color-mix(in srgb, currentColor 35%, transparent); border-top-color: currentColor; border-radius: 50%; animation: gira .8s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+@keyframes late { 50% { opacity: .45; } }
+/* «llévame ahí»: la caja del paso que sigue se ilumina un momento */
+.resalta { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 10px; transition: outline-color .3s; }
+@media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
 .btn:disabled { opacity: .5; cursor: default; }
 .muted { color: var(--muted); }
 .etq { font: 600 10.5px var(--mono); letter-spacing: .03em; color: var(--accent2); text-transform: uppercase; margin: 0 0 6px; }
@@ -70,8 +79,14 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .tira { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); background: var(--surface); overflow-x: auto; align-items: center; }
 .mini { position: relative; flex: none; border: 2px solid transparent; border-radius: 7px; padding: 0; background: none; cursor: pointer; line-height: 0; }
 .mini canvas { width: 64px; height: 80px; border-radius: 5px; }
-.mini.activa { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(61,139,255,.25); }
+.mini.activa { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 .mini span { position: absolute; left: 4px; top: 3px; font: 700 10px var(--mono); color: #fff; text-shadow: 0 1px 3px #000; line-height: 1; }
+.mini .falta { left: auto; right: 4px; top: auto; bottom: 4px; padding: 2px 4px; border-radius: 4px; background: var(--warn); color: #1d1100; text-shadow: none; font-size: 9px; }
+.mini.encima { border-color: var(--accent); border-style: dashed; }
+/* cada lámina con su prompt de Flow y su lugar para soltar la foto */
+.lam-col { display: grid; gap: 3px; justify-items: center; flex: none; }
+.lam-col .btn { padding: 1px 6px; min-height: 22px; font-size: 10.5px; }
+.tira.escribiendo .mini canvas { animation: late 1.2s ease-in-out infinite; }
 .lista-c button { display: block; width: 100%; text-align: left; padding: 7px 9px; border-radius: 8px; border: 1px solid transparent; background: none; cursor: pointer; }
 .lista-c button:hover { background: var(--surface2); }
 .lista-c button.activa { background: var(--raise); border-color: var(--line2); }
@@ -83,10 +98,19 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .foto .tijera { position: absolute; right: 3px; bottom: 3px; border: 0; border-radius: 6px; background: rgba(4,6,11,.8); color: #fff; font-size: 11px; padding: 2px 5px; cursor: pointer; }
 .foto.recortada::after { content: "sin fondo"; position: absolute; left: 3px; top: 3px; font: 600 9px var(--mono); background: var(--ok); color: #04210f; border-radius: 4px; padding: 1px 4px; }
 .soltar { display: block; border: 1.5px dashed var(--line2); border-radius: 10px; padding: 12px; text-align: center; color: var(--muted); cursor: pointer; }
-.soltar.encima { border-color: var(--accent); color: var(--ink); background: rgba(61,139,255,.08); }
+.soltar.encima { border-color: var(--accent); color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.soltar.toca { border-color: var(--accent); border-width: 2px; color: var(--ink); padding: 26px 12px; background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .colores { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-.color { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line2); cursor: pointer; padding: 0; }
-.color.activo { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(61,139,255,.35); }
+.color { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line2); cursor: pointer; padding: 0; }
+.color.activo { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+/* la guía del editor: en qué paso va la pieza y qué le falta para exportar */
+.guia { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 12.5px; }
+.guia .paso { border: 1px solid var(--line2); background: var(--bg2); color: var(--muted); border-radius: 99px; padding: 3px 11px; font-weight: 600; cursor: pointer; }
+.guia .paso.hecho { color: var(--ok); border-color: var(--ok); }
+.guia .paso.ahora { color: var(--ink); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg2)); }
+.guia .faltas { margin-left: auto; color: var(--warn); }
+.guia .faltas.ok { color: var(--ok); }
+.caja-ia.primero { order: -1; border-color: var(--accent); }
 .prop { display: grid; gap: 5px; margin-bottom: 10px; }
 .prop label { font-weight: 600; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
 .menu { position: relative; }
@@ -151,18 +175,48 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
 .filtros select, .filtros input { width: auto; }
 .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
-.ficha { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--tarjeta); cursor: pointer; text-align: left; padding: 0; color: inherit; display: flex; flex-direction: column; }
-.ficha:hover { border-color: var(--accent); }
-.ficha .mini { position: relative; background: var(--surface2); display: grid; place-items: center; overflow: hidden; }
+.ficha { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--tarjeta); text-align: left; padding: 0; color: inherit; display: flex; flex-direction: column; }
+.ficha:has(.ficha-abrir:hover) { border-color: var(--accent); }
+.ficha-abrir { border: 0; background: none; padding: 0; color: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; flex: 1; font: inherit; }
+.ficha-abrir:focus-visible { outline-offset: -3px; }
+.ficha .mini { position: relative; background: var(--surface2); display: grid; place-items: center; overflow: hidden; width: 100%; }
 .ficha .mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ficha .mini .marcador { padding: 14px; text-align: center; color: var(--muted); font: 600 13px var(--fd); }
 .ficha .mini .chip { position: absolute; left: 8px; top: 8px; font: 700 10px var(--mono); background: rgba(4,6,11,.75); color: #fff; padding: 2px 7px; border-radius: 99px; }
-.ficha .info { padding: 9px 11px 11px; display: grid; gap: 3px; }
+/* un borrador vacío no parece un error: láminas punteadas «por llenar» */
+.ficha.paso-escribir .mini { background: transparent; border-bottom: 1px dashed var(--line2); }
+.por-llenar { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 30px 12px 12px; color: var(--muted); line-height: 1.35; }
+.por-llenar .lams { display: flex; gap: 5px; }
+.por-llenar .lams i { width: 20px; height: 25px; border: 1.5px dashed var(--line2); border-radius: 4px; }
+.por-llenar b { color: var(--ink); font: 600 13px var(--fd); }
+.por-llenar small { font-size: 11.5px; }
+.ficha .info { padding: 9px 11px 6px; display: grid; gap: 3px; }
 .ficha .info b { font-size: 13px; line-height: 1.3; }
 .ficha .info small { color: var(--muted); }
+.ficha-pie { display: grid; gap: 7px; padding: 0 11px 11px; }
+.ficha-pie .btn { justify-self: start; }
+.ficha-pie .listo { font-size: 12px; color: var(--ok); }
+/* los 3 pasos de una pieza: textos, fotos, exportar */
+.pasos { display: flex; gap: 3px; list-style: none; margin: 0; padding: 0; }
+.pasos li { flex: 1; height: 4px; border-radius: 2px; background: var(--line2); }
+.pasos li.hecho { background: var(--ok); } .pasos li.ahora { background: var(--accent); }
 .insignias { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
-.insignia { font: 600 10px var(--mono); padding: 1px 6px; border-radius: 99px; border: 1px solid var(--line2); color: var(--muted); }
-.insignia.ok { color: var(--ok); border-color: var(--ok); } .insignia.warn { color: var(--warn); border-color: var(--warn); }
+.insignia { font: 600 11px var(--mono); padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line2); color: var(--muted); }
+.insignia.ok { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.insignia.warn { color: var(--warn); border-color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.insignia.ahora { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+/* filtros de la biblioteca: los de siempre a la vista, el resto en «Más filtros» */
+.estados { display: flex; gap: 4px; flex-wrap: wrap; }
+.estados button { border: 1px solid var(--line2); background: var(--bg2); color: var(--muted); border-radius: 99px; padding: 5px 12px; font-weight: 600; cursor: pointer; }
+.estados button[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg2)); }
+.mas-filtros { width: 100%; }
+.mas-filtros summary { cursor: pointer; color: var(--muted); font-weight: 600; width: max-content; }
+.mas-filtros[open] summary { margin-bottom: 8px; }
+.mas-filtros .filtros { margin: 0; }
+/* la franja de Inicio: qué dejó la estrategia y qué falta */
+.franja { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; padding: 12px 14px; margin: 0 0 14px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.franja p { margin: 0; flex: 1 1 320px; }
 .dias7 { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 10px; }
 .dia7 { border: 1px solid var(--line); border-radius: 12px; padding: 8px; min-height: 160px; background: var(--tarjeta); }
 .dia7 h4 { margin: 0 0 6px; font: 700 12px var(--mono); color: var(--accent2); }
@@ -264,6 +318,12 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 <section class="vista" id="v-inicio" role="tabpanel" aria-labelledby="tab-inicio">
   <h2 id="iniTitulo">Esta semana</h2>
   <p class="sub" id="iniSub"></p>
+  <div class="franja" id="iniFranja" hidden>
+    <p id="iniFranjaTexto"></p>
+    <div class="fila"><button class="btn btn-ia" type="button" id="iniEscribirTodas"></button>
+      <button class="btn sec chico" type="button" id="iniCancelar" hidden>Cancelar</button></div>
+    <p class="muted" id="iniEstado" role="status" style="flex-basis:100%;margin:0" hidden></p>
+  </div>
   <div class="cifras" id="iniCifras"></div>
   <div class="dias7" id="iniDias"></div>
   <div class="dos-col" style="margin-top:22px">
@@ -276,16 +336,22 @@ main { display: flex; flex-direction: column; overflow: hidden; }
   <h2>Biblioteca</h2>
   <p class="sub">Todo lo que se creó en la Sala de diseño, de todas las semanas. Toca una pieza para abrirla en el editor.</p>
   <div class="filtros">
-    <input type="search" id="bBuscar" placeholder="Buscar por tema o texto" style="min-width:220px">
-    <select id="bMes"><option value="">Todos los meses</option></select>
-    <select id="bSemana"><option value="">Todas las semanas</option></select>
-    <label class="muted">Desde <input type="date" id="bDesde"></label>
-    <label class="muted">Hasta <input type="date" id="bHasta"></label>
-    <select id="bTipo"><option value="">Carruseles y posts</option><option value="carrusel">Solo carruseles</option><option value="post">Solo posts</option></select>
-    <select id="bFormato"><option value="">Todos los formatos</option><option>4:5</option><option>1:1</option><option>9:16</option></select>
-    <select id="bNivel"><option value="">Todos los niveles</option><option>TOFU</option><option>MOFU</option><option>BOFU</option></select>
-    <select id="bEstado"><option value="">Cualquier estado</option><option value="exportado">Exportadas</option><option value="borrador">Sin exportar</option><option value="sinfotos">Sin fotos</option></select>
-    <span class="muted" id="bCuenta"></span>
+    <input type="search" id="bBuscar" placeholder="Buscar por tema o texto" aria-label="Buscar por tema o texto" style="min-width:220px">
+    <select id="bSemana" aria-label="Semana"><option value="">Todas las semanas</option></select>
+    <div class="estados" id="bEstado" role="group" aria-label="En qué paso va">
+      <button type="button" data-estado="" aria-pressed="true">Todas</button><button type="button" data-estado="escribir" aria-pressed="false">Por escribir</button><button type="button" data-estado="fotos" aria-pressed="false">Faltan fotos</button><button type="button" data-estado="lista" aria-pressed="false">Listas</button><button type="button" data-estado="exportada" aria-pressed="false">Exportadas</button>
+    </div>
+    <span class="muted" id="bCuenta" style="margin-left:auto"></span>
+    <details class="mas-filtros" id="bMas"><summary>Más filtros</summary>
+      <div class="filtros">
+        <select id="bMes" aria-label="Mes"><option value="">Todos los meses</option></select>
+        <label class="muted">Desde <input type="date" id="bDesde"></label>
+        <label class="muted">Hasta <input type="date" id="bHasta"></label>
+        <select id="bTipo" aria-label="Tipo"><option value="">Carruseles y posts</option><option value="carrusel">Solo carruseles</option><option value="post">Solo posts</option></select>
+        <select id="bFormato" aria-label="Formato"><option value="">Todos los formatos</option><option>4:5</option><option>1:1</option><option>9:16</option></select>
+        <select id="bNivel" aria-label="Nivel"><option value="">Todos los niveles</option><option>TOFU</option><option>MOFU</option><option>BOFU</option></select>
+      </div>
+    </details>
   </div>
   <div class="rejilla" id="bRejilla"></div>
 </section>
@@ -302,8 +368,9 @@ main { display: flex; flex-direction: column; overflow: hidden; }
         <label class="fila"><input type="radio" name="crRef" value="video"> Un video de la Sala de edición</label>
       </div>
       <div id="crVideo"></div>
-      <div class="fila" style="margin-top:12px"><span class="muted">Se crea en la semana</span><b id="crSemana"></b><span style="flex:1"></span><button class="btn" id="crPedir">✦ Pedir a la IA</button></div>
-      <p class="muted" id="crEstado" style="min-height:18px"></p>
+      <div class="fila" style="margin-top:12px"><span class="muted">Se crea en la semana</span><b id="crSemana"></b><span style="flex:1"></span>
+        <button class="btn sec chico" type="button" id="crCancelar" hidden>Cancelar</button><button class="btn btn-ia" id="crPedir">✦ Pedir a la IA</button></div>
+      <p class="muted" id="crEstado" role="status" style="min-height:18px"></p>
     </div>
     <div><h2 style="font-size:15px">Pedidos anteriores</h2><div id="crHistorial" class="muted">—</div></div>
   </div>
@@ -426,10 +493,12 @@ main { display: flex; flex-direction: column; overflow: hidden; }
     </div>
     <div>
       <p class="etq">Fotos (de Flow)</p>
+      <p class="muted" id="fotosCuenta" style="margin:0 0 6px"></p>
       <label class="soltar" id="soltar">Arrastra aquí las fotos de Flow o toca para elegirlas
         <input type="file" id="archivo" accept="image/png,image/jpeg,image/webp" multiple hidden>
       </label>
-      <p class="muted" style="margin:6px 0">Toca una foto para ponerla en la lámina. ✂ le quita el fondo.</p>
+      <button class="btn sec chico" type="button" id="btnCopiarPrompts" style="margin-top:6px;width:100%" hidden>Copiar los prompts de Flow</button>
+      <p class="muted" style="margin:6px 0">Toca una foto para ponerla en la lámina, o suéltala sobre una lámina de abajo. ✂ le quita el fondo.</p>
       <div class="fotos" id="fotos"></div>
     </div>
     <div>
@@ -458,21 +527,28 @@ main { display: flex; flex-direction: column; overflow: hidden; }
       <span class="muted" id="guardado"></span>
       <button class="btn sec chico" id="btnCarpeta">Abrir carpeta</button><button class="btn chico" id="btnExportar">Exportar</button>
     </div>
+    <div class="guia" id="guia" hidden>
+      <button type="button" class="paso" data-guia="textos" id="guiaTextos"></button>
+      <button type="button" class="paso" data-guia="fotos" id="guiaFotos"></button>
+      <button type="button" class="paso" data-guia="exportar" id="guiaExportar"></button>
+      <span class="faltas" id="faltas" role="status"></span>
+    </div>
     <div class="lienzo-zona"><canvas id="lienzo" width="1080" height="1350" tabindex="0" aria-label="Lámina del carrusel"></canvas></div>
     <div class="tira" id="tira"></div>
   </main>
 
   <aside class="der">
     <div class="caja" id="props"></div>
-    <div class="caja">
+    <div class="caja caja-ia" id="cajaIA">
       <p class="etq">Escribir con IA</p>
-      <div class="prop"><label>Idea o enfoque</label><textarea id="clIdea" rows="2" placeholder="Qué quieres que cuente, a quién y con qué tono"></textarea></div>
+      <div class="prop"><label for="clIdea">Idea o enfoque (opcional)</label><textarea id="clIdea" rows="2" placeholder="Qué quieres que cuente, a quién y con qué tono. Si lo dejas vacío, usa el tema de la pieza."></textarea></div>
       <div class="fila">
-        <select id="clNivel" style="width:auto"><option value="">Nivel</option><option>TOFU</option><option>MOFU</option><option>BOFU</option></select>
-        <select id="clEstilo" style="width:auto"><option value="">Estilo</option><option value="A">A · Nariz a cámara</option><option value="B">B · Color sólido</option><option value="C">C · Metáfora</option><option value="D">D · Garabatos</option><option value="E">E · Lifestyle</option></select>
-        <button class="btn chico" id="btnClaude">Escribir</button>
+        <select id="clNivel" style="width:auto" aria-label="Nivel"><option value="">Nivel</option><option>TOFU</option><option>MOFU</option><option>BOFU</option></select>
+        <select id="clEstilo" style="width:auto" aria-label="Estilo"><option value="">Estilo</option><option value="A">A · Nariz a cámara</option><option value="B">B · Color sólido</option><option value="C">C · Metáfora</option><option value="D">D · Garabatos</option><option value="E">E · Lifestyle</option></select>
+        <button class="btn chico btn-ia" id="btnClaude">✦ Escribir</button>
+        <button class="btn sec chico" type="button" id="clCancelar" hidden>Cancelar</button>
       </div>
-      <p class="muted" id="clEstado" style="margin:6px 0 0"></p>
+      <p class="muted" id="clEstado" role="status" style="margin:6px 0 0"></p>
       <div id="clGuion"></div>
     </div>
     <div class="caja">
@@ -745,7 +821,11 @@ function pintar() {
 // ---------- Tira de láminas ----------
 function pintarTira() {
   if (!C) { $("tira").innerHTML = ""; return; }
-  $("tira").innerHTML = C.laminas.map((_, i) => `<button class="mini ${i === actual ? "activa" : ""}" data-lam="${i}" title="Lámina ${i + 1}"><canvas width="216" height="270"></canvas><span>${i + 1}</span></button>`).join("")
+  // cada lámina con su prompt de Flow y su aviso de foto: la foto se suelta encima de la lámina que va
+  const g = C.guion?.laminas || [];
+  $("tira").innerHTML = C.laminas.map((l, i) => `<div class="lam-col"><button class="mini ${i === actual ? "activa" : ""}" data-lam="${i}"
+      title="Lámina ${i + 1}${conFoto(l) ? "" : " · sin foto: suelta aquí su foto de Flow"}"><canvas width="216" height="270"></canvas><span>${i + 1}</span>${conFoto(l) ? "" : '<span class="falta">sin foto</span>'}</button>
+      ${g[i]?.flow ? `<button class="btn sec chico" data-copiar="${i}" title="Copiar el prompt de Flow de la lámina ${i + 1}">Prompt</button>` : ""}</div>`).join("")
     + `<button class="btn sec chico" id="btnLamina">+ Lámina</button><button class="btn sec chico" id="btnDuplicarL">Duplicar</button>
        <button class="btn sec chico" id="btnMoverI" title="${actual === 0 ? "Ya es la primera lámina" : "Mover a la izquierda"}" ${actual === 0 ? "disabled" : ""}>←</button>
        <button class="btn sec chico" id="btnMoverD" title="${actual >= C.laminas.length - 1 ? "Ya es la última lámina" : "Mover a la derecha"}" ${actual >= C.laminas.length - 1 ? "disabled" : ""}>→</button>
@@ -823,31 +903,93 @@ function deshacer() {
   C = JSON.parse(historia.pop()); actual = Math.min(actual, C.laminas.length - 1); sel = null;
   todo(); guardarLuego();
 }
-let tGuardar;
+let tGuardar, pendiente = false;
 function guardarLuego() {
   $("guardado").textContent = "Guardando…";
-  clearTimeout(tGuardar);
+  clearTimeout(tGuardar); pendiente = true;
   tGuardar = setTimeout(async () => {
+    pendiente = false;
     try { C.copy = $("copy").value; await api("/api/pieza", { id: cid, datos: limpio(C) }); $("guardado").textContent = "Guardado"; guardarMiniatura(); }
     catch (e) { $("guardado").textContent = ""; avisar("No se guardó: " + e.message, "err"); }
   }, 600);
 }
-let tMini;
-function guardarMiniatura() {  // la lámina 1 en chico, para la biblioteca y el inicio
-  clearTimeout(tMini);
-  tMini = setTimeout(async () => {
-    if (!C) return;
-    try {
-      await esperarImagenes();
-      const cv = document.createElement("canvas"); cv.width = 360; cv.height = Math.round(360 * H / W);
-      const cx = cv.getContext("2d"); cx.scale(360 / W, 360 / W); dibujarLamina(cx, C.laminas[0], false);
-      const b = await new Promise(ok => cv.toBlob(ok, "image/png"));
-      await fetch(`/api/miniatura?id=${encodeURIComponent(cid)}&rel=${encodeURIComponent(semana)}`, { method: "POST", body: b });
-    } catch (e) {}
-  }, 1500);
+// guarda ya lo que falta guardar (antes de cambiar de pieza: si no, el guardado de la anterior caería en la nueva)
+async function guardarAhora() {
+  if (!C || !pendiente) return;
+  clearTimeout(tGuardar); pendiente = false;
+  C.copy = $("copy").value;
+  await api("/api/pieza", { id: cid, datos: limpio(C) }); $("guardado").textContent = "Guardado";
+  clearTimeout(tMini); await hacerMiniatura();
 }
-function cambio(fn, sinHistoria) { if (!sinHistoria) recordar(); fn(); pintar(); pintarTira(); guardarLuego(); }
-function todo() { pintar(); pintarTira(); pintarProps(); pintarLista(); pintarFotos(); $("copy").value = C?.copy || ""; pintarGuion(); pintarBotones(); }
+let tMini;
+function guardarMiniatura() { clearTimeout(tMini); tMini = setTimeout(hacerMiniatura, 1500); }
+async function hacerMiniatura() {  // la lámina 1 en chico, para la biblioteca y el inicio
+  if (!C) return;
+  const pieza = C, id = cid;
+  try {
+    await esperarImagenes();
+    const cv = document.createElement("canvas"); cv.width = 360; cv.height = Math.round(360 * H / W);
+    const cx = cv.getContext("2d"); cx.scale(360 / W, 360 / W); dibujarLamina(cx, pieza.laminas[0], false);
+    const b = await new Promise(ok => cv.toBlob(ok, "image/png"));
+    await fetch(`/api/miniatura?id=${encodeURIComponent(id)}&rel=${encodeURIComponent(semana)}`, { method: "POST", body: b });
+  } catch (e) {}
+}
+function cambio(fn, sinHistoria) { if (!sinHistoria) recordar(); fn(); pintar(); pintarTira(); pintarGuia(); guardarLuego(); }
+function todo() {
+  pintar(); pintarTira(); pintarProps(); pintarLista(); pintarFotos(); $("copy").value = C?.copy || ""; pintarGuion(); pintarBotones(); pintarGuia();
+  // la caja de la IA ya trae el nivel y el estilo que tiene la pieza (los del brief)
+  $("clNivel").value = C?.nivel || "";
+  if (C?.estilo && ![...$("clEstilo").options].some(o => o.value === C.estilo)) $("clEstilo").add(new Option(`${C.estilo} · del brief`, C.estilo));
+  $("clEstilo").value = C?.estilo || "";
+}
+
+// ---------- En qué paso va cada pieza: una palabra por estado, la misma en tarjetas, filtros, Inicio y editor ----------
+const ESTADOS = { escribir: "Por escribir", fotos: "Faltan fotos", lista: "Lista", exportada: "Exportada" };
+function pasoDe(p) {  // p: lo que manda el servidor (o resumenAbierta)
+  if (p.exportado) return "exportada";
+  if (!p.con_textos) return "escribir";
+  return (p.laminas_con_foto ?? 0) < p.laminas ? "fotos" : "lista";
+}
+// la lámina tiene una foto puesta (de Flow o del producto); «Foto de fondo» sin foto elegida no cuenta
+const conFoto = l => l.capas.some(c => c.tipo === "imagen") || (l.fondo.tipo === "imagen" && !!l.fondo.src);
+function resumenAbierta() {  // lo mismo que manda el servidor, pero de la pieza abierta (cambia mientras se edita)
+  return { exportado: !!lista.find(x => x.id === cid)?.exportado, laminas: C.laminas.length, laminas_con_foto: C.laminas.filter(conFoto).length,
+    con_textos: !!C.guion?.laminas?.length || C.laminas.some(l => l.capas.some(c => c.tipo === "texto" && (c.texto || "").trim())) };
+}
+const enLista = n => n.map(i => i + 1).join(", ").replace(/, (\d+)$/, " y $1");
+function faltasCortas() {  // lo que le falta a la pieza abierta, en una línea
+  const vacias = [], sinFoto = [];
+  C.laminas.forEach((l, i) => { if (!l.capas.length && !conFoto(l)) vacias.push(i); else if (!conFoto(l)) sinFoto.push(i); });
+  const cuales = n => `${n.length === 1 ? "la lámina" : "las láminas"} ${enLista(n)}`;
+  return [vacias.length && `textos en ${cuales(vacias)}`, sinFoto.length && `foto en ${cuales(sinFoto)}`].filter(Boolean);
+}
+let pasoAbierta = "";
+function pintarGuia() {
+  $("guia").hidden = !C;
+  if (!C) return;
+  const r = resumenAbierta(), paso = pasoDe({ ...r, exportado: false }), fotosOk = r.laminas_con_foto >= r.laminas;
+  const marcar = (id, hecho, ahora) => { $(id).classList.toggle("hecho", hecho); $(id).classList.toggle("ahora", !hecho && ahora); };
+  $("guiaTextos").textContent = `① Textos${r.con_textos ? " ✓" : ""}`;
+  $("guiaFotos").textContent = `② Fotos ${r.laminas_con_foto} de ${r.laminas}${fotosOk ? " ✓" : ""}`;
+  $("guiaExportar").textContent = `③ Exportar${r.exportado ? " ✓" : ""}`;
+  marcar("guiaTextos", r.con_textos, paso === "escribir"); marcar("guiaFotos", fotosOk, paso === "fotos"); marcar("guiaExportar", r.exportado && paso === "lista", paso === "lista");
+  const f = faltasCortas();
+  $("faltas").textContent = f.length ? `Falta: ${f.join(" · ")}` : r.exportado ? "✓ Exportada (si cambias algo, exporta otra vez)" : "✓ Lista para exportar";
+  $("faltas").classList.toggle("ok", !f.length);
+  $("fotosCuenta").textContent = `${r.laminas_con_foto} de ${plural(r.laminas, "lámina", "láminas")} con foto`;
+  $("btnCopiarPrompts").hidden = !C.guion?.laminas?.some(l => l.flow);
+  // un solo botón azul a la vez: el del paso que sigue
+  $("btnClaude").classList.toggle("sec", paso !== "escribir");
+  $("btnExportar").classList.toggle("sec", paso !== "lista");
+  $("cajaIA").classList.toggle("primero", paso === "escribir");
+  $("soltar").classList.toggle("toca", paso === "fotos");
+  const ahora = pasoDe(r);
+  if (ahora !== pasoAbierta) { pasoAbierta = ahora; pintarLista(); }
+}
+function resaltar(el) {  // «llévame ahí»: la caja del paso que sigue se ilumina un momento
+  el.scrollIntoView({ block: "nearest" });
+  el.classList.add("resalta"); setTimeout(() => el.classList.remove("resalta"), 2200);
+}
 // «Post» solo si es de una lámina; con varias se dice cuántas (sea post o carrusel)
 const etiquetaTipo = p => p.laminas > 1 ? `${p.laminas} láminas` : p.tipo === "post" ? "Post" : "1 lámina";
 const nombreTipo = () => C?.tipo === "post" ? "post" : "carrusel";
@@ -890,16 +1032,45 @@ function pintarFotos() {
   $("marca").innerHTML = marca.map(f => `<button class="foto" data-marca="${esc(f)}" title="${esc(f)}"><img src="/marca/${f.split("/").map(encodeURIComponent).join("/")}" alt=""></button>`).join("")
     || `<p class="muted" style="grid-column:1/-1">Pon el logo y las fotos del producto sin fondo en _MARCA/logos y _MARCA/productos del Drive.</p>`;
 }
-async function subirFotos(archivos) {
-  if (!C) return avisar(SIN_PIEZA, "err");
-  let n = 0;
+async function subirArchivos(archivos) {  // a la carpeta Flow de la pieza; devuelve los nombres con que quedaron
+  const hechos = [];
   for (const a of archivos) {
     const r = await fetch(`/api/imagen?id=${encodeURIComponent(cid)}&nombre=${encodeURIComponent(a.name)}`, { method: "POST", body: a });
     const d = await r.json();
-    if (d.ok === false) avisar(d.error, "err"); else { imgs.push(d.archivo); n++; }
+    if (d.ok === false) avisar(d.error, "err"); else { imgs.push(d.archivo); hechos.push(d.archivo); }
   }
   pintarFotos();
-  if (n) avisar(`${plural(n, "foto agregada", "fotos agregadas")}`);
+  return hechos;
+}
+async function subirFotos(archivos) {
+  if (!C) return avisar(SIN_PIEZA, "err");
+  const hechos = await subirArchivos(archivos);
+  if (!hechos.length) return;
+  // varias fotos juntas: se ofrecen repartir en orden en las láminas que aún no tienen foto
+  const libres = C.laminas.map((l, i) => conFoto(l) ? -1 : i).filter(i => i >= 0).slice(0, hechos.length);
+  if (libres.length && await preguntar(`Subiste ${plural(hechos.length, "foto")}. ¿Las pongo en orden en ${libres.length === 1 ? "la lámina" : "las láminas"} sin foto (${enLista(libres)})?`, "Ponerlas", "Solo subirlas")) {
+    libres.forEach((i, k) => ponerEnLamina(i, hechos[k]));
+    return avisar(`Listo: ${plural(libres.length, "foto puesta", "fotos puestas")}. Acomódalas tocándolas en la lámina.`);
+  }
+  avisar(`${plural(hechos.length, "foto agregada", "fotos agregadas")}`);
+}
+async function subirALamina(archivo, i) {  // la foto soltada sobre una lámina de la tira va a esa lámina
+  if (!C) return avisar(SIN_PIEZA, "err");
+  const [f] = await subirArchivos([archivo]);
+  if (!f) return;
+  ponerEnLamina(i, f);
+  avisar(`Foto puesta en la lámina ${i + 1}`);
+}
+function ponerEnLamina(i, f) {  // de fondo si la lámina es de «Foto de fondo»; si no, cambia su foto o agrega una
+  actual = i; sel = null;
+  const l = C.laminas[i], src = { tipo: "img", f }, vieja = l.capas.find(c => c.tipo === "imagen" && c.src.tipo === "img");
+  if (l.fondo.tipo === "imagen") cambio(() => l.fondo.src = src);
+  else if (vieja) cambio(() => vieja.src = src);
+  else {  // la foto nueva va debajo de los textos, para no taparlos
+    const capa = { id: nuevoId(), tipo: "imagen", src, x: W / 2, y: H * 0.62, w: 760, sombra: 0 };
+    cambio(() => { l.capas.unshift(capa); sel = capa.id; });
+  }
+  pintarProps();
 }
 async function quitarFondo(nombre) {
   avisar("Quitando el fondo… (la primera vez tarda un poco más)");
@@ -952,7 +1123,7 @@ async function quitarFondo(nombre) {
 // ---------- Carruseles ----------
 function pintarLista() {
   $("listaC").innerHTML = lista.map(c => `<button class="${c.id === cid ? "activa" : ""}" data-c-id="${esc(c.id)}">${c.dia ? `<b>${esc(c.dia)}</b> · ` : ""}${esc(c.titulo)}
-    <small>${etiquetaTipo(c)} · ${esc(c.formato || "4:5")}${c.estilo ? " · estilo " + esc(c.estilo) : ""}${c.nivel ? " · " + esc(c.nivel) : ""}${c.exportado ? " · ✓ exportado" : ""}</small></button>`).join("")
+    <small>${etiquetaTipo(c)} · ${esc(c.formato || "4:5")}${c.estilo ? " · estilo " + esc(c.estilo) : ""}${c.nivel ? " · " + esc(c.nivel) : ""} · ${ESTADOS[pasoDe(c.id === cid && C ? { ...c, ...resumenAbierta() } : c)]}</small></button>`).join("")
     || `<p class="muted">Aún no hay piezas en esta semana.</p>`;
 }
 let semana = "";
@@ -973,6 +1144,7 @@ async function abrirPrimero() {
   if (id) await abrir(id); else { C = null; cid = null; imgs = []; todo(); }
 }
 async function abrir(id) {
+  await guardarAhora().catch(e => avisar("No se guardó: " + e.message, "err"));
   const d = await api("/api/pieza?id=" + encodeURIComponent(id));
   cid = id; C = d.datos; imgs = d.imagenes; actual = 0; sel = null; historia = [];
   [W, H] = (ESTADO.formatos || {})[C.formato || "4:5"] || [1080, 1350];
@@ -992,17 +1164,37 @@ function pintarGuion() {
       <button class="btn sec chico" data-copiar="${i}">Copiar prompt de Flow</button></div>`).join("")
       + `<button class="btn chico" id="btnAplicar" style="margin-top:8px">Poner estos textos en las láminas</button>` : "";
 }
-async function esperarTrabajo(donde = "clEstado") {  // la IA corre en segundo plano: se pregunta cada 1,5 s hasta que termina
+// dónde se ve que la IA trabaja: la caja que gira y su «Cancelar»
+const ZONAS_IA = { clEstado: ["cajaIA", "clCancelar"], crEstado: ["v-crear", "crCancelar"], iniEstado: ["iniFranja", "iniCancelar"] };
+function ocuparZona(donde, si) {
+  const [zona, cancelar] = ZONAS_IA[donde] || [];
+  if (!zona) return;
+  $(zona).setAttribute("aria-busy", si); $(cancelar).hidden = !si;
+  $(zona).querySelectorAll(".btn-ia").forEach(b => {
+    if (si) { b.dataset.texto ??= b.textContent; b.textContent = "Escribiendo…"; }
+    else if (b.dataset.texto !== undefined) { b.textContent = b.dataset.texto; delete b.dataset.texto; }
+  });
+}
+// la IA corre en segundo plano: se pregunta cada 1,5 s hasta que termina, y se ve qué hace y hace cuánto
+async function esperarTrabajo(donde = "clEstado", antes = "") {
+  const desde = Date.now();
+  ocuparZona(donde, true); $(donde).hidden = false;
   try {
     for (;;) {
       await new Promise(ok => setTimeout(ok, 1500));
       const t = await api("/api/trabajo");
-      $(donde).textContent = t.mensaje || "";
+      const s = Math.round((Date.now() - desde) / 1000);
+      $(donde).textContent = `${antes}${t.activo ? (t.mensaje || "La IA está trabajando") : (t.mensaje || "")} · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+      $("tira").classList.toggle("escribiendo", !!t.activo && t.accion === "escribir" && t.id === cid);  // las láminas que va a llenar laten
       pintarGemini(t.gemini);
       if (!t.activo) { if (t.error) throw new Error(t.error === "Cancelado" ? "Se canceló." : t.error); return t; }
     }
-  } finally { pintarGemini(null); }
+  } finally { pintarGemini(null); ocuparZona(donde, false); $("tira").classList.remove("escribiendo"); }
 }
+["clCancelar", "crCancelar", "iniCancelar"].forEach(id => $(id).onclick = async () => {
+  if (id === "iniCancelar") escribiendoTodas = false;  // también para la fila: no sigue con las que faltan
+  try { await api("/api/cancelar", {}); } catch (e) { avisar(e.message, "err"); }
+});
 // mientras se espera a Gemini: la caja con los pasos, en cualquier pestaña
 function pintarGemini(g) {
   $("geminiCaja").hidden = !g;
@@ -1031,13 +1223,19 @@ async function enSuPieza(t, fn) {
   await api("/api/pieza", { id: t.id, datos: d.datos });
   avisar(`La IA terminó: quedó guardado en «${t.id}»`);
 }
-function ponerEscrito(t) {
+async function ponerEscrito(t) {
   if (t.accion !== "escribir" || !t.resultado?.laminas) return;
-  return enSuPieza(t, p => {
+  await enSuPieza(t, p => {
     p.guion = t.resultado;
     if (p === C && !$("copy").value.trim()) { C.copy = t.resultado.copy || ""; $("copy").value = C.copy; }
     else if (p !== C && !(p.copy || "").trim()) p.copy = t.resultado.copy || "";
   });
+  // los textos van solos a las láminas; si ya tenían textos, se pregunta antes de cambiarlos
+  // (si era otra pieza, se ponen al abrirla: abrir() lo hace con las láminas vacías)
+  if (!C || (t.id && t.id !== cid)) return;
+  if (C.laminas.every(l => !l.capas.length)) return aplicarGuion();
+  if (await preguntar("La IA escribió textos nuevos. ¿Los pongo en las láminas? Cambia los títulos y textos que ya tienen (lo demás queda igual).", "Poner los textos nuevos", "Dejarlos abajo"))
+    aplicarGuion();
 }
 async function escribirConClaude() {
   if (!C) return avisar(SIN_PIEZA, "err");
@@ -1135,19 +1333,12 @@ async function esperarImagenes() {  // ninguna lámina sale sin sus fotos
   const falta = srcs.find(s => !imagen(s));
   if (falta) throw new Error(`No pude cargar la foto ${falta.f}`);
 }
-function faltasParaExportar() {  // láminas vacías y fotos que faltan, dichas en palabras
-  const num = l => l.map(i => i + 1).join(", ");
+function faltasParaExportar() {  // láminas vacías y fotos que faltan, dichas en palabras (las mismas que muestra la guía)
   const vacias = [], sinFoto = [];
-  C.laminas.forEach((l, i) => {
-    const conFoto = l.fondo.tipo === "imagen" && l.fondo.src;
-    if (!l.capas.length && !conFoto) vacias.push(i);
-    else if (l.fondo.tipo === "imagen" && !l.fondo.src) sinFoto.push(i);
-  });
-  const hayFotos = C.laminas.some(l => (l.fondo.tipo === "imagen" && l.fondo.src) || l.capas.some(c => c.tipo === "imagen"));
+  C.laminas.forEach((l, i) => { if (!l.capas.length && !conFoto(l)) vacias.push(i); else if (!conFoto(l)) sinFoto.push(i); });
   const out = [];
-  if (vacias.length) out.push(vacias.length === 1 ? `La lámina ${num(vacias)} está vacía.` : `Las láminas ${num(vacias)} están vacías.`);
-  if (sinFoto.length) out.push(sinFoto.length === 1 ? `La lámina ${num(sinFoto)} tiene «Foto de fondo» pero sin foto.` : `Las láminas ${num(sinFoto)} tienen «Foto de fondo» pero sin foto.`);
-  if (!hayFotos) out.push(`El ${nombreTipo()} no tiene ninguna foto.`);
+  if (vacias.length) out.push(vacias.length === 1 ? `La lámina ${enLista(vacias)} está vacía.` : `Las láminas ${enLista(vacias)} están vacías.`);
+  if (sinFoto.length) out.push(sinFoto.length === 1 ? `La lámina ${enLista(sinFoto)} no tiene foto.` : `Las láminas ${enLista(sinFoto)} no tienen foto.`);
   return out;
 }
 async function exportar() {
@@ -1161,7 +1352,7 @@ async function exportar() {
     const laminas = C.laminas.map(lam => { const cx = cv.getContext("2d"); cx.clearRect(0, 0, W, H); dibujarLamina(cx, lam, false); return cv.toDataURL("image/png"); });
     const d = await api("/api/exportar", { id: cid, laminas, copy: $("copy").value });
     avisar(`Exportado: ${plural(laminas.length, "lámina", "láminas")} en FINAL. El Publicador ya la ve.`);
-    await cargarLista();
+    await cargarLista(); pintarGuia(); BIB = null;
   } catch (e) { avisar("No se exportó: " + e.message, "err"); }
   $("btnExportar").disabled = false;
 }
@@ -1312,6 +1503,13 @@ document.addEventListener("click", async e => {
   const rh = t.closest("[data-rehacer]"); if (rh) return rehacerFoto(rh);
   const cp = t.closest("[data-copiar]"); if (cp) { await navigator.clipboard.writeText(C.guion.laminas[+cp.dataset.copiar].flow || ""); return avisar("Prompt copiado: pégalo en Google Flow"); }
   if (t.id === "btnAplicar") return aplicarGuion();
+  const gu = t.closest("[data-guia]");  // la guía del editor lleva a la caja de cada paso
+  if (gu && C) return resaltar(gu.dataset.guia === "textos" ? $("cajaIA") : gu.dataset.guia === "fotos" ? $("soltar") : $("btnExportar"));
+  if (t.id === "btnCopiarPrompts" && C?.guion) {
+    const todos = C.guion.laminas.map((l, i) => l.flow ? `Lámina ${i + 1}:\n${l.flow}` : "").filter(Boolean).join("\n\n");
+    try { await navigator.clipboard.writeText(todos); avisar("Prompts copiados (uno por lámina): pégalos en Google Flow"); } catch (er) { avisar("No pude copiarlos", "err"); }
+    return;
+  }
   if (t.id === "btnLamina") { cambio(() => C.laminas.push({ fondo: { tipo: "color", color: L().fondo.color || PALETA[1] }, capas: [] })); actual = C.laminas.length - 1; sel = null; return todo(); }
   if (t.id === "btnDuplicarL") { cambio(() => { const d = limpio(L()); d.capas.forEach(c => c.id = nuevoId()); C.laminas.splice(actual + 1, 0, d); }); actual++; return todo(); }
   if (t.id === "btnBorrarL") {
@@ -1375,9 +1573,20 @@ $("btnCrearSemana").onclick = async () => {
 };
 $("archivo").onchange = e => { subirFotos([...e.target.files]); e.target.value = ""; };
 const zona = $("soltar");
-["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); zona.classList.add("encima"); }));
-["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || !e.relatedTarget) zona.classList.remove("encima"); }));
-document.addEventListener("drop", e => { const fs = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith("image/")); if (fs.length) subirFotos(fs); });
+// una lámina de la tira se marca cuando la foto pasa encima: soltarla ahí la pone en esa lámina
+function marcarMini(m) {
+  document.querySelectorAll(".mini.encima").forEach(x => { if (x !== m) x.classList.remove("encima"); });
+  m?.classList.add("encima");
+}
+["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); zona.classList.add("encima"); marcarMini(e.target.closest?.(".mini[data-lam]")); }));
+["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || !e.relatedTarget) { zona.classList.remove("encima"); marcarMini(null); } }));
+document.addEventListener("drop", e => {
+  const fs = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith("image/"));
+  if (!fs.length) return;
+  const m = e.target.closest?.(".mini[data-lam]");
+  if (m) return subirALamina(fs[0], +m.dataset.lam);
+  subirFotos(fs);
+});
 addEventListener("storage", e => { if (e.key === "sala_tema") document.documentElement.dataset.tema = e.newValue; });
 
 // ---------- Marca, cabeza y configuración ----------
@@ -1565,26 +1774,42 @@ $("pestanas").addEventListener("keydown", e => {
   e.preventDefault();
   const b = bs[(k + bs.length) % bs.length]; b.focus(); irA(b.dataset.vista);
 });
-function ficha(p, extra = "") {
+const ORIGEN = { brief: "Del brief", pedido: "De un pedido", video: "De un video", mano: "Hecha a mano" };
+const INSIGNIA = { escribir: "", fotos: "warn", lista: "ahora", exportada: "ok" };
+// la tarjeta dice en qué paso va (barrita de 3: textos, fotos, exportar) y trae el botón del paso que sigue
+function ficha(p) {
+  const paso = pasoDe(p), fotosOk = (p.laminas_con_foto ?? 0) >= p.laminas, cod = p.semana.split(" · ")[0];
   const mini = p.miniatura ? `<img src="/archivo?rel=${encodeURIComponent(p.rel)}&id=${encodeURIComponent(p.id)}&f=${encodeURIComponent(p.miniatura)}&v=${encodeURIComponent(p.actualizado || "")}" alt="" loading="lazy">`
+    : paso === "escribir" ? `<div class="por-llenar"><div class="lams" aria-hidden="true">${"<i></i>".repeat(Math.min(p.laminas, 6))}</div><b>${plural(p.laminas, "lámina", "láminas")} por llenar</b><small>La IA escribe los textos y los prompts de Flow</small></div>`
     : `<div class="marcador">${esc(p.titulo)}</div>`;
-  return `<button class="ficha" data-abrir-rel="${esc(p.rel)}" data-abrir-id="${esc(p.id)}" ${extra}>
-    <div class="mini" style="aspect-ratio:${proporcion(p.formato)}">${mini}<span class="chip">${etiquetaTipo(p)} · ${esc(p.formato)}</span></div>
-    <div class="info"><b>${esc(p.titulo)}</b><small>${p.dia && DIAS_C[p.dia] ? DIAS_C[p.dia] + " " + fechaCorta(p.fecha) : "Sin día"} · ${esc(p.semana.split(" · ").slice(0, 2).join(" · "))}</small>
-      <div class="insignias">${p.nivel ? `<span class="insignia">${esc(p.nivel)}</span>` : ""}${p.exportado ? '<span class="insignia ok">Exportada</span>' : '<span class="insignia">Borrador</span>'}${p.con_fotos ? "" : '<span class="insignia warn">Sin fotos</span>'}</div></div></button>`;
+  const fotos = `${p.laminas_con_foto ?? 0} de ${p.laminas}`;
+  const boton = paso === "escribir" ? `<button class="btn chico" data-paso="escribir">✦ Escribir con IA</button>`
+    : paso === "fotos" ? `<button class="btn chico" data-paso="fotos">Poner fotos (${fotos})</button>`
+    : paso === "lista" ? `<button class="btn chico" data-paso="exportar">Exportar</button>`
+    : `<span class="listo">✓ Ya está en el Publicador</span>`;
+  const pasos = [["Textos", p.con_textos, paso === "escribir"], [`Fotos ${fotos}`, fotosOk, paso === "fotos"], ["Exportar", p.exportado, paso === "lista"]]
+    .map(([t, hecho, ahora]) => `<li class="${hecho ? "hecho" : ahora ? "ahora" : ""}" title="${t}${hecho ? " ✓" : ahora ? " (ahora)" : ""}"></li>`).join("");
+  return `<div class="ficha paso-${paso}" data-rel="${esc(p.rel)}" data-id="${esc(p.id)}">
+    <button class="ficha-abrir" data-abrir-rel="${esc(p.rel)}" data-abrir-id="${esc(p.id)}">
+      <div class="mini" style="aspect-ratio:${proporcion(p.formato)}">${mini}<span class="chip">${etiquetaTipo(p)} · ${esc(p.formato)}</span></div>
+      <div class="info"><b>${esc(p.titulo)}</b><small>${p.dia && DIAS_C[p.dia] ? DIAS_C[p.dia] + " " + fechaCorta(p.fecha) : "Sin día"} · ${esc(cod)} · ${ORIGEN[p.origen] || ORIGEN.mano}</small>
+        <div class="insignias">${p.nivel ? `<span class="insignia">${esc(p.nivel)}</span>` : ""}<span class="insignia ${INSIGNIA[paso]}">${ESTADOS[paso]}</span></div></div></button>
+    <div class="ficha-pie"><ol class="pasos" aria-label="Pasos: textos, fotos y exportar">${pasos}</ol>${boton}</div></div>`;
 }
-async function abrirDesdeFicha(rel, id) {
+// paso: «escribir» abre y pone a la IA a escribir; «fotos» y «exportar» abren e iluminan su caja
+async function abrirDesdeFicha(rel, id, paso) {
   try {
     if (rel !== semana) { await api("/api/semana", { accion: "elegir", rel }); await cargarLista(); }
     await abrir(id); irA("editor");
+    if (paso === "escribir") { resaltar($("cajaIA")); escribirConClaude(); }
+    else if (paso === "fotos") { resaltar($("soltar")); $("soltar").focus?.(); }
+    else if (paso === "exportar") { resaltar($("btnExportar")); $("btnExportar").focus(); }
   } catch (e) { avisar(e.message, "err"); }
 }
 // Biblioteca
-async function cargarBiblioteca(forzar) {
-  if (!BIB || forzar) {
-    $("bRejilla").innerHTML = '<p class="muted">Cargando…</p>';
-    try { BIB = await api("/api/biblioteca"); } catch (e) { $("bRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
-  }
+async function cargarBiblioteca() {  // siempre se vuelve a pedir: el paso de cada pieza cambia mientras se edita
+  if (!BIB) $("bRejilla").innerHTML = '<p class="muted">Cargando…</p>';
+  try { BIB = await api("/api/biblioteca"); } catch (e) { if (!BIB) { $("bRejilla").innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; } }
   llenarFiltros();  // siempre: BIB también lo cargan Inicio y Crear con IA, que no llenan los filtros
   pintarBiblioteca();
 }
@@ -1599,28 +1824,74 @@ function llenarFiltros() {  // los meses y semanas que hay, sin perder lo que es
 function pintarBiblioteca() {
   if (!BIB) return;
   const q = $("bBuscar").value.trim().toLowerCase(), mes = $("bMes").value, sem = $("bSemana").value, desde = $("bDesde").value, hasta = $("bHasta").value;
-  const tipo = $("bTipo").value, fmt = $("bFormato").value, niv = $("bNivel").value, est = $("bEstado").value;
+  const tipo = $("bTipo").value, fmt = $("bFormato").value, niv = $("bNivel").value;
+  const est = $("bEstado").querySelector('[aria-pressed="true"]')?.dataset.estado || "";
   const l = BIB.piezas.filter(p => (!q || (p.titulo + " " + p.pedido + " " + p.semana).toLowerCase().includes(q)) && (!mes || p.mes === mes) && (!sem || p.rel === sem)
     && (!desde || p.fecha >= desde) && (!hasta || p.fecha <= hasta) && (!tipo || p.tipo === tipo) && (!fmt || p.formato === fmt) && (!niv || p.nivel === niv)
-    && (!est || (est === "exportado" ? p.exportado : est === "borrador" ? !p.exportado : !p.con_fotos)));
+    && (!est || pasoDe(p) === est));
+  // cuántas hay en cada paso (con los demás filtros puestos), dicho en el mismo botón
+  $("bEstado").querySelectorAll("button").forEach(b => {
+    b.dataset.nombre ??= b.textContent;
+    if (b.dataset.estado) b.textContent = `${b.dataset.nombre} (${BIB.piezas.filter(p => pasoDe(p) === b.dataset.estado && (!sem || p.rel === sem)).length})`;
+  });
+  const otros = [mes, desde, hasta, tipo, fmt, niv].filter(Boolean).length;
+  $("bMas").querySelector("summary").textContent = otros ? `Más filtros (${otros})` : "Más filtros";
   $("bCuenta").textContent = `${l.length} de ${BIB.piezas.length} piezas`;
   $("bRejilla").innerHTML = l.map(p => ficha(p)).join("") || '<p class="muted">Nada con esos filtros.</p>';
 }
-["bBuscar", "bMes", "bSemana", "bDesde", "bHasta", "bTipo", "bFormato", "bNivel", "bEstado"].forEach(id => $(id).addEventListener("input", pintarBiblioteca));
+["bBuscar", "bMes", "bSemana", "bDesde", "bHasta", "bTipo", "bFormato", "bNivel"].forEach(id => $(id).addEventListener("input", pintarBiblioteca));
+$("bEstado").addEventListener("click", e => {
+  const b = e.target.closest("button[data-estado]"); if (!b) return;
+  $("bEstado").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  pintarBiblioteca();
+});
 // Inicio
 async function pintarInicio() {
   try { BIB = await api("/api/biblioteca"); } catch (e) { return; }
   const deSemana = BIB.piezas.filter(p => p.rel === semana);
   $("iniTitulo").textContent = (semana.split("/")[1] || "Esta semana");
   $("cabTitulo").textContent = $("iniTitulo").textContent;
-  $("iniSub").textContent = deSemana.length ? "Lo que sale cada día de esta semana. Toca una pieza para abrirla." : "Esta semana aún no tiene piezas: pídelas en ✦ Crear con IA.";
-  const n = (f) => deSemana.filter(f).length;
-  $("iniCifras").innerHTML = [["Piezas", deSemana.length], ["Exportadas", n(p => p.exportado)], ["Sin exportar", n(p => !p.exportado)], ["Sin fotos", n(p => !p.con_fotos)], ["En toda la biblioteca", BIB.piezas.length]]
+  $("iniSub").textContent = deSemana.length ? "Lo que sale cada día de esta semana. Cada pieza dice qué le falta y trae el botón para hacerlo." : "Esta semana aún no tiene piezas: pídelas en ✦ Crear con IA.";
+  const n = paso => deSemana.filter(p => pasoDe(p) === paso).length;
+  $("iniCifras").innerHTML = [["Piezas", deSemana.length], [ESTADOS.escribir, n("escribir")], [ESTADOS.fotos, n("fotos")], ["Listas", n("lista")], ["Exportadas", n("exportada")], ["En toda la biblioteca", BIB.piezas.length]]
     .map(([t, v]) => `<div class="cifra"><b>${v}</b><span class="muted">${t}</span></div>`).join("");
+  // la franja: de dónde salieron las piezas (el brief de la estrategia) y el botón para escribir todas las que faltan
+  const delBrief = deSemana.filter(p => p.origen === "brief").length, porEscribir = n("escribir");
+  $("iniFranja").hidden = !delBrief && !porEscribir && !escribiendoTodas;
+  $("iniFranjaTexto").innerHTML = (delBrief ? `<b>La estrategia dejó ${plural(delBrief, "pieza", "piezas")} en el brief de la ${esc(semana.split("/")[1]?.split(" · ")[0] || "semana")}</b> y la sala las creó sola, una por día, con su tema, nivel y estilo. ` : "")
+    + (porEscribir ? `Faltan escribir ${porEscribir}: la IA les pone los textos y los prompts de Flow.` : "Todas ya tienen textos: sigue con las fotos de Flow.");
+  if (!escribiendoTodas) {
+    $("iniEscribirTodas").hidden = !porEscribir;
+    $("iniEscribirTodas").textContent = porEscribir === 1 ? "✦ Escribirla con IA" : `✦ Escribir las ${porEscribir} con IA`;
+  }
   $("iniDias").innerHTML = Object.keys(DIAS_C).map(d => `<div class="dia7"><h4>${DIAS_C[d]}</h4>${deSemana.filter(p => p.dia === d).map(p => ficha(p)).join("") || '<p class="muted" style="margin:0">—</p>'}</div>`).join("")
     + (deSemana.some(p => !p.dia) ? `<div class="dia7"><h4>Sin día</h4>${deSemana.filter(p => !p.dia).map(p => ficha(p)).join("")}</div>` : "");
   $("iniPedidos").innerHTML = historialPedidos(5);
 }
+// «✦ Escribir las N con IA»: una tras otra, con el tema, nivel y estilo que ya trae cada pieza (los del brief).
+// Cada una se abre, la IA la escribe, sus textos van a las láminas y se guarda con su miniatura.
+let escribiendoTodas = false;
+async function escribirTodas() {
+  const ids = (BIB?.piezas || []).filter(p => p.rel === semana && pasoDe(p) === "escribir").map(p => p.id);
+  if (!ids.length || escribiendoTodas) return;
+  escribiendoTodas = true; $("iniEscribirTodas").disabled = true;
+  let hechas = 0;
+  try {
+    for (const [k, id] of ids.entries()) {
+      if (!escribiendoTodas) break;  // tocaron «Cancelar»
+      await abrir(id);
+      await api("/api/claude", { accion: "escribir", id, idea: "" });
+      await ponerEscrito(await esperarTrabajo("iniEstado", `${k + 1} de ${ids.length} · ${C.titulo} · `));
+      await guardarAhora();
+      hechas++;
+      await pintarInicio();
+    }
+    avisar(`Listo: ${plural(hechas, "pieza escrita", "piezas escritas")}. Ahora genera sus fotos en Flow con los prompts de cada lámina.`);
+  } catch (e) { avisar(`IA: ${e.message}${hechas ? ` (${plural(hechas, "quedó escrita", "quedaron escritas")})` : ""}`, "err"); }
+  escribiendoTodas = false; $("iniEscribirTodas").disabled = false; $("iniEstado").hidden = true;
+  await pintarInicio();
+}
+$("iniEscribirTodas").onclick = escribirTodas;
 function historialPedidos(max) {
   const ps = (BIB?.pedidos || []).slice(0, max);
   return ps.length ? ps.map(p => `<div class="historial-p"><q>${esc(p.pedido.length > 220 ? p.pedido.slice(0, 220) + "…" : p.pedido)}</q>
@@ -1720,6 +1991,8 @@ function pintarMarcaVista() {
 document.addEventListener("click", e => {
   const pes = e.target.closest("#pestanas button"); if (pes) return irA(pes.dataset.vista);
   const ir = e.target.closest("[data-ir]"); if (ir) return irA(ir.dataset.ir);
+  const pa = e.target.closest(".ficha [data-paso]");
+  if (pa) { const f = pa.closest(".ficha"); return abrirDesdeFicha(f.dataset.rel, f.dataset.id, pa.dataset.paso); }
   const ab = e.target.closest("[data-abrir-id]"); if (ab) return abrirDesdeFicha(ab.dataset.abrirRel, ab.dataset.abrirId);
   const uv = e.target.closest("[data-usar-video]");
   if (uv) {

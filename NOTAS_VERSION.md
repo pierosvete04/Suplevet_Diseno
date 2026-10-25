@@ -1,3 +1,14 @@
+Versión 0.11.0:
+- **Cada pieza dice en qué paso va**, con las mismas palabras en todas partes: **Por escribir · Faltan fotos · Lista · Exportada** (antes decía «Borrador» aunque la pieza estuviera terminada).
+- **Cada tarjeta trae el botón del paso que sigue**: «✦ Escribir con IA», «Poner fotos (2 de 4)» o «Exportar», y una barrita de 3 pasos (textos, fotos, exportar). El botón abre la pieza y lleva directo a esa caja.
+- **Los borradores vacíos ya no parecen un error**: se ven como láminas punteadas «por llenar», y la tarjeta dice de dónde salió la pieza (del brief, de un pedido, de un video o hecha a mano).
+- **Inicio**: una franja explica que la estrategia dejó las piezas en el brief y que la sala las creó sola. Con **«✦ Escribir las N con IA»**, la IA las escribe todas, una tras otra, con el tema, nivel y estilo del brief.
+- **Mientras la IA trabaja** se ve: el botón gira y dice «Escribiendo…», aparece el tiempo que lleva y un «Cancelar» (también con Claude), y las láminas que va a llenar laten.
+- **Los textos van solos a las láminas** cuando la IA termina. Si las láminas ya tenían textos, primero pregunta.
+- **Editor con guía**: arriba de la lámina, «① Textos ② Fotos 1 de 4 ③ Exportar» y lo que falta («Falta: foto en las láminas 2 y 3»). Solo el botón del paso que sigue va en azul.
+- **Fotos de Flow lámina por lámina**: cada lámina de la tira tiene su botón «Prompt» y su aviso «sin foto», y se le puede soltar la foto encima. Si subes varias fotos juntas, la sala ofrece ponerlas en orden en las láminas sin foto. Hay un botón para copiar todos los prompts juntos.
+- **Biblioteca más ordenada**: buscador, semana y los 4 estados a la vista (cada uno con cuántas hay); mes, fechas, tipo, formato y nivel van en «Más filtros». Se actualiza cada vez que se abre.
+- Mejor contraste en los botones azules y en las etiquetas naranjas del tema claro, y botones y colores un poco más grandes.
 Versión 0.10.2:
 - **El Publicador sabe con qué video va cada post:** al crear piezas con «✦ Crear con IA» a partir de un video de la Sala de edición, la pieza guarda ese video. En el Publicador el post dice «Va con: …» y el video «Tiene post».
 - Cada pieza guarda su **semana** (S03) y un código fijo (S03-D-C01), para que el Publicador la ponga en la semana correcta.

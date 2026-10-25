@@ -138,7 +138,7 @@ def crear_semana(fecha_iso, tema="", plan=None, elegir=True):
             dia = _dia(c.get("dia"))
             if dia and dia not in hechos:
                 nueva(c.get("tema") or "Carrusel", tipo=c.get("tipo", "carrusel"), dia=dia, rel=rel, nivel=c.get("nivel", ""),
-                      publico=c.get("publico", ""), estilo=c.get("estilo", ""))
+                      publico=c.get("publico", ""), estilo=c.get("estilo", ""), origen="brief")
     if elegir:
         nucleo.guardar_config({"semana": rel})
     return rel
@@ -187,6 +187,7 @@ def listar(rel=None):
         out.append({"id": c.name, "titulo": p.get("titulo", c.name), "tipo": p.get("tipo", "carrusel"), "dia": p.get("dia", ""),
                     "laminas": len(p.get("laminas", [])), "formato": p.get("formato", "4:5"), "estilo": p.get("estilo", ""), "nivel": p.get("nivel", ""),
                     "publico": p.get("publico", ""), "exportado": any((c / "FINAL").glob("L*.png")),
+                    "con_textos": _con_textos(p), "laminas_con_foto": sum(1 for l in p.get("laminas", []) if _con_foto(l)),
                     "editando": _editando(c)})
     orden = {d: i for i, d in enumerate(DIAS)}
     return sorted(out, key=lambda x: (orden.get(x["dia"], 9), x["id"]))
@@ -240,8 +241,9 @@ def guardar(pid, datos):
     return datos
 
 
-def nueva(titulo, tipo="carrusel", laminas=None, dia="", rel=None, nivel="", publico="", estilo="", formato="4:5"):
-    """Carpeta «LUN · C01 · Tema» (carrusel) o «LUN · P02 · Tema» (post). El número sigue dentro de la semana."""
+def nueva(titulo, tipo="carrusel", laminas=None, dia="", rel=None, nivel="", publico="", estilo="", formato="4:5", origen="mano"):
+    """Carpeta «LUN · C01 · Tema» (carrusel) o «LUN · P02 · Tema» (post). El número sigue dentro de la semana.
+    origen: de dónde salió (brief, pedido, video o mano), para decirlo en la biblioteca."""
     rel = rel or semana_actual()
     tipo = tipo if tipo in TIPOS else "carrusel"
     nums = [int(m.group(1)) for m in (re.search(r"\b[CP](\d+)\b", x["id"]) for x in listar(rel)) if m]
@@ -251,7 +253,7 @@ def nueva(titulo, tipo="carrusel", laminas=None, dia="", rel=None, nivel="", pub
     n = laminas or (4 if tipo == "carrusel" else 1)
     vacia = lambda: {"fondo": {"tipo": "color", "color": ""}, "capas": []}
     datos = {"titulo": titulo, "tipo": tipo, "formato": formato if formato in FORMATOS else "4:5", "dia": dia, "nivel": nivel,
-             "publico": publico, "estilo": estilo, "copy": "", "laminas": [vacia() for _ in range(n)]}
+             "publico": publico, "estilo": estilo, "origen": origen, "copy": "", "laminas": [vacia() for _ in range(n)]}
     c = semana_dir(rel) / pid
     (c / "Flow").mkdir(parents=True, exist_ok=True)
     _con_semana(datos, c)
@@ -269,7 +271,8 @@ def crear_desde_pedido(texto, resultado, rel=None, video=""):
         laminas = p.get("laminas") or []
         tipo = "post" if p.get("tipo") == "post" or len(laminas) == 1 else "carrusel"
         pid, datos = nueva(p.get("titulo") or "Pieza", tipo=tipo, laminas=max(1, len(laminas)), dia=p.get("dia", ""), rel=rel,
-                           nivel=p.get("nivel", ""), publico=p.get("publico", ""), estilo=p.get("estilo", ""), formato=p.get("formato", "4:5"))
+                           nivel=p.get("nivel", ""), publico=p.get("publico", ""), estilo=p.get("estilo", ""), formato=p.get("formato", "4:5"),
+                           origen="video" if video else "pedido")
         datos["guion"] = {"laminas": laminas, "copy": p.get("copy", "")}
         datos["copy"] = p.get("copy", "")
         datos["pedido"] = texto.strip()[:500]
@@ -368,12 +371,34 @@ def _lunes_de_semana(nombre):
     return lunes_base + dt.timedelta(days=7 * (int(m.group(1)) - num))
 
 
+def _con_foto(lam):
+    """La lámina tiene una foto puesta (de Flow o del producto). «Foto de fondo» sin foto elegida no cuenta."""
+    f = lam.get("fondo", {})
+    return any(c.get("tipo") == "imagen" for c in lam.get("capas", [])) or (f.get("tipo") == "imagen" and bool(f.get("src")))
+
+
+def _con_textos(p):
+    """La IA ya la escribió (aunque los textos aún no estén en las láminas) o alguien le puso textos a mano."""
+    return bool((p.get("guion") or {}).get("laminas")) or any(
+        c.get("tipo") == "texto" and (c.get("texto") or "").strip() for l in p.get("laminas", []) for c in l.get("capas", []))
+
+
+def _del_plan(d):
+    """Los (día, tema) del plan de la semana: así se reconocen las piezas del brief creadas antes de guardar su origen."""
+    try:
+        plan = json.loads((d / "semana.json").read_text(encoding="utf-8")).get("plan") or []
+    except (FileNotFoundError, ValueError):
+        return set()
+    return {(_dia(c.get("dia")), (c.get("tema") or "").strip()) for c in plan}
+
+
 def biblioteca():
     """Cada pieza con su semana, su fecha (el día que sale) y su miniatura, de la más nueva a la más vieja."""
     out = []
     for s in semanas():
         d = raiz() / s["rel"]
         lunes = _lunes_de_semana(s["semana"])
+        plan = _del_plan(d)
         for c in sorted(x for x in d.iterdir() if x.is_dir()):
             try:
                 p = json.loads((c / "pieza.json").read_text(encoding="utf-8"))
@@ -383,14 +408,16 @@ def biblioteca():
             fecha = (lunes + dt.timedelta(days=DIAS.index(dia))).isoformat() if lunes and dia in DIAS else (lunes.isoformat() if lunes else "")
             finales = sorted((c / "FINAL").glob("L*.png")) if (c / "FINAL").is_dir() else []
             mini = "miniatura.png" if (c / "miniatura.png").exists() else (f"FINAL/{finales[0].name}" if finales else "")
+            laminas = p.get("laminas", [])
+            origen = p.get("origen") or ("brief" if (dia, (p.get("titulo") or "").strip()) in plan
+                                         else "video" if p.get("video") else "pedido" if p.get("pedido") else "mano")
             out.append({"rel": s["rel"], "mes": s["mes"], "semana": s["semana"], "id": c.name, "titulo": p.get("titulo", c.name),
                         "tipo": p.get("tipo", "carrusel"), "formato": p.get("formato", "4:5"), "dia": dia, "fecha": fecha,
                         "nivel": p.get("nivel", ""), "publico": p.get("publico", ""), "estilo": p.get("estilo", ""),
-                        "laminas": len(p.get("laminas", [])), "exportado": bool(finales), "miniatura": mini,
+                        "laminas": len(laminas), "exportado": bool(finales), "miniatura": mini, "origen": origen,
                         "actualizado": p.get("actualizado", ""), "por": p.get("por", ""), "pedido": p.get("pedido", ""),
-                        # «Foto de fondo» sin foto elegida todavía no cuenta como foto
-                        "con_fotos": any(c2.get("tipo") == "imagen" for l in p.get("laminas", []) for c2 in l.get("capas", []))
-                        or any(l.get("fondo", {}).get("tipo") == "imagen" and l.get("fondo", {}).get("src") for l in p.get("laminas", []))})
+                        "con_textos": _con_textos(p), "con_fotos": any(_con_foto(l) for l in laminas),
+                        "laminas_con_foto": sum(1 for l in laminas if _con_foto(l))})
     return sorted(out, key=lambda x: (x["fecha"], x["id"]), reverse=True)
 
 
