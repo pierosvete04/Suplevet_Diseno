@@ -806,10 +806,51 @@ function dibujarFondo(ctx, f) {
     }
   }
 }
+// La barra del pie de un carrusel: «01 / 06», los puntos de avance y «DESLIZA →» (en la última, sin «desliza»).
+// No es una capa: se dibuja con el número que toca, aunque se agreguen, borren o muevan láminas, y sale al exportar.
+// C.pie: "completo" (si no hay nada), "numero", "puntos", "desliza" o "no".
+const PIES = { completo: "Número, puntos y «Desliza»", numero: "Solo el número (01 / 06)", puntos: "Solo los puntos", desliza: "Solo «Desliza →»", no: "Sin pie" };
+function dibujarPie(ctx, lam) {
+  const n = C?.laminas?.length || 0, i = C ? C.laminas.indexOf(lam) : -1, modo = C?.pie || "completo";
+  if (n < 2 || i < 0 || modo === "no" || C.tipo === "post") return;
+  const historia = H / W > 1.6, y = historia ? H * 0.885 : H - 52, m = 60, ultima = i === n - 1;
+  const foto = lam.fondo.tipo === "imagen" && lam.fondo.src, oscuro = foto || esOscuro(lam.fondo.color);
+  const tinta = oscuro ? "#FFFFFF" : (MARCA.texto_oscuro || "#1F2933"), acento = PALETA[4] || PALETA[3] || tinta;
+  ctx.save();
+  if (foto) {  // sobre una foto, una sombra suave abajo para que se lea
+    const g = ctx.createLinearGradient(0, y - 110, 0, y + 70);
+    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.5)");
+    ctx.fillStyle = g; ctx.fillRect(0, y - 110, W, 180);
+  }
+  ctx.textBaseline = "middle"; ctx.fillStyle = tinta;
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "3px";
+  if (modo === "completo" || modo === "numero") {
+    ctx.font = `400 44px ${FUENTES.Bebas}`; ctx.textAlign = "left";
+    ctx.fillText(`${String(i + 1).padStart(2, "0")} / ${String(n).padStart(2, "0")}`, m, y + 2);
+  }
+  if (modo === "completo" || modo === "puntos") {  // el punto de la lámina actual es una pastilla del color de acento
+    const paso = 26, ancho = (n - 1) * paso + 22, x0 = W / 2 - ancho / 2;
+    for (let k = 0, x = x0; k < n; k++) {
+      ctx.fillStyle = k === i ? acento : tinta; ctx.globalAlpha = k === i ? 1 : 0.45;
+      ctx.beginPath(); k === i ? ctx.roundRect(x, y - 7, 32, 14, 7) : ctx.arc(x + 7, y, 7, 0, Math.PI * 2); ctx.fill();
+      x += k === i ? 42 : paso;
+    }
+    ctx.globalAlpha = 1;
+  }
+  if ((modo === "completo" || modo === "desliza") && !ultima) {
+    ctx.fillStyle = tinta; ctx.font = `400 40px ${FUENTES.Bebas}`; ctx.textAlign = "right";
+    const xf = W - m;  // la flecha dibujada (no un carácter: la tipografía de títulos no la trae)
+    ctx.strokeStyle = tinta; ctx.lineWidth = 5; ctx.lineCap = ctx.lineJoin = "round";
+    ctx.beginPath(); ctx.moveTo(xf - 46, y); ctx.lineTo(xf, y); ctx.moveTo(xf - 16, y - 15); ctx.lineTo(xf, y); ctx.lineTo(xf - 16, y + 15); ctx.stroke();
+    ctx.fillText("DESLIZA", xf - 62, y + 2);
+  }
+  ctx.restore();
+}
 function dibujarLamina(ctx, lam, conSeleccion) {
   ctx.save();
   dibujarFondo(ctx, lam.fondo);
-  for (const c of lam.capas) {
+  // lo que va «alFondo» (el círculo de la portada) se dibuja primero: así queda detrás del animal aunque la foto llegue después
+  for (const c of [...lam.capas.filter(c => c.alFondo), ...lam.capas.filter(c => !c.alFondo)]) {
     if (c.oculta) continue;
     ctx.save();
     ctx.translate(c.x, c.y); ctx.rotate((c.rot || 0) * Math.PI / 180); ctx.globalAlpha = c.opacidad ?? 1;
@@ -819,6 +860,7 @@ function dibujarLamina(ctx, lam, conSeleccion) {
     else if (c.tipo === "forma") dibujarForma(ctx, c);
     ctx.restore();
   }
+  dibujarPie(ctx, lam);
   if (conSeleccion && sel) {
     const c = lam.capas.find(x => x.id === sel);
     if (c && c._b) {
@@ -880,8 +922,17 @@ function pintarProps() {
   if (!C) { p.innerHTML = `<p class="muted">${SIN_PIEZA} en la lista de la izquierda.</p>`; return; }
   const c = L().capas.find(x => x.id === sel);
   if (!c) {
-    const f = L().fondo;
-    p.innerHTML = `<p class="etq">Lámina ${actual + 1} · fondo</p>
+    const f = L().fondo, g = C.guion?.laminas?.[actual];
+    // el diseño de la lámina (portada, interna o CTA): se cambia con sus mismos textos; las fotos y lo agregado a mano se quedan
+    const dis = g ? `<p class="etq">Lámina ${actual + 1} · diseño de ${{ portada: "portada", interna: "lámina interna", cta: "CTA" }[grupoDe(g, actual)]}</p>
+      <div class="prop"><div class="fila"><select data-diseno="1" style="flex:1" aria-label="Diseño de la lámina">${Object.entries(DISENOS[grupoDe(g, actual)])
+        .map(([k, t]) => `<option value="${k}" ${k === disenoDe(actual) ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>
+        <button class="btn sec chico" data-acc-dis="1" title="Probar el diseño siguiente">↻ Otro</button></div>
+        <span class="muted" style="font-size:11px">Rearma la lámina con sus mismos textos. Las fotos y lo que agregaste a mano se quedan.</span></div>` : "";
+    // el pie (número, puntos y «Desliza») es de toda la pieza, no de una lámina
+    const pie = C.tipo !== "post" && C.laminas.length > 1 ? `<div class="prop"><label>Pie de las láminas</label><select data-pie="1">${Object.entries(PIES)
+      .map(([k, t]) => `<option value="${k}" ${k === (C.pie || "completo") ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div>` : "";
+    p.innerHTML = `${dis}${pie}<p class="etq">Lámina ${actual + 1} · fondo</p>
       <div class="prop"><label>Tipo</label><select data-f="tipo"><option value="color">Color sólido</option><option value="degradado">Degradado</option><option value="imagen">Foto de fondo</option></select></div>
       <div class="prop"><label>Color</label>${colores("fcolor", f.color)}</div>
       ${f.tipo === "degradado" ? `<div class="prop"><label>Hacia</label>${colores("fcolor2", f.color2)}</div>` : ""}
@@ -1353,32 +1404,174 @@ function aplicarGuion() {
     if (!C.laminas[i].capas.length && i > 0) C.laminas[i].fondo.color = PALETA[i % Math.min(4, PALETA.length)];
     // «escena»: la foto de Flow va de fondo a toda la lámina (se elige después tocándola a la izquierda)
     if (!C.laminas[i].capas.length && l.fondo === "escena") C.laminas[i].fondo = { tipo: "imagen", color: MARCA.texto_oscuro };
-    const lam = C.laminas[i], foto = lam.fondo.tipo === "imagen", oscuro = esOscuro(lam.fondo.color), tinta = MARCA.texto_oscuro, acento = PALETA[3] || tinta;
-    const pon = (rol, base) => {
-      let c = lam.capas.find(x => x.rol === rol);
-      if (!c) { c = { id: nuevoId(), rol, ...base }; lam.capas.push(c); }
-      c.texto = rol === "titulo" ? l.titulo : (l.texto || "");
-    };
-    const historia = H / W > 1.6, cuadrado = H / W < 1.1;
-    const yT = H * (historia ? 0.2 : cuadrado ? 0.17 : (i === 0 ? 0.19 : 0.16)), tamT = (i === 0 ? 150 : 120) * (cuadrado ? 0.85 : 1);
-    const yX = yT + tamT * 1.7 + (historia ? 40 : 0);
-    pon("titulo", { tipo: "texto", fuente: "Bebas", tam: tamT, mayus: true, x: W / 2, y: yT, ancho: 940, espaciado: 2,
-                    color: oscuro ? MARCA.texto_claro : tinta, acento: oscuro ? acento : MARCA.texto_claro, fondoAcento: oscuro ? null : tinta, alinear: "center",
-                    ...(foto ? { contorno: 12, colorContorno: tinta } : {}) });  // sobre una foto, el contorno lo hace legible
-    if (l.texto) pon("texto", { tipo: "texto", fuente: "DM Sans", peso: 700, tam: historia ? 50 : 44, x: W / 2, y: yX, ancho: 860, interlineado: 1.3, color: oscuro ? MARCA.texto_claro : tinta, acento: PALETA[4] || acento, alinear: "center",
-                                ...(foto ? { pastilla: tinta } : {}) });
-    if (l.rol === "cta") {  // la lámina final: el botón con la acción y el producto real
-      const accion = l.accion || (MARCA.cta || {}).boton;
-      if (accion && !lam.capas.find(x => x.rol === "accion"))
-        lam.capas.push({ id: nuevoId(), rol: "accion", tipo: "texto", texto: accion, fuente: "Bebas", tam: cuadrado ? 56 : 64, mayus: true, x: W / 2, y: H * (historia ? 0.8 : 0.9),
-                         ancho: 900, espaciado: 2, color: oscuro ? tinta : MARCA.texto_claro, pastilla: oscuro ? MARCA.texto_claro : tinta, alinear: "center" });
-      const prod = (MARCA.productos || [])[0];
-      if (prod && !lam.capas.find(x => x.rol === "producto"))
-        lam.capas.splice(0, 0, { id: nuevoId(), rol: "producto", tipo: "imagen", src: { tipo: "marca", f: prod }, x: W / 2, y: H * (cuadrado ? 0.6 : 0.58), w: cuadrado ? 340 : 420, sombra: 0.8, rot: 4 });
-    }
+    ponerDiseno(i, false);
   }));
   sel = null; pintarProps();
   avisar("Textos puestos. Ahora agrega las fotos de Flow y acomoda.");
+}
+
+// ---------- Diseños de lámina: variaciones de portada, internas y CTA ----------
+// Cada lámina lleva en su guion un «diseno» (lo elige la IA, o la persona en el panel de la lámina). Las capas que arma
+// un diseño llevan «rol»; las que se agregan a mano y las fotos de Flow no, y por eso nunca se tocan al cambiar de diseño.
+// Sin «diseno», la lámina sale como siempre (titular, clásica, producto). Los mismos nombres están en asistente.py → DISENOS.
+const DISENOS = {
+  portada: { titular: "Titular", revista: "Revista", pregunta: "Pregunta en burbuja", dato: "Dato grande", franja: "Franja de color",
+    apilado: "Título apilado", circulo: "Animal en círculo" },
+  interna: { clasica: "Clásica", numero: "Número grande", lista: "Checklist", mito: "Mito vs. realidad", chat: "Chat dueño y veterinario", cita: "Cita de un dueño",
+    senales: "Señales alrededor del animal" },
+  cta: { producto: "Producto y botón", comenta: "Comenta una palabra", guardar: "Guárdalo", pregunta: "Pregunta con botones", oferta: "Oferta o envío", testimonio: "Testimonio" },
+};
+const grupoDe = (l, i) => l?.rol === "cta" ? "cta" : i === 0 ? "portada" : "interna";
+const disenoPorDefecto = { portada: "titular", interna: "clasica", cta: "producto" };
+function disenoDe(i) {
+  const l = C.guion?.laminas?.[i] || {}, grupo = grupoDe(l, i);
+  return l.diseno in DISENOS[grupo] ? l.diseno : disenoPorDefecto[grupo];
+}
+function capasDe(i) {  // las capas de la lámina i según su diseño (con «rol»): textos, formas, garabatos y la bolsa
+  const l = C.guion.laminas[i], lam = C.laminas[i], d = disenoDe(i), grupo = grupoDe(l, i);
+  const foto = lam.fondo.tipo === "imagen", oscuro = esOscuro(lam.fondo.color), tinta = MARCA.texto_oscuro, claro = MARCA.texto_claro;
+  const acento = PALETA[3] || tinta, naranja = PALETA[4] || acento, rojo = "#C8463D";
+  const historia = H / W > 1.6, cuadrado = H / W < 1.1, k = cuadrado ? 0.85 : 1, colorT = oscuro ? claro : tinta;
+  const sobre = foto ? { contorno: 12, colorContorno: tinta } : {};  // sobre una foto, el contorno hace legible el título
+  const titulo = l.titulo || "", texto = l.texto || "", y = f => H * f;
+  const T = (rol, t, o) => ({ rol, tipo: "texto", texto: t, fuente: "Bebas", tam: 120 * k, mayus: true, x: W / 2, y: y(0.16), ancho: 940, espaciado: 2,
+    color: colorT, alinear: "center", ...o });
+  const X = (rol, t, o) => T(rol, t, { fuente: "DM Sans", peso: 700, tam: historia ? 50 : 44, mayus: false, ancho: 860, interlineado: 1.3, espaciado: 0,
+    acento: naranja, ...(foto ? { pastilla: tinta, color: claro } : {}), ...o });
+  const F = (rol, forma, o) => ({ rol, tipo: "forma", forma, x: W / 2, y: y(0.5), w: 960, h: 220, radio: 40, color: acento, ...o });
+  const G = (rol, forma, o) => ({ rol, tipo: "garabato", forma, x: W / 2, y: y(0.5), w: 140, grosor: 11, color: acento, ...o });
+  const tit = o => T("titulo", titulo, { acento: oscuro ? acento : claro, fondoAcento: oscuro ? null : tinta, ...sobre, ...o });
+  const txt = o => texto ? X("texto", texto, o) : null;
+  const prod = (MARCA.productos || [])[0];
+  const P = o => prod ? { rol: "producto", tipo: "imagen", src: { tipo: "marca", f: prod }, x: W / 2, y: y(cuadrado ? 0.6 : 0.58), w: cuadrado ? 340 : 420, sombra: 0.8, rot: 4, ...o } : null;
+  const accion = l.accion || (MARCA.cta || {}).boton || "";
+  const boton = (t, o) => t ? T("accion", t, { tam: cuadrado ? 56 : 64, y: y(historia ? 0.8 : 0.9), ancho: 900, color: oscuro ? tinta : claro, pastilla: oscuro ? claro : tinta, ...o }) : null;
+  const sinAst = s => s.replace(/\*/g, "");
+  const yT = y(historia ? 0.2 : cuadrado ? 0.17 : grupo === "portada" ? 0.19 : 0.16);
+  if (grupo === "portada") {
+    const tamT = 150 * k;
+    if (d === "revista") return [  // tapa de revista: el nombre de la marca arriba y el título enorme abajo
+      T("d_cabecera", (MARCA.nombre || "Suplevet").toUpperCase(), { tam: 110 * k, y: y(historia ? 0.12 : 0.08), color: claro, espaciado: 14, ...sobre }),
+      tit({ tam: 170 * k, y: y(historia ? 0.66 : 0.72), alinear: "left", ancho: 960 }),
+      txt({ y: y(historia ? 0.78 : 0.88), alinear: "left", ancho: 900 })];
+    if (d === "pregunta") return [  // el título en una burbuja de diálogo
+      F("d_burbuja", "cuadro", { y: yT, h: 340 * k, color: claro, radio: 70 }),
+      tit({ y: yT, tam: 112 * k, ancho: 860, color: tinta, contorno: 0, acento, fondoAcento: null }),
+      G("d_signo", "pregunta", { x: W * 0.86, y: yT - 230 * k, w: 170, color: naranja }),
+      txt({ y: yT + 260 * k })];
+    if (d === "dato" && /^\s*[\d¡¿]*\d/.test(sinAst(titulo))) {  // la cifra gigante y el resto del título debajo
+      const m = sinAst(titulo).match(/^\s*([^\s]+)\s*(.*)$/);
+      return [T("d_numero", m[1], { tam: 340 * k, y: yT + 20, color: acento, ...sobre }),
+        T("titulo", m[2], { tam: 100 * k, y: yT + 230 * k, ...sobre }), txt({ y: yT + 340 * k })];
+    }
+    if (d === "franja") return [  // franja de color abajo, sobre la foto
+      F("d_franja", "cuadro", { y: y(historia ? 0.72 : 0.8), w: W, h: H * (historia ? 0.22 : 0.3), color: tinta, radio: 0 }),
+      tit({ y: y(historia ? 0.68 : 0.75), tam: 130 * k, color: claro, contorno: 0, acento: naranja, fondoAcento: null }),
+      txt({ y: y(historia ? 0.77 : 0.88), color: claro, pastilla: null })];
+    if (d === "apilado") {  // título gigante en 2 a 4 líneas de tamaños y colores alternados, a la izquierda (el animal va a la derecha)
+      const pal = sinAst(titulo).split(/\s+/).filter(Boolean), nl = Math.min(4, Math.max(2, Math.ceil(pal.length / 2)));
+      const lineas = Array.from({ length: nl }, (_, j) => pal.slice(Math.round(j * pal.length / nl), Math.round((j + 1) * pal.length / nl)).join(" ")).filter(Boolean);
+      const tams = [120, 200, 150, 200].map(t => t * k), colores = [colorT, acento, naranja, colorT];
+      let yy = y(historia ? 0.14 : 0.08);
+      return [...lineas.map((s, j) => { yy += tams[j] * (j ? 0.92 : 0.5); const c = T(j ? `d_l${j}` : "titulo", s, { tam: tams[j], x: 60 + 340, y: yy, ancho: 680,
+        alinear: "left", color: colores[j], espaciado: 0, interlineado: 0.9, ...sobre }); yy += tams[j] * 0.42; return c; }),
+        txt({ x: 60 + 300, y: yy + 70 * k, ancho: 600, alinear: "left" })];
+    }
+    if (d === "circulo") return [  // el animal recortado dentro de un círculo grande, el título enorme abajo
+      F("d_circulo", "circulo", { y: y(historia ? 0.42 : 0.4), w: W * 0.84, h: W * 0.84, color: oscuro ? claro : acento, alFondo: true }),
+      T("d_etq", (MARCA.nombre || "").toUpperCase(), { tam: 40, x: 60 + 150, y: y(historia ? 0.12 : 0.05), ancho: 300, alinear: "left", color: colorT, pastilla: null, ...sobre }),
+      tit({ y: y(historia ? 0.74 : 0.82), tam: 170 * k, color: colorT }),
+      txt({ y: y(historia ? 0.82 : 0.92) })];
+    return [tit({ y: yT, tam: tamT }), txt({ y: yT + tamT * 1.7 + (historia ? 40 : 0) })];  // titular
+  }
+  if (grupo === "interna") {
+    if (d === "numero") return [  // paso o señal numerada: el número gigante a la izquierda
+      T("d_numero", String(i), { tam: 320 * k, x: W * 0.17, y: yT + 40, color: acento, ancho: 300, ...sobre }),
+      tit({ x: W * 0.6, y: yT, ancho: 760, alinear: "left", tam: 104 * k }),
+      txt({ x: W * 0.6, y: yT + 190 * k, ancho: 760, alinear: "left" })];
+    if (d === "lista") {  // checklist: cada línea del texto con su check
+      const items = texto.split(/\n|\\n|;\s*/).map(s => s.trim()).filter(Boolean).slice(0, 4), gap = 120 * k, y0 = yT + 190 * k;
+      return [tit({ y: yT }), ...items.flatMap((s, j) => [G(`d_check${j}`, "check", { x: W * 0.12, y: y0 + j * gap, w: 74 }),
+        X(`l${j}`, s, { x: W * 0.56, y: y0 + j * gap, ancho: 800, alinear: "left" })])];
+    }
+    if (d === "mito") return [  // el mito tachado en rojo y la realidad en claro
+      T("d_m", "MITO", { tam: 56, y: yT - 60, color: colorT, ...sobre }),
+      F("d_mito", "cuadro", { y: yT + 90 * k, h: 230 * k, color: rojo, radio: 30 }),
+      T("titulo", titulo, { y: yT + 90 * k, tam: 92 * k, ancho: 880, color: claro, acento: tinta }),
+      G("d_equis", "equis", { x: W * 0.9, y: yT - 20, w: 100, color: rojo }),
+      T("d_r", "REALIDAD", { tam: 56, y: yT + 280 * k, color: colorT, ...sobre }),
+      F("d_real", "cuadro", { y: yT + 440 * k, h: 260 * k, color: claro, radio: 30 }),
+      txt({ y: yT + 440 * k, color: tinta, pastilla: null, ancho: 860 }),
+      G("d_check", "check", { x: W * 0.9, y: yT + 270 * k, w: 90, color: "#2E9E6A" })];
+    if (d === "chat") return [  // burbujas: lo que pregunta el dueño y lo que responde el veterinario
+      T("d_quien1", "DUEÑO", { tam: 40, x: W * 0.16, y: yT - 70 * k, ancho: 300, alinear: "left", ...sobre }),
+      F("d_b1", "cuadro", { x: W * 0.45, y: yT + 60 * k, w: 800, h: 210 * k, color: claro, radio: 44 }),
+      X("titulo", sinAst(titulo), { x: W * 0.45, y: yT + 60 * k, ancho: 720, alinear: "left", color: tinta, pastilla: null, tam: 46 }),
+      T("d_quien2", "VETERINARIO", { tam: 40, x: W * 0.7, y: yT + 220 * k, ancho: 520, alinear: "right", ...sobre }),
+      F("d_b2", "cuadro", { x: W * 0.55, y: yT + 380 * k, w: 800, h: 280 * k, color: acento, radio: 44 }),
+      txt({ x: W * 0.55, y: yT + 380 * k, ancho: 720, alinear: "left", color: claro, pastilla: null })];
+    if (d === "cita") return [  // la frase de un dueño entre comillas y quién la dijo
+      T("d_comillas", "“", { fuente: "Anton", tam: 300 * k, x: W * 0.14, y: yT, color: acento, ancho: 200, mayus: false }),
+      X("texto", texto, { tam: historia ? 60 : 54, x: W / 2, y: yT + 190 * k, ancho: 880, alinear: "left" }),
+      T("titulo", "— " + sinAst(titulo), { tam: 70 * k, x: W / 2, y: yT + 380 * k, ancho: 880, alinear: "left", ...sobre })];
+    if (d === "senales") {  // 2 a 4 frases alrededor del animal (que va al centro), cada una con su flecha hacia él
+      const items = texto.split(/\n|\\n|;\s*/).map(s => s.trim()).filter(Boolean).slice(0, 4);
+      const pos = [[0.22, 0.4, 35], [0.78, 0.4, 145], [0.22, 0.72, -35], [0.78, 0.72, -145]];
+      return [tit({ y: yT }), ...items.flatMap((s, j) => {
+        const [fx, fy, rot] = pos[j], izq = fx < 0.5;
+        return [X(`l${j}`, s, { x: W * fx, y: y(fy), ancho: 400, tam: historia ? 52 : 48, interlineado: 1.2, color: tinta, pastilla: claro, alinear: "center" }),
+          G(`d_fl${j}`, "flecha", { x: W * (izq ? fx + 0.13 : fx - 0.13), y: y(fy) + (fy < 0.5 ? 90 : -90), w: 120, rot: izq ? rot : rot, color: naranja })];
+      })];
+    }
+    return [tit({ y: yT }), txt({ y: yT + 120 * k * 1.7 + (historia ? 40 : 0) })];  // clásica
+  }
+  // CTA: siempre con la bolsa real (salvo «guardar», que no vende)
+  if (d === "comenta") {
+    const palabra = (l.accion || "INFO").split(/\s|\//)[0].toUpperCase();
+    return [tit({ y: yT, tam: 100 * k }), F("d_burbuja", "cuadro", { y: yT + 220 * k, w: 720, h: 240 * k, color: claro, radio: 70 }),
+      T("accion", palabra, { tam: 200 * k, y: yT + 220 * k, color: acento }), txt({ y: yT + 400 * k }),
+      P({ x: W * 0.76, y: y(0.8), w: cuadrado ? 260 : 320 }), G("d_flecha", "flecha", { x: W * 0.4, y: y(0.8), w: 200, color: naranja, rot: 10 })];
+  }
+  if (d === "guardar") return [
+    T("accion", l.accion || "GUÁRDALO", { tam: 190 * k, y: yT + 20, color: acento, ...sobre }),
+    tit({ y: yT + 210 * k, tam: 90 * k }), txt({ y: yT + 330 * k }),
+    G("d_flecha", "flecha", { x: W * 0.8, y: y(0.8), w: 220, color: naranja, rot: 90 })];
+  if (d === "pregunta") {
+    const [r1, r2] = (l.accion && l.accion.includes("/") ? l.accion : "SÍ / A VECES").split("/").map(s => s.trim());
+    return [tit({ y: yT }), T("d_r1", r1, { tam: 76 * k, x: W * 0.3, y: yT + 230 * k, ancho: 420, color: tinta, pastilla: claro }),
+      T("d_r2", r2, { tam: 76 * k, x: W * 0.7, y: yT + 230 * k, ancho: 420, color: claro, pastilla: acento }),
+      txt({ y: yT + 360 * k }), P({ y: y(cuadrado ? 0.72 : 0.7) })];
+  }
+  if (d === "oferta") return [tit({ y: yT }), txt({ y: yT + 200 * k }), P({ y: y(0.56), w: cuadrado ? 400 : 520 }),
+    F("d_franja", "pastilla", { y: y(historia ? 0.8 : 0.86), w: 980, h: 140 * k, color: naranja, rot: -3 }),
+    T("accion", l.accion || "ENVÍO A TODO EL PERÚ", { tam: 72 * k, y: y(historia ? 0.8 : 0.86), rot: -3, color: claro })];
+  if (d === "testimonio") return [
+    T("d_comillas", "“", { fuente: "Anton", tam: 260 * k, x: W * 0.14, y: yT - 10, color: acento, ancho: 200, mayus: false }),
+    X("texto", texto, { tam: historia ? 56 : 50, y: yT + 150 * k, ancho: 880, alinear: "left" }),
+    T("titulo", "— " + sinAst(titulo), { tam: 64 * k, y: yT + 330 * k, ancho: 880, alinear: "left", ...sobre }),
+    P({ y: y(0.66) }), boton(accion)];
+  return [tit({ y: yT }), txt({ y: yT + 120 * k * 1.7 + (historia ? 40 : 0) }), boton(accion), P()];  // producto
+}
+// pone el diseño en la lámina. rehacer: quita antes lo que armó la sala (al cambiar de diseño); si no, solo cambia los
+// textos de lo que ya está y agrega lo que falte (así no se pierde lo que la persona movió)
+function ponerDiseno(i, rehacer) {
+  const lam = C.laminas[i];
+  if (rehacer) lam.capas = lam.capas.filter(c => !c.rol);
+  for (const n of capasDe(i).filter(Boolean)) {
+    const ya = lam.capas.find(c => c.rol === n.rol);
+    if (ya) { if (n.tipo === "texto") ya.texto = n.texto; continue; }
+    n.id = nuevoId();
+    // la bolsa va al fondo; las formas, encima de las fotos y debajo de los textos; textos y garabatos, arriba
+    // («alFondo»: una forma que va detrás de todo, también del animal recortado que llegue después: el círculo de la portada)
+    const fotos = lam.capas.filter(c => c.tipo === "imagen").length;
+    if (n.tipo === "imagen" || n.alFondo) lam.capas.splice(0, 0, n);
+    else if (n.tipo === "forma") lam.capas.splice(fotos, 0, n); else lam.capas.push(n);
+  }
+}
+function cambiarDiseno(d) {  // desde el panel de la lámina: «Diseño de la lámina» o «↻ Otro»
+  const g = C.guion?.laminas?.[actual]; if (!g) return;
+  cambio(() => { g.diseno = d; ponerDiseno(actual, true); });
+  sel = null; pintarProps();
 }
 
 // ---------- Exportar ----------
@@ -1559,6 +1752,10 @@ document.addEventListener("click", async e => {
   const rh = t.closest("[data-rehacer]"); if (rh) return rehacerFoto(rh);
   const cp = t.closest("[data-copiar]"); if (cp) { await navigator.clipboard.writeText(C.guion.laminas[+cp.dataset.copiar].flow || ""); return avisar("Prompt copiado: pégalo en Google Flow"); }
   if (t.id === "btnAplicar") return aplicarGuion();
+  if (t.closest("[data-acc-dis]") && C) {  // «↻ Otro»: el diseño siguiente de la lista
+    const ops = Object.keys(DISENOS[grupoDe(C.guion?.laminas?.[actual], actual)]);
+    return cambiarDiseno(ops[(ops.indexOf(disenoDe(actual)) + 1) % ops.length]);
+  }
   const gu = t.closest("[data-guia]");  // la guía del editor lleva a la caja de cada paso
   if (gu && C) return resaltar(gu.dataset.guia === "textos" ? $("cajaIA") : gu.dataset.guia === "fotos" ? $("soltar") : $("btnExportar"));
   if (t.id === "btnCopiarPrompts" && C?.guion) {
@@ -1580,6 +1777,8 @@ document.addEventListener("click", async e => {
 document.addEventListener("input", e => {
   const t = e.target; if (!C) return;
   const c = L().capas.find(x => x.id === sel);
+  if (t.dataset.diseno) { cambiarDiseno(t.value); return; }
+  if (t.dataset.pie) { cambio(() => C.pie = t.value); return; }
   if (t.dataset.r) {
     const k = t.dataset.r, v = parseFloat(t.value);
     const f = L().fondo;

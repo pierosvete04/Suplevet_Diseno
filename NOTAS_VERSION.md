@@ -1,3 +1,12 @@
+Versión 0.14.0:
+- **Diseños de lámina con variaciones**: la IA elige un diseño para cada lámina y los va rotando, para que los carruseles no salgan todos iguales.
+  - **Portada (7):** Titular, Revista, Pregunta en burbuja, Dato grande, Franja de color, Título apilado y Animal en círculo.
+  - **Internas (7):** Clásica, Número grande, Checklist, Mito vs. realidad, Chat dueño y veterinario, Cita de un dueño y Señales alrededor del animal.
+  - **CTA (6):** Producto y botón, Comenta una palabra, Guárdalo, Pregunta con botones, Oferta o envío y Testimonio. La IA lo elige según el nivel (TOFU sin vender; BOFU con la bolsa).
+  - En el editor, con la lámina elegida (sin tocar nada encima), «Diseño de la lámina» la cambia y «↻ Otro» prueba el siguiente. Se rearma con sus mismos textos; las fotos y lo agregado a mano se quedan.
+  - Las piezas de antes se ven igual que siempre hasta que les cambies el diseño.
+- **Barra en el pie de cada lámina** del carrusel: «01 / 06», los puntos de avance y «DESLIZA →» (la última, sin «desliza»). Lleva el número correcto aunque agregues, borres o muevas láminas, y sale al exportar. En el panel de la lámina, «Pie de las láminas» deja elegir solo el número, solo los puntos, solo «Desliza» o sin pie.
+- Todo funciona en 4:5, 1:1 y 9:16 (en historias, la barra queda encima de la zona que tapa Instagram).
 Versión 0.13.0:
 - **Videos abre al instante**: antes tardaba unos 15 s cada vez, porque recorría todo el Drive carpeta por carpeta. Ahora la lista se pide de una sola vez (la mitad del tiempo), se guarda en esta PC y se muestra apenas entras; si tiene más de 10 minutos, se busca la nueva por detrás («buscando videos nuevos en Drive…»). La sala la pide al abrir, así que al entrar a Videos ya suele estar.
 - **Configuración como la de la Sala de edición**: «🔌 Conexiones» en tarjetas (Drive, Claude, Antigravity con Gemini, Google Flow, Claude en Chrome, la marca y el recortador), cada una con su estado, «Cómo se hace» y su botón, y arriba cuántas están listas. La elección de IA (Automático, Solo Claude, Solo Gemini) queda arriba de las tarjetas. Marca con botones grandes («Ver la marca», «Importar mi marca»).

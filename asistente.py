@@ -238,9 +238,10 @@ y textos de 20 palabras como máximo.
 Si es un carrusel, la ÚLTIMA lámina es SIEMPRE el CTA (rol «cta»): invita a escribir y usa el «cta» de la marca (título corto,
 texto y la acción). En un post, el CTA va al final del copy.
 {FOTOS}
+{DISENOS_TEXTO}
 Marca con *asteriscos* la palabra que va resaltada en el título.
 Responde SOLO con JSON, sin texto antes ni después:
-{{"laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}"""
+{{"laminas": [{{"rol": "portada | idea | señal | cta", "diseno": "…", "titulo": "…", "texto": "…", "accion": "solo en el CTA", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}"""
     datos = _json_de(correr(prompt, avance=avance, que="escribir"), "la pieza")
     if pieza.get("tipo") != "post":
         datos["laminas"] = con_cta(datos.get("laminas", []), marca)
@@ -321,6 +322,29 @@ Siempre hay un perro o un gato (alterna los dos y cambia de raza); sin texto ni 
 y no uses «--ar». Si la marca trae «direccion_visual», síguela."""
 
 
+# los diseños de lámina que la sala sabe armar (los mismos de DISENOS en app.html): la IA elige uno por lámina y los rota
+DISENOS = {"portada": ("titular", "revista", "pregunta", "dato", "franja", "apilado", "circulo"),
+           "interna": ("clasica", "numero", "lista", "mito", "chat", "cita", "senales"),
+           "cta": ("producto", "comenta", "guardar", "pregunta", "oferta", "testimonio")}
+DISENOS_TEXTO = """Cada lámina lleva su «diseno» (cómo se arma en la sala). Elige según lo que dice la lámina y varía: en un carrusel,
+dos láminas internas seguidas no repiten diseño, y si son varias piezas, sus portadas y sus CTA tampoco se repiten.
+- Portada: «titular» (título grande arriba), «revista» (tapa de revista: título enorme abajo y una etiqueta arriba),
+  «pregunta» (el título es una pregunta, va en una burbuja), «dato» (el título empieza con un número o cifra: «7 señales…»),
+  «franja» (título en una franja de color sobre la foto), «apilado» (título gigante de 3 a 7 palabras en varias líneas a la
+  izquierda; la foto deja libre el lado izquierdo y el animal va a la derecha), «circulo» (el animal recortado dentro de un
+  círculo de color y el título enorme abajo; su fondo es «color»).
+- Internas: «clasica» (título y texto), «numero» (paso o señal numerada: número gigante), «lista» (el texto son 2 a 4 puntos,
+  uno por línea, con \\n), «mito» (el título es el mito, el texto es la realidad), «chat» (el título es lo que pregunta un dueño,
+  el texto es lo que responde el veterinario), «cita» (el texto es una frase de un dueño entre comillas; el título, quién la dijo),
+  «senales» (el texto son 2 a 4 frases cortas de 2 a 5 palabras, una por línea con \\n, que van alrededor del animal con
+  flechas; la foto pone al animal al centro, recortado, y su fondo es «color» o «estudio»).
+- CTA (la última): «producto» (la bolsa y el botón), «comenta» (en «accion» UNA palabra para comentar, por ejemplo PIEL),
+  «guardar» (invita a guardar el post; para TOFU, sin vender), «pregunta» (título en pregunta; en «accion» dos respuestas
+  separadas por «/», como «SÍ / A VECES»), «oferta» (en «accion» el envío o la presentación: «ENVÍO A TODO EL PERÚ»),
+  «testimonio» (el texto es lo que dijo un cliente; el título, su mascota). TOFU: guardar o comenta; MOFU: comenta, pregunta
+  o testimonio; BOFU: producto u oferta."""
+
+
 ORIENTACION = {"4:5": "vertical 4:5", "1:1": "square 1:1", "9:16": "tall vertical 9:16 (story), leave the top and bottom 15% clean"}
 # los estilos visuales de la sala (los mismos del selector «Estilo» del editor)
 ESTILOS = {"A": "nariz a cámara", "B": "color sólido", "C": "metáfora", "D": "garabatos", "E": "lifestyle"}
@@ -373,9 +397,10 @@ Marca con *asteriscos* la palabra resaltada del título.
 El prompt de Flow lleva el encuadre del formato: {json.dumps(ORIENTACION)}.
 Si son varias piezas, sus portadas llevan fondos distintos entre sí.
 En «estilo» va SOLO una letra: {ESTILOS_TEXTO}.
+{DISENOS_TEXTO}
 Responde SOLO con JSON, sin texto antes ni después:
 {{"piezas": [{{"tipo": "carrusel", "formato": "4:5", "dia": "", "titulo": "…", "nivel": "TOFU | MOFU | BOFU", "publico": "…", "estilo": "A | B | C | D | E",
-  "laminas": [{{"rol": "portada | idea | señal | cta", "titulo": "…", "texto": "…", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
+  "laminas": [{{"rol": "portada | idea | señal | cta", "diseno": "…", "titulo": "…", "texto": "…", "accion": "solo en el CTA", "fondo": "escena | estudio | color", "flow": "…"}}], "copy": "copy con 3 a 5 hashtags"}}]}}"""
     avance(("Claude" if quien() == "claude" else "Gemini") + " está leyendo el pedido…")
     datos = _json_de(correr(prompt, avance=avance, max_turnos=25, que="pedido"), "las piezas")
     if not datos.get("piezas"):
