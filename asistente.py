@@ -92,9 +92,10 @@ _CLAUDE_CAIDO = ("sesión iniciada", "login", "no encuentro claude", "limit", "l
                  "overloaded", "no respondió", "tardó demasiado", "demasiado largo")
 
 
-def correr(prompt, avance=print, max_turnos=20, que="pedido", navegador=False):
+def correr(prompt, avance=print, max_turnos=20, que="pedido", navegador=False, leer=False):
     """Pasa el pedido a la IA que toque y devuelve su texto final (en el que viene el JSON).
-    navegador=True: la IA maneja el navegador de esta PC (Claude: el Chrome con la extensión de Claude; Gemini: el de Antigravity)."""
+    navegador=True: la IA maneja el navegador de esta PC (Claude: el Chrome con la extensión de Claude; Gemini: el de Antigravity).
+    leer=True: la IA abre y mira archivos de esta PC que nombra el pedido (las láminas de «Revisar con ojo de IA»)."""
     usa = quien()
     if not usa:
         m = modo()
@@ -102,9 +103,9 @@ def correr(prompt, avance=print, max_turnos=20, que="pedido", navegador=False):
                            else "Antigravity no está instalado en esta PC. Instálalo (antigravity.google) o cambia a Claude en Configuración → IA." if m == "gemini"
                            else "No hay ninguna IA lista: inicia sesión en Claude o instala Antigravity (Configuración → IA).")
     if usa == "gemini":
-        return gemini.correr(prompt, que, avance, navegador)
+        return gemini.correr(prompt, que, avance, navegador, leer)
     try:
-        return correr_claude(prompt, avance, max_turnos, chrome=navegador)
+        return correr_claude(prompt, avance, max_turnos, chrome=navegador, leer=leer)
     except nucleo.Cancelado:
         raise
     except RuntimeError as e:
@@ -114,7 +115,7 @@ def correr(prompt, avance=print, max_turnos=20, que="pedido", navegador=False):
             raise
         avance(f"Claude no pudo ({str(e)[:120]}). Sigue Gemini en Antigravity…")
         _estado["datos"] = None
-        return gemini.correr(prompt, que, avance, navegador)
+        return gemini.correr(prompt, que, avance, navegador, leer)
 
 
 def iniciar_sesion():
@@ -143,7 +144,7 @@ def abrir_chrome(avance):
     time.sleep(20)
 
 
-def correr_claude(prompt, avance=print, max_turnos=20, chrome=False):
+def correr_claude(prompt, avance=print, max_turnos=20, chrome=False, leer=False):
     """Corre Claude Code sin ventana, solo para responder (sin tocar archivos). Devuelve el texto final.
     El pedido va por la entrada (stdin) y no en la línea de comandos: Windows corta las órdenes de más de 32.767 letras
     (8.191 con claude.cmd), y un pedido con el guion de un video de referencia las pasa.
@@ -154,6 +155,8 @@ def correr_claude(prompt, avance=print, max_turnos=20, chrome=False):
         raise RuntimeError("No encuentro Claude Code en esta PC (Configuración → IA)")
     cmd = [ruta, "-p", "--output-format", "stream-json", "--verbose", "--disallowedTools", "Bash", "Write", "Edit",
            "WebFetch", "WebSearch", "--max-turns", str(max_turnos)]
+    if leer:  # mirar las imágenes que nombra el pedido (solo leer: escribir y editar siguen prohibidos)
+        cmd += ["--allowedTools", "Read"]
     if chrome:
         abrir_chrome(avance)
         cmd += ["--chrome", "--allowedTools", "mcp__claude-in-chrome", "Skill"]
@@ -277,6 +280,43 @@ Al final responde SOLO con JSON, sin texto antes ni después:
     datos = _json_de(correr(prompt, avance=avance, max_turnos=150, que="fotos", navegador=True), "la lista de fotos bajadas")
     if "archivos" not in datos:
         raise RuntimeError("La IA no terminó en Flow. Intenta de nuevo.")
+    return datos
+
+
+def revisar_pieza(pieza, imagenes, capas, avisos, marca, avance=print):
+    """«✦ Revisar con ojo de IA»: la IA mira las láminas ya armadas (imágenes) como un director de arte y propone cambios
+    concretos que la sala sabe aplicar. imagenes: rutas de L01.jpg…; capas: lo que tiene cada lámina (con el id de cada capa);
+    avisos: lo que ya encontraron las reglas. Devuelve {"nota", "resumen", "cambios": [{lamina, accion, …, por_que}]}."""
+    colores = [c.get("hex", c) if isinstance(c, dict) else c for c in marca.get("colores") or []]
+    disenos = {g: list(v) for g, v in DISENOS.items()}
+    prompt = f"""Eres director de arte de redes sociales. Revisa este {'post' if pieza.get('tipo') == 'post' else 'carrusel'} de Instagram
+({pieza.get('formato', '4:5')}, {len(imagenes)} láminas) de la marca {marca.get('nombre') or ''}. Tema: {pieza.get('titulo', '')}.
+
+Mira cada lámina (abre las imágenes, en orden):
+{chr(10).join(f'- Lámina {i + 1}: {r}' for i, r in enumerate(imagenes))}
+
+Lo que tiene cada lámina (capas con su id, posición x/y del centro en px de una lámina de 1080 de ancho, tamaño y color):
+{json.dumps(capas, ensure_ascii=False)[:20000]}
+Lo que ya avisaron las reglas automáticas (no lo repitas si ya está dicho): {json.dumps(avisos or [], ensure_ascii=False)}
+
+Revisa como en una agencia: ¿la portada para el dedo en 1 segundo? ¿Se lee en el celular? ¿Hay jerarquía clara (una cosa
+grande, el resto chico)? ¿El texto tapa la cara del animal? ¿Las láminas se ven distintas entre sí o todas iguales? ¿El carrusel
+invita a pasar a la siguiente? ¿El CTA se entiende? ¿Sobra texto? ¿Respeta la marca: {json.dumps({k: marca.get(k) for k in ('evitar', 'obligatorio') if marca.get(k)}, ensure_ascii=False)}?
+Propón de 3 a 10 cambios concretos, los que más mejoran la pieza primero. Solo puedes usar estas acciones:
+- {{"lamina": n, "accion": "diseno", "diseno": "<nombre>"}}: rearma la lámina con otro diseño. Portada (lámina 1): {disenos['portada']}.
+  Internas: {disenos['interna']}. CTA (la última): {disenos['cta']}.
+- {{"lamina": n, "accion": "mover", "capa": "<id>", "x": n, "y": n}}: mueve una capa (el centro, en px).
+- {{"lamina": n, "accion": "tamano", "capa": "<id>", "tam": n}}: tamaño de letra de un texto (20 a 320), o «w» para el ancho de una foto o forma.
+- {{"lamina": n, "accion": "color", "capa": "<id>", "color": "#RRGGBB"}}: solo colores de la marca: {colores}.
+- {{"lamina": n, "accion": "fondo", "color": "#RRGGBB"}}: color de fondo de una lámina sin foto (colores de la marca).
+- {{"lamina": n, "accion": "texto", "capa": "<id>", "texto": "…"}}: reescribe un texto (más corto o más claro; *asteriscos* para la palabra resaltada).
+- {{"lamina": n, "accion": "legible", "capa": "<id>"}}: le pone contorno o pastilla a un texto que se pierde sobre la foto.
+Cada cambio lleva «por_que»: una frase corta en español simple. No edites ningún archivo.
+Responde SOLO con JSON, sin texto antes ni después:
+{{"nota": 1-10, "resumen": "2 frases: lo mejor y lo que más falta", "cambios": [{{"lamina": 1, "accion": "…", "por_que": "…"}}]}}"""
+    datos = _json_de(correr(prompt, avance=avance, max_turnos=30, que="revision", leer=True), "la revisión")
+    if not isinstance(datos.get("cambios"), list):
+        raise RuntimeError("La IA no devolvió cambios. Intenta de nuevo.")
     return datos
 
 

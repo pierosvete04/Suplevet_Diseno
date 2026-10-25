@@ -111,6 +111,19 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 .guia .faltas { margin-left: auto; color: var(--warn); }
 .guia .faltas.ok { color: var(--ok); }
 .caja-ia.primero { order: -1; border-color: var(--accent); }
+/* la revisión: avisos de las reglas y propuestas de la IA */
+.revision { order: -2; border-color: var(--accent); }
+.guia #guiaRevision.hay { color: var(--warn); border-color: var(--warn); }
+.guia #guiaRevision.ok { color: var(--ok); border-color: var(--ok); }
+.aviso-r { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+.aviso-r:first-child { border-top: 0; }
+.aviso-r .ico { font-size: 13px; line-height: 1.3; }
+.aviso-r .acc { grid-column: 2; display: flex; gap: 6px; }
+.aviso-r .acc button { padding: 1px 8px; min-height: 24px; font-size: 11.5px; }
+.prop-ia { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 12.5px; cursor: pointer; }
+.prop-ia small { grid-column: 2; color: var(--muted); }
+.nota-ia { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 4px; line-height: 1.35; }
+.nota-ia b { flex: none; white-space: nowrap; font: 700 26px/1 var(--fd); color: var(--accent); }
 .prop { display: grid; gap: 5px; margin-bottom: 10px; }
 .prop label { font-weight: 600; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
 .menu { position: relative; }
@@ -591,12 +604,26 @@ main { display: flex; flex-direction: column; overflow: hidden; }
       <button type="button" class="paso" data-guia="fotos" id="guiaFotos"></button>
       <button type="button" class="paso" data-guia="exportar" id="guiaExportar"></button>
       <span class="faltas" id="faltas" role="status"></span>
+      <button type="button" class="paso" id="guiaRevision" title="Ver la revisión de la pieza">Revisión</button>
     </div>
     <div class="lienzo-zona"><canvas id="lienzo" width="1080" height="1350" tabindex="0" aria-label="Lámina del carrusel"></canvas></div>
     <div class="tira" id="tira"></div>
   </main>
 
   <aside class="der">
+    <!-- la revisión: los avisos de las reglas (al instante) y lo que propone la IA al mirar las láminas -->
+    <div class="caja revision" id="cajaRevision" hidden>
+      <div class="fila" style="justify-content:space-between"><p class="etq" style="margin:0">Revisión</p>
+        <button class="btn-link" type="button" id="revCerrar">Cerrar</button></div>
+      <div id="revAvisos"></div>
+      <div class="fila" style="margin-top:8px"><button class="btn sec chico" type="button" id="revArreglarTodo" hidden>Arreglar lo automático</button></div>
+      <div style="border-top:1px dashed var(--line2);margin-top:10px;padding-top:10px">
+        <div class="fila"><button class="btn chico btn-ia" type="button" id="btnRevisarIA" data-ocupado="Mirando las láminas…">✦ Revisar con ojo de IA</button>
+          <button class="btn sec chico" type="button" id="revCancelar" hidden>Cancelar</button></div>
+        <p class="muted" id="revEstado" role="status" style="margin:6px 0 0;font-size:12px">La IA mira cada lámina como un director de arte y propone cambios. Tú eliges cuáles aplicar.</p>
+        <div id="revIA"></div>
+      </div>
+    </div>
     <div class="caja" id="props"></div>
     <div class="caja caja-ia" id="cajaIA">
       <p class="etq">Escribir con IA</p>
@@ -1107,7 +1134,211 @@ function pintarGuia() {
   $("soltar").classList.toggle("toca", paso === "fotos" && !conPrompt);
   const ahora = pasoDe(r);
   if (ahora !== pasoAbierta) { pasoAbierta = ahora; pintarLista(); }
+  revisarLuego();
 }
+// ---------- Revisión: reglas automáticas (en el código, gratis y al instante) ----------
+// Cada aviso: {lamina (0…), capa (id o nada), nivel ("error" | "aviso"), texto, arreglo: [etiqueta, fn] o nada}.
+// Se calcula un rato después de cada cambio (dibujar todas las láminas para medir los textos no es gratis).
+const MIN_LETRA = 28;  // en una lámina de 1080 px, menos de esto no se lee en el celular
+function luz(hex) {  // luminancia relativa (WCAG) de un color #RRGGBB
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return null;
+  const n = parseInt(m[1], 16), c = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * c(n >> 16) + 0.7152 * c((n >> 8) & 255) + 0.0722 * c(n & 255);
+}
+const contraste = (a, b) => { const x = luz(a), y = luz(b); return x === null || y === null ? 99 : (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const palabras = s => (s || "").replace(/\*/g, "").split(/\s+/).filter(Boolean).length;
+function caja(c) {  // el rectángulo que ocupa una capa (sin contar el giro), con lo que se midió al dibujarla
+  const w = c._b?.w || 0, h = c._b?.h || 0, cy = c.y + (c._dy || 0);
+  return { x0: c.x - w / 2, x1: c.x + w / 2, y0: cy - h / 2, y1: cy + h / 2 };
+}
+// lo que queda detrás de los textos: la lámina dibujada sin textos, en chico (una cuarta parte), para medir sus píxeles
+function sinTextos(l) {
+  const k = 0.25, cv = document.createElement("canvas"); cv.width = Math.round(W * k); cv.height = Math.round(H * k);
+  const cx = cv.getContext("2d", { willReadFrequently: true }); cx.scale(k, k); dibujarFondo(cx, l.fondo);
+  for (const c of [...l.capas.filter(c => c.alFondo), ...l.capas.filter(c => !c.alFondo)]) {
+    if (c.oculta || c.tipo === "texto") continue;
+    cx.save(); cx.translate(c.x, c.y); cx.rotate((c.rot || 0) * Math.PI / 180); cx.globalAlpha = c.opacidad ?? 1;
+    if (c.tipo === "imagen") dibujarImagen(cx, c); else if (c.tipo === "garabato") dibujarGarabato(cx, c); else if (c.tipo === "forma") dibujarForma(cx, c);
+    cx.restore();
+  }
+  return { cx, k };
+}
+function detras(f, b) {  // color medio y cuánto cambia (0 liso … 1 muy movido) de lo que hay detrás de un texto
+  const x = Math.max(0, Math.floor(b.x0 * f.k)), y = Math.max(0, Math.floor(b.y0 * f.k));
+  const w = Math.min(f.cx.canvas.width - x, Math.ceil((b.x1 - b.x0) * f.k)), h = Math.min(f.cx.canvas.height - y, Math.ceil((b.y1 - b.y0) * f.k));
+  if (w < 2 || h < 2) return null;
+  const d = f.cx.getImageData(x, y, w, h).data;
+  let r = 0, g = 0, a = 0, n = 0, s = 0, s2 = 0;
+  for (let i = 0; i < d.length; i += 16) { const L = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; r += d[i]; g += d[i + 1]; a += d[i + 2]; s += L; s2 += L * L; n++; }
+  const h2 = v => Math.round(v / n).toString(16).padStart(2, "0"), media = s / n;
+  return { hex: `#${h2(r)}${h2(g)}${h2(a)}`, movido: Math.min(1, Math.sqrt(Math.max(0, s2 / n - media * media)) * 3) };
+}
+let AVISOS = [];
+function revisarReglas() {
+  if (!C) return [];
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;  // se dibuja para medir los textos (_b)
+  C.laminas.forEach(l => dibujarLamina(cv.getContext("2d"), l, false));
+  const av = [], tinta = MARCA.texto_oscuro || "#1F2933", claro = MARCA.texto_claro || "#FFFFFF", historia = H / W > 1.6;
+  const conPie = C.tipo !== "post" && C.laminas.length > 1 && C.pie !== "no", pieY = historia ? H * 0.885 - 40 : H - 92;
+  C.laminas.forEach((l, i) => {
+    const textos = l.capas.filter(c => c.tipo === "texto" && !c.oculta && (c.texto || "").trim()), f = sinTextos(l);
+    for (const c of textos) {
+      const corto = `«${(c.texto || "").replace(/\*/g, "").replace(/\n/g, " ").slice(0, 28)}${(c.texto || "").length > 28 ? "…" : ""}»`;
+      if (conPie && /desliza/i.test(c.texto) && !c.rol) {  // el «Desliza» que se puso a mano: ahora lo dice la barra del pie
+        av.push({ lamina: i, capa: c.id, nivel: "aviso", texto: `${corto} repite lo que ya dice la barra del pie`,
+          arreglo: ["Quitarlo", () => { l.capas = l.capas.filter(x => x !== c); }] });
+        continue;
+      }
+      if (c.tam < MIN_LETRA) av.push({ lamina: i, capa: c.id, nivel: "aviso", texto: `Letra de ${Math.round(c.tam)} px en ${corto}: en el celular no se lee`,
+        arreglo: [`Subir a ${MIN_LETRA} px`, () => c.tam = MIN_LETRA] });
+      // ¿se lee? Se mira lo que de verdad hay detrás (foto, forma o color): el contorno y la pastilla ya lo resuelven
+      const atras = !c.pastilla && !(c.contorno >= 6) && c._b ? detras(f, caja(c)) : null;
+      if (atras) {
+        const cr = contraste(c.color, atras.hex);
+        if (cr < 2.2 || (atras.movido > 0.45 && cr < 4.5)) av.push({ lamina: i, capa: c.id, nivel: cr < 1.6 ? "error" : "aviso",
+          texto: atras.movido > 0.45 ? `${corto} va sobre una parte movida de la foto: puede perderse` : `${corto} casi no se ve sobre lo que tiene detrás (poco contraste)`,
+          arreglo: atras.movido > 0.3 ? ["Hacerlo legible", () => c.tam >= 80 ? Object.assign(c, { contorno: 10, colorContorno: tinta }) : Object.assign(c, { pastilla: tinta, color: claro })]
+            : ["Cambiar el color", () => c.color = esOscuro(atras.hex) ? claro : tinta] });
+      }
+      const b = caja(c);
+      if (c._b && (b.x0 < -10 || b.x1 > W + 10 || b.y0 < -10 || b.y1 > H + 10)) av.push({ lamina: i, capa: c.id, nivel: "error", texto: `${corto} se sale de la lámina`,
+        arreglo: ["Meterlo", () => { c.x = Math.min(Math.max(c.x, c._b.w / 2 + 40), W - c._b.w / 2 - 40); c.y = Math.min(Math.max(c.y, c._b.h / 2 + 40), H - c._b.h / 2 - 40); }] });
+      if (palabras(c.texto) > (c.rol === "titulo" ? (i === 0 ? 10 : 8) : 30)) av.push({ lamina: i, capa: c.id, nivel: "aviso",
+        texto: `${corto} tiene ${palabras(c.texto)} palabras: es mucho para leer de pasada` });
+    }
+    // lo que choca con la barra del pie: todo lo de abajo de la lámina sube junto (como bloque, para que no se encime entre sí)
+    if (conPie) {
+      const choca = textos.filter(c => c._b && caja(c).y1 > pieY && caja(c).y0 < H && !/desliza/i.test(c.texto));
+      if (choca.length) {
+        const sube = Math.max(...choca.map(c => caja(c).y1 - pieY)) + 14;
+        av.push({ lamina: i, capa: choca[0].id, nivel: "aviso", texto: choca.length === 1 ? `«${choca[0].texto.replace(/\*/g, "").slice(0, 28)}…» choca con la barra del pie`
+          : `${choca.length} textos chocan con la barra del pie`, arreglo: ["Subir lo de abajo", () => l.capas.forEach(x => { if (x.y > H * 0.72) x.y -= sube; })] });
+      }
+    }
+    // textos encimados (más de un tercio del más chico; las cajas medidas traen aire de sobra, se achican un poco)
+    const ajust = b => { const mx = (b.x1 - b.x0) * 0.08, my = (b.y1 - b.y0) * 0.15; return { x0: b.x0 + mx, x1: b.x1 - mx, y0: b.y0 + my, y1: b.y1 - my }; };
+    for (let a = 0; a < textos.length; a++) for (let z = a + 1; z < textos.length; z++) {
+      const p = ajust(caja(textos[a])), q = ajust(caja(textos[z]));
+      const ancho = Math.min(p.x1, q.x1) - Math.max(p.x0, q.x0), alto = Math.min(p.y1, q.y1) - Math.max(p.y0, q.y0);
+      const menor = Math.min((p.x1 - p.x0) * (p.y1 - p.y0), (q.x1 - q.x0) * (q.y1 - q.y0));
+      if (ancho > 0 && alto > 0 && menor > 0 && ancho * alto > menor * 0.34) {
+        const de = textos[z];
+        av.push({ lamina: i, capa: de.id, nivel: "aviso", texto: `Dos textos quedan uno encima del otro`, arreglo: ["Separarlos", () => de.y = p.y1 + (de._b?.h || 0) / 2 + 16] });
+      }
+    }
+    // lo mismo que la lámina de antes
+    const g = C.guion?.laminas || [];
+    if (i > 1 && g[i] && g[i - 1] && grupoDe(g[i], i) === "interna" && grupoDe(g[i - 1], i - 1) === "interna" && disenoDe(i) === disenoDe(i - 1) && disenoDe(i) !== "clasica")
+      av.push({ lamina: i, nivel: "aviso", texto: `Repite el diseño de la lámina ${i} («${DISENOS.interna[disenoDe(i)]}»)`,
+        arreglo: ["Otro diseño", () => { const ops = Object.keys(DISENOS.interna).filter(d => d !== disenoDe(i - 1) && d !== disenoDe(i)); g[i].diseno = ops[i % ops.length]; ponerDiseno(i, true); }] });
+    const antes = C.laminas[i - 1];
+    if (antes && l.fondo.tipo === "color" && antes.fondo.tipo === "color" && (l.fondo.color || "").toUpperCase() === (antes.fondo.color || "").toUpperCase())
+      av.push({ lamina: i, nivel: "aviso", texto: `Mismo color de fondo que la lámina ${i}: el carrusel se ve plano`,
+        arreglo: ["Cambiar el fondo", () => { const sig = C.laminas[i + 1]?.fondo.color; l.fondo.color = PALETA.find(c => c !== antes.fondo.color && c !== sig) || l.fondo.color; }] });
+  });
+  // la semana: la misma portada, el mismo título o el mismo CTA que otra pieza
+  const otras = (BIB?.piezas || []).filter(p => p.rel === semana && p.id !== cid && p.resumen);
+  const yo = { portada: disenoDe(0), titulo: (C.guion?.laminas?.[0]?.titulo || C.titulo || "").replace(/\*/g, "").trim().toLowerCase(),
+    cta: C.guion?.laminas?.some(l => l.rol === "cta") ? disenoDe(C.laminas.length - 1) : "",
+    cta_texto: (() => {  // el texto del CTA (como en piezas.py → _resumen): el del diseño o el que invita a hacer algo
+      const ts = (C.laminas.at(-1)?.capas || []).filter(c => c.tipo === "texto" && (c.texto || "").trim());
+      return ((ts.find(c => c.rol === "accion" || c.rol === "cta") || ts.find(c => /coment|escr[ií]be|whatsapp|pide|p[ií]delo|link|guarda|agenda/i.test(c.texto)))?.texto || "").trim().toLowerCase();
+    })() };
+  const dia = p => p.dia ? DIAS_C[p.dia] || p.dia : `«${p.titulo.slice(0, 24)}»`;
+  const mismoTitulo = otras.find(p => (p.resumen.titulo || "").replace(/\*/g, "").trim().toLowerCase() === yo.titulo && yo.titulo);
+  if (mismoTitulo) av.push({ lamina: 0, nivel: "error", texto: `La portada tiene el mismo título que la pieza del ${dia(mismoTitulo)}` });
+  const mismaPortada = otras.find(p => p.resumen.portada && p.resumen.portada === yo.portada && yo.portada !== "titular");
+  if (mismaPortada) av.push({ lamina: 0, nivel: "aviso", texto: `La portada usa el mismo diseño («${DISENOS.portada[yo.portada]}») que la del ${dia(mismaPortada)}` });
+  const mismoCta = otras.find(p => yo.cta_texto && (p.resumen.cta_texto || "").trim().toLowerCase() === yo.cta_texto);
+  if (mismoCta) av.push({ lamina: C.laminas.length - 1, nivel: "aviso", texto: `El CTA dice lo mismo que el del ${dia(mismoCta)}: cambia la acción o usa otro diseño de CTA` });
+  return av;
+}
+let tRevision;
+function revisarLuego() { clearTimeout(tRevision); tRevision = setTimeout(pintarRevision, 450); }
+function pintarRevision() {
+  if (!C) return;
+  if (!BIB && !pintarRevision.pidiendo) {  // para comparar con las otras piezas de la semana hace falta la biblioteca
+    pintarRevision.pidiendo = true;
+    api("/api/biblioteca").then(b => { BIB = b; pintarRevision(); }).catch(() => {});
+  }
+  AVISOS = revisarReglas();
+  const err = AVISOS.filter(a => a.nivel === "error").length;
+  $("guiaRevision").textContent = AVISOS.length ? `⚠ ${plural(AVISOS.length, "aviso")}` : "✓ Sin avisos";
+  $("guiaRevision").className = "paso " + (AVISOS.length ? "hay" : "ok");
+  $("guiaRevision").title = err ? `${plural(err, "error")} que conviene arreglar antes de exportar` : "Ver la revisión de la pieza";
+  $("revAvisos").innerHTML = AVISOS.length ? AVISOS.map((a, k) => `<div class="aviso-r"><span class="ico">${a.nivel === "error" ? "⛔" : "⚠"}</span>
+      <span><b>L${a.lamina + 1}</b> · ${esc(a.texto)}</span>
+      <span class="acc"><button class="btn sec chico" data-rev-ir="${k}">Ir</button>${a.arreglo ? `<button class="btn chico" data-rev-arreglar="${k}">${esc(a.arreglo[0])}</button>` : ""}</span></div>`).join("")
+    : '<p class="muted" style="margin:0;font-size:12.5px">✓ Las reglas no encontraron nada: letra, contraste, bordes, pie, repetidos y semana, todo bien.</p>';
+  $("revArreglarTodo").hidden = AVISOS.filter(a => a.arreglo).length < 2;
+}
+function irAviso(a) { actual = a.lamina; sel = a.capa || null; pintar(); pintarTira(); pintarProps(); }
+
+// ---------- «✦ Revisar con ojo de IA»: la IA mira las láminas armadas y propone cambios; el código los aplica ----------
+let PROPUESTA = null;  // {nota, resumen, cambios, id}
+async function revisarConIA() {
+  if (!C) return avisar(SIN_PIEZA, "err");
+  try {
+    await guardarAhora(); await esperarImagenes();
+    // las láminas como JPG chicos (540 px de ancho): la IA ve lo mismo que la gente en el celular y el pedido pesa poco
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const chico = document.createElement("canvas"); chico.width = 540; chico.height = Math.round(540 * H / W);
+    const laminas = C.laminas.map(l => { const cx = cv.getContext("2d"); cx.clearRect(0, 0, W, H); dibujarLamina(cx, l, false);
+      chico.getContext("2d").drawImage(cv, 0, 0, chico.width, chico.height); return chico.toDataURL("image/jpeg", 0.85); });
+    const capas = C.laminas.map((l, i) => ({ lamina: i + 1, diseno: C.guion?.laminas?.[i] ? disenoDe(i) : "", fondo: l.fondo.tipo === "imagen" ? "foto" : l.fondo.color,
+      capas: l.capas.filter(c => !c.oculta).map(c => ({ id: c.id, tipo: c.tipo, rol: c.rol || "", ...(c.texto ? { texto: c.texto } : {}),
+        x: Math.round(c.x), y: Math.round(c.y), ...(c.tipo === "texto" ? { tam: Math.round(c.tam) } : { w: Math.round(c.w || 0) }), ...(c.color ? { color: c.color } : {}) })) }));
+    $("revIA").innerHTML = "";
+    await api("/api/claude", { accion: "revisar", id: cid, laminas, capas, avisos: revisarReglas().map(a => `L${a.lamina + 1}: ${a.texto}`) });
+    ponerPropuesta(await esperarTrabajo("revEstado"));
+  } catch (e) { $("revEstado").textContent = "No se pudo: " + e.message; avisar("IA: " + e.message, "err"); }
+}
+const ACCIONES_IA = { diseno: "Cambiar el diseño", mover: "Mover", tamano: "Cambiar el tamaño", color: "Cambiar el color", fondo: "Cambiar el fondo",
+  texto: "Reescribir el texto", legible: "Hacerlo legible" };
+function ponerPropuesta(t) {
+  if (t.accion !== "revisar" || !t.resultado) return;
+  if (t.id && t.id !== cid) return avisar(`La revisión de «${t.id}» terminó: ábrela y vuelve a revisarla para ver los cambios`);
+  // solo lo que se puede aplicar: la lámina existe y, para cambiar el diseño, la lámina lo tiene (las hechas a mano no)
+  const r = t.resultado, cambios = (r.cambios || []).filter(c => ACCIONES_IA[c.accion] && C.laminas[(+c.lamina || 0) - 1]
+    && (c.accion !== "diseno" || C.guion?.laminas?.[(+c.lamina) - 1]));
+  PROPUESTA = { ...r, cambios, id: cid };
+  $("revEstado").textContent = cambios.length ? "Marca los cambios que quieres y toca «Aplicar»." : "La IA no propuso cambios que la sala pueda aplicar.";
+  $("revIA").innerHTML = `<div class="nota-ia"><b>${esc(String(r.nota ?? "—"))}/10</b><span style="font-size:12.5px">${esc(r.resumen || "")}</span></div>`
+    + cambios.map((c, k) => `<label class="prop-ia"><input type="checkbox" data-prop="${k}" checked>
+        <span><b>L${+c.lamina}</b> · ${esc(c.por_que || ACCIONES_IA[c.accion])}</span><small>${esc(ACCIONES_IA[c.accion])}${c.diseno ? ` → ${esc(Object.values(DISENOS).map(g => g[c.diseno]).find(Boolean) || c.diseno)}` : ""}${c.texto ? `: «${esc(c.texto)}»` : ""}</small></label>`).join("")
+    + (cambios.length ? `<div class="fila" style="margin-top:8px"><button class="btn chico" type="button" id="revAplicar">Aplicar los marcados</button>
+        <button class="btn sec chico" type="button" id="revDescartar">Descartar</button></div>` : "");
+}
+function aplicarCambioIA(c) {  // solo lo que la sala sabe hacer, con valores revisados; lo demás se ignora
+  const i = (+c.lamina || 0) - 1, lam = C.laminas[i]; if (!lam) return false;
+  const capa = c.capa ? lam.capas.find(x => x.id === c.capa) : null, num = (v, a, b) => Number.isFinite(+v) ? Math.min(b, Math.max(a, +v)) : null;
+  const hex = v => /^#[0-9a-f]{6}$/i.test(v || "") ? v : null, g = C.guion?.laminas?.[i];
+  switch (c.accion) {
+    case "diseno": if (g && c.diseno in DISENOS[grupoDe(g, i)]) { g.diseno = c.diseno; ponerDiseno(i, true); return true; } return false;
+    case "mover": if (capa && num(c.x, 0, W) !== null && num(c.y, 0, H) !== null) { capa.x = num(c.x, 0, W); capa.y = num(c.y, 0, H); return true; } return false;
+    case "tamano":
+      if (capa?.tipo === "texto" && num(c.tam, 20, 320) !== null) { capa.tam = num(c.tam, 20, 320); return true; }
+      if (capa && capa.tipo !== "texto" && num(c.w, 30, 2400) !== null) { capa.w = num(c.w, 30, 2400); return true; } return false;
+    case "color": if (capa && hex(c.color)) { capa.color = c.color; return true; } return false;
+    case "fondo": if (hex(c.color) && lam.fondo.tipo !== "imagen") { lam.fondo.color = c.color; return true; } return false;
+    case "texto": if (capa?.tipo === "texto" && typeof c.texto === "string" && c.texto.trim() && c.texto.length < 400) { capa.texto = c.texto.trim(); return true; } return false;
+    case "legible": if (capa?.tipo === "texto") { const tinta = MARCA.texto_oscuro || "#1F2933";
+      capa.tam >= 80 ? Object.assign(capa, { contorno: 10, colorContorno: tinta }) : Object.assign(capa, { pastilla: tinta, color: MARCA.texto_claro || "#FFFFFF" }); return true; } return false;
+  }
+  return false;
+}
+document.addEventListener("click", e => {
+  if (e.target.id === "btnRevisarIA") return revisarConIA();
+  if (e.target.id === "revDescartar") { PROPUESTA = null; $("revIA").innerHTML = ""; $("revEstado").textContent = "Descartado."; return; }
+  if (e.target.id === "revAplicar" && PROPUESTA && C && PROPUESTA.id === cid) {
+    const marcados = [...document.querySelectorAll("#revIA [data-prop]:checked")].map(x => PROPUESTA.cambios[+x.dataset.prop]);
+    let hechos = 0;
+    cambio(() => { for (const c of marcados) if (aplicarCambioIA(c)) hechos++; });  // todo en un paso: «Deshacer» lo vuelve atrás junto
+    sel = null; pintarProps(); pintarRevision();
+    $("revIA").innerHTML = ""; PROPUESTA = null;
+    $("revEstado").textContent = `Listo: ${plural(hechos, "cambio aplicado", "cambios aplicados")}${hechos < marcados.length ? ` (${marcados.length - hechos} no se pudieron)` : ""}. «Deshacer» los vuelve atrás.`;
+  }
+});
 function resaltar(el) {  // «llévame ahí»: la caja del paso que sigue se ilumina un momento
   el.scrollIntoView({ block: "nearest" });
   el.classList.add("resalta"); setTimeout(() => el.classList.remove("resalta"), 2200);
@@ -1301,7 +1532,7 @@ function pintarGuion() {
       + `<button class="btn chico" id="btnAplicar" style="margin-top:8px">Poner estos textos en las láminas</button>` : "";
 }
 // dónde se ve que la IA trabaja: la caja que gira y su «Cancelar»
-const ZONAS_IA = { clEstado: ["cajaIA", "clCancelar"], crEstado: ["v-crear", "crCancelar"], iniEstado: ["iniFranja", "iniCancelar"], fotosEstado: ["cajaFotos", "fotosCancelar"] };
+const ZONAS_IA = { clEstado: ["cajaIA", "clCancelar"], crEstado: ["v-crear", "crCancelar"], iniEstado: ["iniFranja", "iniCancelar"], fotosEstado: ["cajaFotos", "fotosCancelar"], revEstado: ["cajaRevision", "revCancelar"] };
 function ocuparZona(donde, si) {
   const [zona, cancelar] = ZONAS_IA[donde] || [];
   if (!zona) return;
@@ -1327,7 +1558,7 @@ async function esperarTrabajo(donde = "clEstado", antes = "") {
     }
   } finally { pintarGemini(null); ocuparZona(donde, false); $("tira").classList.remove("escribiendo"); }
 }
-["clCancelar", "crCancelar", "iniCancelar", "fotosCancelar"].forEach(id => $(id).onclick = async () => {
+["clCancelar", "crCancelar", "iniCancelar", "fotosCancelar", "revCancelar"].forEach(id => $(id).onclick = async () => {
   if (id === "iniCancelar") escribiendoTodas = false;  // también para la fila: no sigue con las que faltan
   try { await api("/api/cancelar", {}); } catch (e) { avisar(e.message, "err"); }
 });
@@ -1693,7 +1924,8 @@ function faltasParaExportar() {  // láminas vacías y fotos que faltan, dichas 
 }
 async function exportar() {
   if (!C) return avisar(SIN_PIEZA, "err");
-  const faltas = faltasParaExportar();
+  // lo que falta (fotos, láminas vacías) y los errores de la revisión (texto que se sale o no se ve, título repetido)
+  const faltas = [...faltasParaExportar(), ...revisarReglas().filter(a => a.nivel === "error").map(a => `Lámina ${a.lamina + 1}: ${a.texto}.`)];
   if (faltas.length && !await preguntar(faltas.join("\n") + "\n\n¿Igual quieres exportar?", "Exportar igual")) return;
   $("btnExportar").disabled = true;
   try {
@@ -1853,6 +2085,17 @@ document.addEventListener("click", async e => {
   const rh = t.closest("[data-rehacer]"); if (rh) return rehacerFoto(rh);
   const cp = t.closest("[data-copiar]"); if (cp) { await navigator.clipboard.writeText(C.guion.laminas[+cp.dataset.copiar].flow || ""); return avisar("Prompt copiado: pégalo en Google Flow"); }
   if (t.id === "btnAplicar") return aplicarGuion();
+  // la revisión: abrir y cerrar el panel, ir a lo que avisa y arreglarlo
+  if (t.id === "guiaRevision" && C) { $("cajaRevision").hidden = !$("cajaRevision").hidden; pintarRevision(); if (!$("cajaRevision").hidden) resaltar($("cajaRevision")); return; }
+  if (t.id === "revCerrar") { $("cajaRevision").hidden = true; return; }
+  const ri = t.closest("[data-rev-ir]"); if (ri && C) return irAviso(AVISOS[+ri.dataset.revIr]);
+  const ra = t.closest("[data-rev-arreglar]");
+  if (ra && C) { const a = AVISOS[+ra.dataset.revArreglar]; if (a?.arreglo) { actual = a.lamina; cambio(() => a.arreglo[1]()); pintarProps(); pintarRevision(); } return; }
+  if (t.id === "revArreglarTodo" && C) {  // dos pasadas: la segunda revisa lo que movió la primera (todo junto se deshace de una vez)
+    let n = 0;
+    cambio(() => { for (let pasada = 0; pasada < 2; pasada++) { const arr = revisarReglas().filter(a => a.arreglo && !/encima/.test(a.texto)); arr.forEach(a => a.arreglo[1]()); n += arr.length; } });
+    pintarProps(); pintarRevision(); return avisar(`Listo: ${plural(n, "arreglo")}. «Deshacer» los vuelve atrás.`);
+  }
   if (t.closest("[data-acc-dis]") && C) {  // «↻ Otro»: el diseño siguiente de la lista
     const ops = Object.keys(DISENOS[grupoDe(C.guion?.laminas?.[actual], actual)]);
     return cambiarDiseno(ops[(ops.indexOf(disenoDe(actual)) + 1) % ops.length]);
@@ -2440,6 +2683,9 @@ async function retomarTrabajo() {
     irA("crear"); $("crPedir").disabled = true; $("crEstado").textContent = t.mensaje || "La IA sigue trabajando en tu pedido…";
     try { await terminarPedido(await esperarTrabajo("crEstado")); } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
     $("crPedir").disabled = false;
+  } else if (t.accion === "revisar") {
+    $("cajaRevision").hidden = false;
+    try { ponerPropuesta(await esperarTrabajo("revEstado")); } catch (e) { $("revEstado").textContent = "No se pudo: " + e.message; }
   } else if (t.accion === "fotos") {
     avisar("La IA sigue generando las fotos que pediste antes de recargar. Espera, no se pierde.");
     generandoFotos = true;

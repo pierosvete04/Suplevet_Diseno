@@ -507,6 +507,19 @@ def _con_textos(p):
         c.get("tipo") == "texto" and (c.get("texto") or "").strip() for l in p.get("laminas", []) for c in l.get("capas", []))
 
 
+def _resumen(p):
+    """Lo que la revisión compara entre las piezas de la semana: el diseño de la portada y del CTA, el texto del CTA y el título."""
+    g = (p.get("guion") or {}).get("laminas") or []
+    cta = next((l for l in reversed(g) if l.get("rol") == "cta"), {})
+    ultima = (p.get("laminas") or [{}])[-1]
+    textos = [c for c in ultima.get("capas", []) if c.get("tipo") == "texto" and (c.get("texto") or "").strip()]
+    # el texto del CTA: el que armó la sala («accion»/«cta») o, en piezas hechas a mano, el que invita a hacer algo
+    accion = next((c["texto"] for c in textos if c.get("rol") in ("accion", "cta")), "") or next(
+        (c["texto"] for c in textos if re.search(r"coment|escr[ií]be|whatsapp|pide|p[ií]delo|link|guarda|agenda", c["texto"], re.I)), "")
+    return {"portada": (g[0].get("diseno") if g else "") or "", "cta": cta.get("diseno") or "", "cta_texto": accion or cta.get("accion") or "",
+            "titulo": (g[0].get("titulo") if g else "") or p.get("titulo", "")}
+
+
 def _del_plan(d):
     """Los (día, tema) del plan de la semana: así se reconocen las piezas del brief creadas antes de guardar su origen."""
     try:
@@ -538,7 +551,7 @@ def biblioteca():
             out.append({"rel": s["rel"], "mes": s["mes"], "semana": s["semana"], "id": c.name, "titulo": p.get("titulo", c.name),
                         "tipo": p.get("tipo", "carrusel"), "formato": p.get("formato", "4:5"), "dia": dia, "fecha": fecha,
                         "nivel": p.get("nivel", ""), "publico": p.get("publico", ""), "estilo": p.get("estilo", ""),
-                        "laminas": len(laminas), "exportado": bool(finales), "miniatura": mini, "origen": origen, "fuente": p.get("fuente"),
+                        "laminas": len(laminas), "exportado": bool(finales), "miniatura": mini, "origen": origen, "fuente": p.get("fuente"), "resumen": _resumen(p),
                         "actualizado": p.get("actualizado", ""), "por": p.get("por", ""), "pedido": p.get("pedido", ""),
                         "con_textos": _con_textos(p), "con_fotos": any(_con_foto(l, c) for l in laminas),
                         "laminas_con_foto": sum(1 for l in laminas if _con_foto(l, c)),

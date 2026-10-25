@@ -7,6 +7,8 @@ import datetime as dt
 import json
 import mimetypes
 import os
+import re
+import shutil
 import sys
 import threading
 import time
@@ -56,6 +58,27 @@ def lanzar(accion, fn, pid=None, lamina=None, nota=None):
         finally:
             TRABAJO["activo"] = False
     threading.Thread(target=correr, daemon=True).start()
+
+
+def guardar_revision(pid, laminas):
+    """Las láminas que manda la página (JPG chicos) quedan en datos/revision/<pieza>/L01.jpg… para que la IA las mire.
+    Se reemplazan en cada revisión: no se suben a Drive."""
+    carpeta = nucleo.DATOS / "revision" / re.sub(r"[^\w\-]+", "_", pid)[:60]
+    if carpeta.exists():
+        shutil.rmtree(carpeta, ignore_errors=True)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    rutas = []
+    for i, x in enumerate(laminas[:12], 1):
+        datos = base64.b64decode(str(x).split(",", 1)[-1])
+        jpg = datos.startswith(b"\xff\xd8")
+        if not jpg and not datos.startswith(b"\x89PNG"):
+            raise ValueError(f"La lámina {i} no llegó bien")
+        f = carpeta / (f"L{i:02d}" + (".jpg" if jpg else ".png"))
+        f.write_bytes(datos)
+        rutas.append(str(f))
+    if not rutas:
+        raise ValueError("No llegó ninguna lámina para revisar")
+    return rutas
 
 
 def generar_fotos(ids, avance):
@@ -306,6 +329,11 @@ class H(BaseHTTPRequestHandler):
                     datos_marca = marca.datos()
                     n = int(b.get("lamina", 0))
                     lanzar("rehacer", lambda av: asistente.rehacer_foto(pieza, n, nota, datos_marca, av), pid=b["id"], lamina=n, nota=nota)
+                elif b.get("accion") == "revisar":  # «✦ Revisar con ojo de IA»: la IA mira las láminas armadas y propone cambios
+                    pieza, _ = piezas.leer(b["id"])
+                    imagenes = guardar_revision(b["id"], b.get("laminas") or [])
+                    capas, avisos, datos_marca = b.get("capas") or [], [str(a)[:200] for a in (b.get("avisos") or [])][:30], marca.datos()
+                    lanzar("revisar", lambda av: asistente.revisar_pieza(pieza, imagenes, capas, avisos, datos_marca, av), pid=b["id"])
                 elif b.get("accion") == "fotos":  # «✦ Generar fotos con IA» de una o varias piezas de la semana
                     ids = [str(x) for x in (b.get("ids") or [])][:20]
                     if not ids:

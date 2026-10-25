@@ -1,3 +1,9 @@
+Versión 0.17.0:
+- **Revisión de cada pieza**, en el editor: arriba, junto a la guía, dice «⚠ N avisos» o «✓ Sin avisos». Al tocarlo se abre el panel «Revisión».
+  - **Reglas automáticas** (al instante, sin IA): letra menor a 28 px; texto que casi no se ve sobre lo que tiene detrás (la sala mira los píxeles de la foto o el color, no adivina); texto que se sale de la lámina, que choca con la barra del pie o que queda encima de otro; demasiadas palabras; dos láminas seguidas con el mismo diseño o el mismo fondo; el «Desliza» puesto a mano que ahora repite la barra del pie; y en la semana: el mismo título, la misma portada o el mismo CTA que otra pieza.
+  - Cada aviso tiene «Ir» y, si se puede, su arreglo («Subir a 28 px», «Hacerlo legible», «Subir lo de abajo», «Quitarlo»…). «Arreglar lo automático» hace todos juntos, y «Deshacer» los vuelve atrás de una vez.
+  - Al exportar, los errores graves también se avisan.
+- **✦ Revisar con ojo de IA**: la sala arma las láminas como imágenes y la IA (Claude o Gemini) las mira como un director de arte. Devuelve una nota del 1 al 10, un resumen y cambios concretos (otro diseño, mover, agrandar, otro color de la marca, otro fondo, acortar un texto, hacerlo legible). Marcas los que quieres y «Aplicar los marcados»: los aplica el código, exacto, y «Deshacer» los vuelve atrás.
 Versión 0.16.0:
 - **Piezas desde los guiones de la Sala de edición**: en «✦ Crear con IA → Usar como referencia», la opción nueva **«Cuerpos de los guiones»** muestra cada producción (P02, P03, P04…) con sus cuerpos, su texto y su primer hook. Marca los que quieras (hasta 12) y sale **un carrusel por cada cuerpo**: la portada sale de uno de sus hooks, el contenido es el del cuerpo (sin inventar datos) y, si la producción es para veterinarios, va en tono B2B con su CTA de WhatsApp o visita.
 - El texto del pedido es opcional cuando eliges cuerpos (sirve para pedir algo más: un día, un formato, un tono).
