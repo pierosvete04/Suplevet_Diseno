@@ -77,6 +77,19 @@ def nombre_semana(lunes, tema=""):
     return mes, f"{codigo_semana(lunes)} · {rango}" + (f" · {_limpio(tema, 30).upper()}" if tema.strip() else "")
 
 
+def semana_de(fecha_iso, tema=""):
+    """Para «+ Nueva semana»: cómo se va a llamar la semana de esa fecha y si ya existe."""
+    try:
+        lunes = lunes_de(dt.date.fromisoformat(fecha_iso))
+    except ValueError:
+        raise ValueError("Esa fecha no es válida") from None
+    mes, nombre = nombre_semana(lunes, tema)
+    previa = next((s for s in semanas() if s["mes"] == mes and _misma(s["semana"], nombre)), None)
+    brief = brief_de(codigo_semana(lunes))
+    return {"nombre": nombre, "mes": mes, "lunes": lunes.isoformat(), "existe": previa["rel"] if previa else None,
+            "brief": bool(brief), "tema_brief": (brief or {}).get("tema", ""), "piezas_brief": len((brief or {}).get("carruseles") or [])}
+
+
 def semanas():
     """[{rel, mes, semana, piezas}] de la más nueva a la más vieja."""
     out = []
@@ -443,8 +456,9 @@ def exportar(pid, pngs, copy=""):
 _ultima = {"t": 0}
 
 
-def sincronizar(forzar=False):
-    """Trae de Drive lo que hicieron otras PCs (marca, briefs y diseño). Como mucho cada 2 minutos."""
+def sincronizar(forzar=False, esperar=False):
+    """Trae de Drive lo que hicieron otras PCs (marca, briefs y diseño). Como mucho cada 2 minutos.
+    esperar: no por detrás (el botón ↻ espera a que llegue todo)."""
     if not forzar and time.time() - _ultima["t"] < 120:
         return
     _ultima["t"] = time.time()
@@ -456,7 +470,10 @@ def sincronizar(forzar=False):
         conexion.bajar(CARPETA)
         # si llegó el brief de esta semana, se crean las piezas que falten (sin cambiar la semana que se está viendo)
         crear_semana(dt.date.today().isoformat(), elegir=False)
-    conexion.en_segundo_plano(tarea)
+    if esperar:
+        tarea()
+    else:
+        conexion.en_segundo_plano(tarea)
 
 
 def subir(pid=None):

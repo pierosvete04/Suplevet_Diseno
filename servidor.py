@@ -32,32 +32,156 @@ import videos as videos_edicion
 
 PUERTO = int(sys.argv[sys.argv.index("--puerto") + 1]) if "--puerto" in sys.argv else int(os.environ.get("DISENO_PUERTO") or 8767)
 FUENTES = nucleo.RAIZ / "fuentes"
-TRABAJO = {"activo": False, "accion": None, "mensaje": "", "error": None, "resultado": None, "id": None, "lamina": None, "nota": None}
 LATIDO = {"ultimo": 0.0, "adios": 0.0}
 INICIO = time.time()
 
 
-def lanzar(accion, fn, pid=None, lamina=None, nota=None):
-    """Corre algo largo (la IA) en segundo plano; la página pregunta por /api/trabajo.
-    pid, lamina y nota dicen de qué pieza es, para que la página lo retome si se recarga a mitad."""
-    if TRABAJO["activo"]:
-        raise RuntimeError("Ya hay un trabajo en curso. Espera a que termine o cancélalo.")
-    nucleo.CANCELAR.clear()  # un «Cancelar» de antes no corta este trabajo
-    TRABAJO.update(activo=True, accion=accion, mensaje="Empezando…", error=None, resultado=None, id=pid, lamina=lamina, nota=nota)
+# ---------- La fila de trabajos de la IA ----------
+# Corren de a uno: todos usan la misma IA (Claude o Gemini en Antigravity), el mismo Chrome para Flow y la misma semana.
+# Antes el segundo pedido fallaba («Ya hay un trabajo en curso») y todas las esperas de la página leían el mismo trabajo:
+# un pedido podía recibir el resultado de otro y «Cancelar» cortaba lo que estuviera corriendo. Ahora cada trabajo tiene
+# su número, espera su turno en la fila y la página pregunta por el suyo (/api/trabajo?id=); la tuerca los muestra todos.
+TRABAJOS = []
+_FNS = {}
+_FILA = threading.Condition()
+_OBRERO = {"vivo": False}
+NOMBRES = {"escribir": "Escribir los textos", "rehacer": "Rehacer el prompt de una foto", "revisar": "Revisar con ojo de IA",
+           "fotos": "Generar fotos en Flow", "pedido": "Pedido a la IA"}
 
-    def avance(m):
-        TRABAJO["mensaje"] = m
 
-    def correr():
+def _publico(t):
+    return {k: v for k, v in t.items() if k != "clave"}
+
+
+def _titulo_de(pid):
+    try:
+        return piezas.leer(pid)[0].get("titulo") or pid
+    except Exception:  # noqa: BLE001 — una pieza borrada no corta la lista
+        return pid
+
+
+def lanzar(accion, fn, pid=None, lamina=None, nota=None, titulo=None, clave=None):
+    """Pone el trabajo en la fila y devuelve su número. pid, lamina y nota dicen de qué pieza es, para que la página
+    lo retome si se recarga a mitad. Si lo mismo ya está en la fila (doble clic), se devuelve ese."""
+    clave = clave or f"{accion}|{pid or ''}|{lamina if lamina is not None else ''}"
+    titulo = titulo if titulo is not None else (_titulo_de(pid) if pid else "")
+    semana = piezas.semana_actual().split("/")[-1]
+    with _FILA:
+        igual = next((t for t in TRABAJOS if t["clave"] == clave and t["estado"] in ("en cola", "corriendo")), None)
+        if igual:
+            return igual["id"]
+        tid = f"t{int(time.time() * 1000)}"
+        while any(t["id"] == tid for t in TRABAJOS):
+            tid += "x"
+        TRABAJOS.append({"id": tid, "clave": clave, "accion": accion, "nombre": NOMBRES.get(accion, accion), "titulo": titulo,
+                         "pieza": pid, "lamina": lamina, "nota": nota, "semana": semana, "estado": "en cola", "activo": True,
+                         "mensaje": "En la fila", "error": None, "resultado": None, "creado": time.time(), "empezo": None, "termino": None})
+        _FNS[tid] = fn
+        terminados = [t for t in TRABAJOS if not t["activo"]]
+        for t in terminados[:-20]:  # se guardan los últimos 20 terminados
+            TRABAJOS.remove(t)
+        _FILA.notify_all()
+        if not _OBRERO["vivo"]:
+            _OBRERO["vivo"] = True
+            threading.Thread(target=_obrero, daemon=True).start()
+    return tid
+
+
+def _obrero():
+    while True:
+        with _FILA:
+            t = next((x for x in TRABAJOS if x["estado"] == "en cola"), None)
+            while t is None:
+                _FILA.wait()
+                t = next((x for x in TRABAJOS if x["estado"] == "en cola"), None)
+            t.update(estado="corriendo", mensaje="Empezando…", empezo=time.time())
+            fn = _FNS.pop(t["id"])
+        nucleo.CANCELAR.clear()  # un «Cancelar» de antes no corta este trabajo
+
+        def avance(m, t=t):
+            t["mensaje"] = m
         try:
-            TRABAJO["resultado"] = fn(avance)
-            TRABAJO["mensaje"] = "Listo"
+            t["resultado"] = fn(avance)
+            t.update(estado="listo", mensaje="Listo")
         except Exception as e:
-            TRABAJO["error"] = str(e)
+            t.update(estado="cancelado" if str(e) == "Cancelado" else "error", error=str(e))
             traceback.print_exc()
         finally:
-            TRABAJO["activo"] = False
-    threading.Thread(target=correr, daemon=True).start()
+            t.update(activo=False, termino=time.time())
+
+
+def trabajo(tid=None):
+    """Uno (por número) con su lugar en la fila; sin número, el que está corriendo (o el último)."""
+    with _FILA:
+        if tid:
+            t = next((x for x in TRABAJOS if x["id"] == tid), None)
+        else:
+            t = next((x for x in TRABAJOS if x["estado"] == "corriendo"), None) or (TRABAJOS[-1] if TRABAJOS else None)
+        if not t:
+            return {"activo": False, "estado": "no existe", "error": "Ese trabajo ya no está en la lista" if tid else None, "mensaje": ""}
+        r = _publico(t)
+        if t["estado"] == "en cola":
+            antes = [x for x in TRABAJOS if x["activo"] and x["creado"] < t["creado"]]
+            ahora = next((x for x in antes if x["estado"] == "corriendo"), None)
+            r["delante"] = len(antes)
+            r["mensaje"] = ("En la fila: va después de 1 trabajo" if len(antes) == 1 else f"En la fila: hay {len(antes)} trabajos antes") \
+                + (f" (ahora: {ahora['nombre'].lower()}{' · ' + ahora['titulo'] if ahora['titulo'] else ''})" if ahora else "")
+        r["gemini"] = dict(gemini.ACTUAL) if t["estado"] == "corriendo" and gemini.ACTUAL else None
+        return r
+
+
+def todos_los_trabajos():
+    with _FILA:
+        ids = [t["id"] for t in reversed(TRABAJOS)]
+    return [trabajo(i) for i in ids]
+
+
+def cancelar_trabajo(tid=None):
+    """En la fila: sale de la fila. Corriendo: se corta. Sin número: el que está corriendo."""
+    with _FILA:
+        if tid:
+            t = next((x for x in TRABAJOS if x["id"] == tid), None)
+        else:
+            t = next((x for x in TRABAJOS if x["estado"] == "corriendo"), None)
+        if not t or not t["activo"]:
+            return
+        if t["estado"] == "en cola":
+            _FNS.pop(t["id"], None)
+            t.update(estado="cancelado", activo=False, error="Cancelado", termino=time.time())
+            return
+    nucleo.cancelar()
+
+
+def hay_trabajo():
+    return any(t["activo"] for t in TRABAJOS)
+
+
+def escribir_y_guardar(pid, idea, avance):
+    """La IA escribe la pieza y el guion queda guardado en ella aunque la página ya no esté esperando
+    (al abrir la pieza, sus textos van a las láminas vacías)."""
+    pieza, _ = piezas.leer(pid)
+    r = asistente.escribir_pieza(pieza, idea, marca.datos(), avance)
+    pieza, _ = piezas.leer(pid)  # la de ahora: pudo cambiar mientras la IA escribía
+    pieza["guion"] = r
+    if not (pieza.get("copy") or "").strip():
+        pieza["copy"] = r.get("copy", "")
+    piezas.guardar(pid, pieza)
+    piezas.subir(pid)
+    return {**r, "guardado": True}
+
+
+def rehacer_y_guardar(pid, n, nota, foto, avance):
+    """El prompt nuevo de Flow va a su lámina, con la nota del equipo, aunque la página ya no esté esperando."""
+    r = asistente.rehacer_foto(piezas.leer(pid)[0], n, nota, marca.datos(), avance)
+    pieza, _ = piezas.leer(pid)
+    g = pieza.setdefault("guion", {"laminas": [], "copy": pieza.get("copy", "")})
+    while len(g["laminas"]) <= n:
+        g["laminas"].append({"rol": "", "titulo": "", "texto": "", "flow": ""})
+    g["laminas"][n]["flow"] = r.get("flow", "")
+    g["laminas"][n].setdefault("notas", []).append({"fecha": time.strftime("%d/%m/%y %H:%M"), "quien": piezas.quien(), "nota": nota, "foto": foto})
+    piezas.guardar(pid, pieza)
+    piezas.subir(pid)
+    return {**r, "guardado": True}
 
 
 def guardar_revision(pid, laminas):
@@ -119,7 +243,7 @@ def al_cerrar_ventana():
     def esperar():
         marca_t = LATIDO["adios"]
         time.sleep(6)
-        while TRABAJO["activo"]:
+        while hay_trabajo():
             time.sleep(2)
         if LATIDO["ultimo"] <= marca_t:
             os._exit(0)
@@ -227,7 +351,11 @@ class H(BaseHTTPRequestHandler):
                 piezas.marcar_editando(pid)
                 self._json({"id": pid, "datos": datos, "imagenes": piezas.imagenes(pid), "editando": editando})
             elif u.path == "/api/trabajo":  # gemini: si se está esperando a Gemini, la carpeta y el mensaje para pegar
-                self._json({**TRABAJO, "gemini": dict(gemini.ACTUAL) if TRABAJO["activo"] and gemini.ACTUAL else None})
+                self._json(trabajo(q.get("id", [None])[0]))
+            elif u.path == "/api/trabajos":  # la tuerca: lo que corre, lo que espera y lo último que terminó
+                self._json({"trabajos": todos_los_trabajos()})
+            elif u.path == "/api/semana_nombre":  # cómo se va a llamar la semana de esa fecha (y si ya existe)
+                self._json(piezas.semana_de(q.get("fecha", [""])[0], q.get("tema", [""])[0]))
             elif u.path == "/api/claude":
                 self._json(asistente.estado())
             elif u.path == "/api/version":
@@ -317,31 +445,29 @@ class H(BaseHTTPRequestHandler):
                     return self._json({"ok": True, **asistente.estado()})
                 elif b.get("accion") == "gemini_abrir":  # volver a abrir Antigravity con el pedido y copiar el mensaje
                     return self._json({"ok": True, "abierto": gemini.abrir(), "copiado": gemini.copiar_mensaje()})
-                elif b.get("accion") == "escribir":
-                    pieza, _ = piezas.leer(b["id"])
-                    datos_marca = marca.datos()
-                    lanzar("escribir", lambda av: asistente.escribir_pieza(pieza, str(b.get("idea", ""))[:2000], datos_marca, av), pid=b["id"])
+                elif b.get("accion") == "escribir":  # la pieza se lee cuando le toca (puede esperar en la fila)
+                    pid, idea = b["id"], str(b.get("idea", ""))[:2000]
+                    tid = lanzar("escribir", lambda av: escribir_y_guardar(pid, idea, av), pid=pid)
                 elif b.get("accion") == "rehacer":  # la nota del equipo sobre una foto -> el prompt de Flow nuevo de esa lámina
                     nota = str(b.get("nota", "")).strip()[:1000]
                     if len(nota) < 3:
                         raise ValueError("Escribe qué hay que cambiar en la foto")
-                    pieza, _ = piezas.leer(b["id"])
-                    datos_marca = marca.datos()
-                    n = int(b.get("lamina", 0))
-                    lanzar("rehacer", lambda av: asistente.rehacer_foto(pieza, n, nota, datos_marca, av), pid=b["id"], lamina=n, nota=nota)
+                    pid, n, foto = b["id"], int(b.get("lamina", 0)), str(b.get("foto", ""))[:200]
+                    tid = lanzar("rehacer", lambda av: rehacer_y_guardar(pid, n, nota, foto, av), pid=pid, lamina=n, nota=nota)
                 elif b.get("accion") == "revisar":  # «✦ Revisar con ojo de IA»: la IA mira las láminas armadas y propone cambios
-                    pieza, _ = piezas.leer(b["id"])
-                    imagenes = guardar_revision(b["id"], b.get("laminas") or [])
-                    capas, avisos, datos_marca = b.get("capas") or [], [str(a)[:200] for a in (b.get("avisos") or [])][:30], marca.datos()
-                    lanzar("revisar", lambda av: asistente.revisar_pieza(pieza, imagenes, capas, avisos, datos_marca, av), pid=b["id"])
+                    pid = b["id"]
+                    imagenes = guardar_revision(pid, b.get("laminas") or [])
+                    capas, avisos = b.get("capas") or [], [str(a)[:200] for a in (b.get("avisos") or [])][:30]
+                    tid = lanzar("revisar", lambda av: asistente.revisar_pieza(piezas.leer(pid)[0], imagenes, capas, avisos, marca.datos(), av), pid=pid)
                 elif b.get("accion") == "fotos":  # «✦ Generar fotos con IA» de una o varias piezas de la semana
                     ids = [str(x) for x in (b.get("ids") or [])][:20]
                     if not ids:
                         raise ValueError("Elige al menos una pieza")
-                    lanzar("fotos", lambda av: generar_fotos(ids, av), pid=ids[0] if len(ids) == 1 else None)
+                    tid = lanzar("fotos", lambda av: generar_fotos(ids, av), pid=ids[0] if len(ids) == 1 else None,
+                                 titulo=None if len(ids) == 1 else f"{len(ids)} piezas", clave="fotos|" + ",".join(sorted(ids)))
                 else:
                     raise ValueError("Acción no válida")
-                self._json({"ok": True})
+                self._json({"ok": True, "trabajo": tid})
             elif u.path == "/api/pedido":  # un pedido libre: Claude decide las piezas y la sala las crea en la semana
                 b = self._cuerpo()
                 texto = str(b.get("texto", "")).strip()[:8000]
@@ -368,8 +494,9 @@ class H(BaseHTTPRequestHandler):
                     hechas = piezas.crear_desde_pedido(texto, r, semana, video=ruta_video)
                     piezas.subir()
                     return {"piezas": hechas}
-                lanzar("pedido", hacer)
-                self._json({"ok": True})
+                corto = texto if len(texto) <= 60 else texto[:60].rsplit(" ", 1)[0] + "…"
+                tid = lanzar("pedido", hacer, titulo=corto, clave="pedido|" + texto)
+                self._json({"ok": True, "trabajo": tid})
             elif u.path == "/api/entrar":  # entrar con Google (se abre el navegador una vez)
                 e = cuenta.entrar(str(self._cuerpo().get("link", "")))
                 piezas.sincronizar(forzar=True)
@@ -414,8 +541,13 @@ class H(BaseHTTPRequestHandler):
             elif u.path == "/api/nombre":
                 nucleo.guardar_config({"nombre": str(self._cuerpo().get("nombre", "")).strip()[:40]})
                 self._json({"ok": True})
-            elif u.path == "/api/cancelar":
-                nucleo.cancelar()
+            elif u.path == "/api/cancelar":  # {id}: ese trabajo (sale de la fila o se corta); sin id, el que está corriendo
+                cancelar_trabajo(str(self._cuerpo().get("id") or "") or None)
+                self._json({"ok": True})
+            elif u.path == "/api/refrescar":  # ↻: trae todo de Drive de nuevo (piezas, marca, briefs, videos y guiones)
+                piezas.sincronizar(forzar=True, esperar=True)
+                for m in (videos_edicion, guiones):
+                    threading.Thread(target=m.listar, kwargs={"forzar": True}, daemon=True).start()
                 self._json({"ok": True})
             elif u.path == "/api/actualizar":
                 version = actualizador.aplicar()

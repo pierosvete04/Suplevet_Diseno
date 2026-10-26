@@ -58,6 +58,35 @@ input[type=color] { width: 30px; height: 26px; padding: 0; border: 1px solid var
   border: 2px solid color-mix(in srgb, currentColor 35%, transparent); border-top-color: currentColor; border-radius: 50%; animation: gira .8s linear infinite; }
 @keyframes gira { to { transform: rotate(360deg); } }
 @keyframes late { 50% { opacity: .45; } }
+/* la tuerca: los procesos de la IA (lo que corre y lo que espera en la fila) */
+.procesos-ancla { position: relative; display: inline-flex; }
+#btnProcesos .tuerca { display: inline-block; font-size: 14px; line-height: 1; }
+#btnProcesos.corriendo { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+#btnProcesos.corriendo .tuerca { animation: gira 2.4s linear infinite; }
+#btnRefrescar.girando { pointer-events: none; opacity: .7; }
+#btnRefrescar.girando span { display: inline-block; animation: gira .9s linear infinite; }
+.procesos { position: absolute; right: 0; top: calc(100% + 8px); width: min(440px, calc(100vw - 32px)); max-height: 72vh; overflow: auto; z-index: 70;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line2); border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.22); padding: 14px; text-align: left; }
+.procesos h3 { margin: 0; font: 700 14px var(--fd); }
+.procesos .etq { margin: 12px 0 2px; }
+.proc { display: grid; grid-template-columns: 12px 1fr auto; gap: 2px 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line); }
+.proc:first-of-type { border-top: 0; }
+.proc .punto { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; background: var(--muted); }
+.proc.corriendo .punto { background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); animation: late 1.2s ease-in-out infinite; }
+.proc.listo .punto { background: var(--ok); }
+.proc.error .punto { background: var(--err); }
+.proc.cancelado .punto { background: var(--line2); }
+.proc b { font-size: 13px; }
+.proc small { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.proc .acc { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.proc .acc .btn { min-height: 26px; padding: 2px 8px; font-size: 11.5px; }
+/* Inicio: la semana que se ve y «+ Nueva semana» */
+.semana-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0 6px; }
+.semana-bar select { max-width: 340px; }
+.nueva-semana { display: grid; gap: 10px; margin: 6px 0 14px; padding: 14px; max-width: 640px; }
+.nueva-semana .rapidas { display: flex; gap: 6px; flex-wrap: wrap; }
+.nueva-semana .rapidas .btn[aria-pressed="true"] { background: var(--btn); color: #fff; border-color: var(--btn); }
+.nueva-semana .vista-nombre { font: 700 15px var(--fd); }
 /* «llévame ahí»: la caja del paso que sigue se ilumina un momento */
 .resalta { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 10px; transition: outline-color .3s; }
 @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
@@ -336,6 +365,13 @@ main { display: flex; flex-direction: column; overflow: hidden; }
     <div class="app-iconos">
       <button class="app-pastilla" id="estMarca" type="button" data-conf="confMarca" title="La marca del proyecto (colores, logos, productos)"></button>
       <button class="app-pastilla" id="estClaude" type="button" data-conf="confClaude" title="La IA que escribe las piezas (Claude o Gemini): toca para ver o cambiar"></button>
+      <button class="app-pastilla" id="btnRefrescar" type="button" title="Cargar todo de nuevo desde Drive: piezas, marca, briefs, videos y guiones" aria-label="Refrescar todo"><span aria-hidden="true">↻</span></button>
+      <span class="procesos-ancla"><button class="app-pastilla" id="btnProcesos" type="button" aria-expanded="false" aria-controls="panelProcesos" title="Procesos de la IA: lo que corre ahora y lo que espera en la fila"><span class="tuerca" aria-hidden="true">⚙</span><span id="procN">Procesos</span></button>
+        <div class="procesos" id="panelProcesos" role="dialog" aria-label="Procesos de la IA" hidden>
+          <h3>Procesos de la IA</h3>
+          <p class="muted" style="margin:4px 0 0;font-size:12px">Corren de a uno y en orden, así no se chocan: todos usan la misma IA, el mismo Chrome para Flow y la misma semana. Lo que pidas mientras tanto espera su turno en la fila.</p>
+          <div id="procLista"></div>
+        </div></span>
       <span id="cuentaChip"></span>
     </div>
   </div>
@@ -377,6 +413,19 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 </dialog>
 <section class="vista" id="v-inicio" role="tabpanel" aria-labelledby="tab-inicio">
   <h2 id="iniTitulo">Esta semana</h2>
+  <div class="semana-bar"><select id="iniSemana" aria-label="Ver otra semana"></select>
+    <button class="btn sec chico" type="button" id="iniNuevaSemana" aria-expanded="false">+ Nueva semana</button></div>
+  <div class="caja nueva-semana" id="iniFormSemana" hidden>
+    <div class="rapidas" role="group" aria-label="Qué semana">
+      <button class="btn sec chico" type="button" data-semana="0">Esta semana</button>
+      <button class="btn sec chico" type="button" data-semana="1">La próxima</button>
+      <button class="btn sec chico" type="button" data-semana="2">En dos semanas</button>
+      <label class="muted" style="display:flex;gap:6px;align-items:center;font-size:12.5px">u otra fecha <input type="date" id="nsFecha"></label></div>
+    <div class="prop"><label for="nsTema">Nombre o tema de la semana</label><input type="text" id="nsTema" maxlength="30" placeholder="Ej.: Piel sana"></div>
+    <div><span class="muted" style="font-size:12px">Se va a llamar</span><div class="vista-nombre" id="nsNombre">—</div><small class="muted" id="nsNota"></small></div>
+    <div class="fila"><button class="btn chico" type="button" id="nsCrear">Crear semana</button>
+      <button class="btn sec chico" type="button" id="nsCerrar">Cancelar</button></div>
+  </div>
   <p class="sub" id="iniSub"></p>
   <div class="franja" id="iniFranja" hidden>
     <p id="iniFranjaTexto"></p>
@@ -1289,8 +1338,8 @@ async function revisarConIA() {
       capas: l.capas.filter(c => !c.oculta).map(c => ({ id: c.id, tipo: c.tipo, rol: c.rol || "", ...(c.texto ? { texto: c.texto } : {}),
         x: Math.round(c.x), y: Math.round(c.y), ...(c.tipo === "texto" ? { tam: Math.round(c.tam) } : { w: Math.round(c.w || 0) }), ...(c.color ? { color: c.color } : {}) })) }));
     $("revIA").innerHTML = "";
-    await api("/api/claude", { accion: "revisar", id: cid, laminas, capas, avisos: revisarReglas().map(a => `L${a.lamina + 1}: ${a.texto}`) });
-    ponerPropuesta(await esperarTrabajo("revEstado"));
+    const r = await api("/api/claude", { accion: "revisar", id: cid, laminas, capas, avisos: revisarReglas().map(a => `L${a.lamina + 1}: ${a.texto}`) });
+    ponerPropuesta(await esperarTrabajo("revEstado", "", r.trabajo));
   } catch (e) { $("revEstado").textContent = "No se pudo: " + e.message; avisar("IA: " + e.message, "err"); }
 }
 const ACCIONES_IA = { diseno: "Cambiar el diseño", mover: "Mover", tamano: "Cambiar el tamaño", color: "Cambiar el color", fondo: "Cambiar el fondo",
@@ -1489,6 +1538,7 @@ async function cargarLista() {
   $("selSemana").innerHTML = meses.map(m => `<optgroup label="${esc(m)}">${d.semanas.filter(s => s.mes === m)
     .map(s => `<option value="${esc(s.rel)}" ${s.rel === semana ? "selected" : ""}>${esc(s.semana)} (${s.piezas ?? 0})</option>`).join("")}</optgroup>`).join("");
   $("selSemana").title = $("selSemana").selectedOptions[0]?.textContent || "";
+  $("iniSemana").innerHTML = $("selSemana").innerHTML; $("iniSemana").value = semana;
   pintarLista(); pintarFotos();
   return d;
 }
@@ -1533,35 +1583,124 @@ function pintarGuion() {
 }
 // dónde se ve que la IA trabaja: la caja que gira y su «Cancelar»
 const ZONAS_IA = { clEstado: ["cajaIA", "clCancelar"], crEstado: ["v-crear", "crCancelar"], iniEstado: ["iniFranja", "iniCancelar"], fotosEstado: ["cajaFotos", "fotosCancelar"], revEstado: ["cajaRevision", "revCancelar"] };
-function ocuparZona(donde, si) {
+// cada trabajo tiene su número y espera su turno en la fila del servidor. En una zona pueden esperar varios:
+// se ve el primero y su «Cancelar» corta ese (todos se ven en la tuerca ⚙)
+const ZONA_TRAB = {};
+function ocuparZona(donde, tid, si) {
+  const l = ZONA_TRAB[donde] = (ZONA_TRAB[donde] || []).filter(x => x !== tid);
+  if (si) l.push(tid);
   const [zona, cancelar] = ZONAS_IA[donde] || [];
   if (!zona) return;
-  $(zona).setAttribute("aria-busy", si); $(cancelar).hidden = !si;
+  const ocupada = l.length > 0;
+  $(zona).setAttribute("aria-busy", ocupada); $(cancelar).hidden = !ocupada;
   $(zona).querySelectorAll(".btn-ia").forEach(b => {
-    if (si) { b.dataset.texto ??= b.textContent; b.textContent = b.dataset.ocupado || "Escribiendo…"; }
+    if (ocupada) { b.dataset.texto ??= b.textContent; b.textContent = b.dataset.ocupado || "Escribiendo…"; }
     else if (b.dataset.texto !== undefined) { b.textContent = b.dataset.texto; delete b.dataset.texto; }
   });
 }
-// la IA corre en segundo plano: se pregunta cada 1,5 s hasta que termina, y se ve qué hace y hace cuánto
-async function esperarTrabajo(donde = "clEstado", antes = "") {
-  const desde = Date.now();
-  ocuparZona(donde, true); $(donde).hidden = false;
+const reloj = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const ESPERANDO = new Set();
+// se pregunta por ESE trabajo cada 1,5 s hasta que termina. Devuelve el trabajo con id = su pieza (trabajo = su número)
+async function esperarTrabajo(donde = "clEstado", antes = "", tid) {
+  if (!tid) throw new Error("La sala no devolvió el número del trabajo: actualízala");
+  if (ESPERANDO.has(tid)) throw new Error("Eso ya está pedido y espera su turno: míralo en la tuerca ⚙");
+  ESPERANDO.add(tid); ocuparZona(donde, tid, true); $(donde).hidden = false; vigilarProcesos();
   try {
     for (;;) {
       await new Promise(ok => setTimeout(ok, 1500));
-      const t = await api("/api/trabajo");
-      const s = Math.round((Date.now() - desde) / 1000);
-      $(donde).textContent = `${antes}${t.activo ? (t.mensaje || "La IA está trabajando") : (t.mensaje || "")} · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-      $("tira").classList.toggle("escribiendo", !!t.activo && t.accion === "escribir" && t.id === cid);  // las láminas que va a llenar laten
-      pintarGemini(t.gemini);
-      if (!t.activo) { if (t.error) throw new Error(t.error === "Cancelado" ? "Se canceló." : t.error); return t; }
+      const t = await api("/api/trabajo?id=" + encodeURIComponent(tid));
+      if (ZONA_TRAB[donde][0] === tid) {
+        const s = t.empezo ? Math.max(0, Math.round(Date.now() / 1000 - t.empezo)) : 0;
+        $(donde).textContent = antes + (t.estado === "en cola" ? t.mensaje : t.activo ? `${t.mensaje || "La IA está trabajando"} · ${reloj(s)}` : t.mensaje || "");
+      }
+      if (t.estado === "corriendo") {
+        $("tira").classList.toggle("escribiendo", t.accion === "escribir" && t.pieza === cid);  // las láminas que va a llenar laten
+        pintarGemini(t.gemini);
+      }
+      if (!t.activo) { if (t.error) throw new Error(t.error === "Cancelado" ? "Se canceló." : t.error); return { ...t, trabajo: t.id, id: t.pieza }; }
     }
-  } finally { pintarGemini(null); ocuparZona(donde, false); $("tira").classList.remove("escribiendo"); }
+  } finally {
+    ESPERANDO.delete(tid); ocuparZona(donde, tid, false);
+    if (!ESPERANDO.size) { pintarGemini(null); $("tira").classList.remove("escribiendo"); }
+    vigilarProcesos();
+  }
 }
-["clCancelar", "crCancelar", "iniCancelar", "fotosCancelar", "revCancelar"].forEach(id => $(id).onclick = async () => {
-  if (id === "iniCancelar") escribiendoTodas = false;  // también para la fila: no sigue con las que faltan
-  try { await api("/api/cancelar", {}); } catch (e) { avisar(e.message, "err"); }
+const CANCELA_ZONA = Object.fromEntries(Object.entries(ZONAS_IA).map(([z, [, c]]) => [c, z]));
+Object.keys(CANCELA_ZONA).forEach(id => $(id).onclick = async () => {
+  // «Escribir las N»: se cancelan todas las suyas (la que corre y las que esperan)
+  const tids = id === "iniCancelar" && escribiendoTodas ? escribirTodas.tids || [] : [(ZONA_TRAB[CANCELA_ZONA[id]] || [])[0]];
+  if (id === "iniCancelar") escribiendoTodas = false;
+  for (const t of tids.filter(Boolean).reverse()) { try { await api("/api/cancelar", { id: t }); } catch (e) { avisar(e.message, "err"); } }
 });
+// ---------- la tuerca ⚙: los procesos de la IA ----------
+const ESTADO_PROC = { corriendo: "Corriendo", "en cola": "En la fila", listo: "Listo", error: "Falló", cancelado: "Cancelado" };
+let PROCESOS = [];
+async function vigilarProcesos() {
+  clearTimeout(vigilarProcesos.t);
+  try { PROCESOS = (await api("/api/trabajos")).trabajos || []; } catch (e) { /* sin servidor: se reintenta */ }
+  pintarProcesos();
+  const activos = PROCESOS.some(t => t.activo);
+  vigilarProcesos.t = setTimeout(vigilarProcesos, activos || !$("panelProcesos").hidden ? 2000 : 15000);
+}
+function pintarProcesos() {
+  const activos = PROCESOS.filter(t => t.activo), corriendo = activos.find(t => t.estado === "corriendo");
+  $("btnProcesos").classList.toggle("corriendo", !!corriendo);
+  $("procN").textContent = activos.length ? (activos.length === 1 ? "1 proceso" : `${activos.length} procesos`) : "Procesos";
+  $("btnProcesos").title = corriendo ? `Corriendo: ${corriendo.nombre}${corriendo.titulo ? " · " + corriendo.titulo : ""}${activos.length > 1 ? ` (y ${activos.length - 1} en la fila)` : ""}` : "Procesos de la IA: no hay nada corriendo";
+  if ($("panelProcesos").hidden) return;
+  const ahora = Date.now() / 1000, fila = activos.filter(t => t.estado === "en cola").reverse(), hechos = PROCESOS.filter(t => !t.activo);
+  const uno = (t, pos) => {
+    const s = Math.max(0, Math.round((t.termino || ahora) - (t.empezo || t.creado)));
+    const detalle = t.estado === "corriendo" ? `${t.mensaje || "Trabajando"} · ${reloj(s)}`
+      : t.estado === "en cola" ? `${pos === 1 ? "Va después del que corre" : `Lugar ${pos} en la fila`}`
+      : t.estado === "error" ? t.error : t.estado === "cancelado" ? "Se canceló" : `Tardó ${reloj(s)}${t.accion === "pedido" && t.resultado?.piezas ? ` · ${plural(t.resultado.piezas.length, "pieza creada", "piezas creadas")}` : ""}`;
+    const abrible = t.pieza || (t.accion === "pedido" && t.resultado?.piezas?.length);
+    return `<div class="proc ${t.estado.replace(" ", "-")}"><span class="punto" aria-hidden="true"></span>
+      <div><b>${esc(t.nombre)}</b>${t.titulo ? `<small>${esc(t.titulo)}</small>` : ""}<small>${esc(ESTADO_PROC[t.estado] || t.estado)} · ${esc(detalle || "")}</small>
+        <small>${esc(t.semana || "")} · pedido a las ${new Date(t.creado * 1000).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}</small></div>
+      <div class="acc">${t.activo ? `<button class="btn sec" type="button" data-proc-cancelar="${esc(t.id)}">${t.estado === "en cola" ? "Quitar de la fila" : "Cancelar"}</button>` : ""}
+        ${abrible ? `<button class="btn sec" type="button" data-proc-abrir="${esc(t.id)}">${t.accion === "revisar" && t.estado === "listo" ? "Ver propuesta" : "Abrir"}</button>` : ""}</div></div>`;
+  };
+  $("procLista").innerHTML = (corriendo ? `<p class="etq">Corriendo ahora</p>${uno(corriendo)}` : `<p class="muted" style="margin:12px 0 0">No hay nada corriendo.</p>`)
+    + (fila.length ? `<p class="etq">En la fila (${fila.length})</p>${fila.map((t, k) => uno(t, k + 1)).join("")}` : "")
+    + (hechos.length ? `<p class="etq">Terminados</p>${hechos.slice(0, 10).map(t => uno(t)).join("")}` : "");
+}
+$("btnProcesos").onclick = e => {
+  e.stopPropagation();
+  const abrir_ = $("panelProcesos").hidden;
+  $("panelProcesos").hidden = !abrir_; $("btnProcesos").setAttribute("aria-expanded", abrir_);
+  if (abrir_) vigilarProcesos();
+};
+document.addEventListener("click", e => { if (!$("panelProcesos").hidden && !e.target.closest(".procesos-ancla")) { $("panelProcesos").hidden = true; $("btnProcesos").setAttribute("aria-expanded", false); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("panelProcesos").hidden) { $("panelProcesos").hidden = true; $("btnProcesos").setAttribute("aria-expanded", false); $("btnProcesos").focus(); } });
+$("panelProcesos").addEventListener("click", async e => {
+  const c = e.target.closest("[data-proc-cancelar]"), a = e.target.closest("[data-proc-abrir]");
+  if (c) { c.disabled = true; try { await api("/api/cancelar", { id: c.dataset.procCancelar }); } catch (er) { avisar(er.message, "err"); } return vigilarProcesos(); }
+  if (!a) return;
+  const t = PROCESOS.find(x => x.id === a.dataset.procAbrir); if (!t) return;
+  const pid = t.pieza || t.resultado?.piezas?.[0];
+  try {
+    const p = (BIB?.piezas || []).find(x => x.id === pid) || lista.find(x => x.id === pid);
+    if (p?.rel && p.rel !== semana) { await api("/api/semana", { accion: "elegir", rel: p.rel }); await cargarLista(); }
+    await abrir(pid); irA("editor");
+    $("panelProcesos").hidden = true; $("btnProcesos").setAttribute("aria-expanded", false);
+    if (t.accion === "revisar" && t.estado === "listo") { $("cajaRevision").hidden = false; ponerPropuesta({ ...t, trabajo: t.id, id: t.pieza }); resaltar($("cajaRevision")); }
+  } catch (er) { avisar(er.message, "err"); }
+});
+// ↻: todo de nuevo desde Drive (lo que hicieron otras PCs, la marca, los briefs, los videos y los guiones)
+$("btnRefrescar").onclick = async () => {
+  const b = $("btnRefrescar"); b.classList.add("girando");
+  try {
+    await guardarAhora().catch(() => {});
+    await api("/api/refrescar", {});
+    BIB = null; VIDEOS = null; GUIONES = null;
+    await cargarLista();
+    if (cid && lista.some(p => p.id === cid)) { const a = actual; await abrir(cid); actual = Math.min(a, C.laminas.length - 1); pintar(); pintarTira(); }
+    irA(vista); vigilarProcesos();
+    avisar("Listo: todo cargado de nuevo desde Drive");
+  } catch (e) { avisar("No se pudo refrescar: " + e.message, "err"); }
+  b.classList.remove("girando");
+};
 // mientras se espera a Gemini: la caja con los pasos, en cualquier pestaña
 function pintarGemini(g) {
   $("geminiCaja").hidden = !g;
@@ -1581,10 +1720,12 @@ $("gmCopiar").onclick = async () => {
   catch (e) { avisar(e.message, "err"); }
 };
 $("gmAbrir").onclick = $("gmCopiar").onclick;
-$("gmCancelar").onclick = async () => { try { await api("/api/cancelar", {}); } catch (e) { avisar(e.message, "err"); } };
+$("gmCancelar").onclick = async () => { try { await api("/api/cancelar", {}); } catch (e) { avisar(e.message, "err"); } };  // sin número: el que corre (el de Gemini)
 // lo que hizo Claude va a su pieza: si es la abierta, en pantalla; si no (se cambió de pieza mientras esperaba), se guarda en la suya
 async function enSuPieza(t, fn) {
   if (!t.id || t.id === cid) { if (C) { cambio(() => fn(C)); pintarGuion(); } return; }
+  // la sala ya lo guardó en su pieza (escribir, rehacer): no se vuelve a guardar
+  if (t.resultado?.guardado) return avisar(`La IA terminó «${t.titulo || t.id}»: quedó guardado en su pieza`);
   const d = await api("/api/pieza?id=" + encodeURIComponent(t.id));
   fn(d.datos);
   await api("/api/pieza", { id: t.id, datos: d.datos });
@@ -1593,7 +1734,7 @@ async function enSuPieza(t, fn) {
 async function ponerEscrito(t) {
   if (t.accion !== "escribir" || !t.resultado?.laminas) return;
   await enSuPieza(t, p => {
-    p.guion = t.resultado;
+    const { guardado, ...guion } = t.resultado; p.guion = guion;
     if (p === C && !$("copy").value.trim()) { C.copy = t.resultado.copy || ""; $("copy").value = C.copy; }
     else if (p !== C && !(p.copy || "").trim()) p.copy = t.resultado.copy || "";
   });
@@ -1611,8 +1752,9 @@ async function escribirConClaude() {
     if ($("clNivel").value) C.nivel = $("clNivel").value;
     if ($("clEstilo").value) C.estilo = $("clEstilo").value;
     await api("/api/pieza", { id: cid, datos: limpio(C) });
-    await api("/api/claude", { accion: "escribir", id: cid, idea: $("clIdea").value });
-    await ponerEscrito(await esperarTrabajo());
+    const r = await api("/api/claude", { accion: "escribir", id: cid, idea: $("clIdea").value });
+    $("btnClaude").disabled = !C;  // ya está en la fila: se puede pedir otra pieza mientras tanto
+    await ponerEscrito(await esperarTrabajo("clEstado", "", r.trabajo));
   } catch (e) { avisar("IA: " + e.message, "err"); }
   $("btnClaude").disabled = !C;
 }
@@ -1629,8 +1771,8 @@ async function rehacerFoto(boton) {
   boton.disabled = true;
   try {
     await api("/api/pieza", { id: cid, datos: limpio(C) });
-    await api("/api/claude", { accion: "rehacer", id: cid, lamina: n, nota });
-    await ponerRehecho(await esperarTrabajo(), { lamina: n, nota, foto });
+    const r = await api("/api/claude", { accion: "rehacer", id: cid, lamina: n, nota, foto });
+    await ponerRehecho(await esperarTrabajo("clEstado", "", r.trabajo), { lamina: n, nota, foto });
   } catch (e) { avisar("IA: " + e.message, "err"); }
   finally { boton.disabled = false; }
 }
@@ -2152,9 +2294,49 @@ $("btnNuevo").onclick = async () => {
   try { const d = await api("/api/pieza_nueva", { titulo, tipo: $("nuevoTipo").value, dia: $("nuevoDia").value, formato: $("nuevoFormato").value }); $("nuevoTitulo").value = ""; await cargarLista(); await abrir(d.id); }
   catch (e) { avisar(e.message, "err"); }
 };
-$("selSemana").onchange = async e => {
-  try { await api("/api/semana", { accion: "elegir", rel: e.target.value }); await cargarLista(); await abrirPrimero(); }
+$("selSemana").onchange = $("iniSemana").onchange = async e => {
+  try { await api("/api/semana", { accion: "elegir", rel: e.target.value }); await cargarLista(); await abrirPrimero(); if (vista === "inicio") await pintarInicio(); }
   catch (er) { avisar(er.message, "err"); }
+};
+// «+ Nueva semana» (Inicio): esta, la próxima, en dos semanas u otra fecha, con su nombre. La sala la llama
+// «S04 · 26 OCT-1 NOV · PIEL SANA», como la estrategia; si la estrategia ya dejó su brief, trae sus piezas.
+const fechaIso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function semanaRapida(n) { const d = new Date(); d.setDate(d.getDate() + 7 * n); return fechaIso(d); }
+$("iniNuevaSemana").onclick = () => {
+  const abrir_ = $("iniFormSemana").hidden;
+  $("iniFormSemana").hidden = !abrir_; $("iniNuevaSemana").setAttribute("aria-expanded", abrir_);
+  if (abrir_) { if (!$("nsFecha").value) $("nsFecha").value = semanaRapida(1); nombreSemana(); $("nsTema").focus(); }
+};
+$("nsCerrar").onclick = () => { $("iniFormSemana").hidden = true; $("iniNuevaSemana").setAttribute("aria-expanded", false); };
+document.querySelectorAll("[data-semana]").forEach(b => b.onclick = () => { $("nsFecha").value = semanaRapida(+b.dataset.semana); nombreSemana(); });
+$("nsFecha").onchange = nombreSemana;
+$("nsTema").oninput = () => { clearTimeout(nombreSemana.t); nombreSemana.t = setTimeout(nombreSemana, 250); };
+async function nombreSemana() {
+  const f = $("nsFecha").value;
+  document.querySelectorAll("[data-semana]").forEach(b => b.setAttribute("aria-pressed", semanaRapida(+b.dataset.semana) === f));
+  if (!f) { $("nsNombre").textContent = "—"; $("nsNota").textContent = "Elige la semana"; return; }
+  const vez = nombreSemana.vez = (nombreSemana.vez || 0) + 1;  // si llega una respuesta vieja (se escribió más), se ignora
+  try {
+    const r = await api(`/api/semana_nombre?fecha=${encodeURIComponent(f)}&tema=${encodeURIComponent($("nsTema").value.trim())}`);
+    if (vez !== nombreSemana.vez) return;
+    if (!$("nsTema").value.trim() && r.tema_brief) $("nsTema").placeholder = r.tema_brief;
+    $("nsNombre").textContent = r.nombre;
+    $("nsNota").textContent = r.existe ? "Esa semana ya existe: se abre esa (con el nombre que ya tiene)."
+      : r.brief ? `La estrategia ya dejó su brief${r.tema_brief ? ` («${r.tema_brief}»)` : ""}: se crea con ${plural(r.piezas_brief, "pieza", "piezas")}, una por día.`
+      : "Se crea vacía: después pide sus piezas en ✦ Crear con IA.";
+    $("nsCrear").textContent = r.existe ? "Abrir esa semana" : "Crear semana";
+  } catch (e) { $("nsNota").textContent = e.message; }
+}
+$("nsCrear").onclick = async () => {
+  if (!$("nsFecha").value) return avisar("Elige la semana", "err");
+  $("nsCrear").disabled = true;
+  try {
+    const r = await api("/api/semana", { accion: "crear", fecha: $("nsFecha").value, tema: $("nsTema").value.trim() });
+    $("iniFormSemana").hidden = true; $("iniNuevaSemana").setAttribute("aria-expanded", false); $("nsTema").value = "";
+    await cargarLista(); await abrirPrimero(); await pintarInicio();
+    avisar(`Listo: ${r.semana.split("/")[1]}`);
+  } catch (e) { avisar("No se creó la semana: " + e.message, "err"); }
+  $("nsCrear").disabled = false;
 };
 // la fecha de hoy en esta PC (toISOString usa la hora universal: desde las 7 p. m. en Perú ya da la de mañana)
 const hoyLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -2518,7 +2700,7 @@ async function pintarInicio() {
     .map(([t, v]) => `<div class="cifra"><b>${v}</b><span class="muted">${t}</span></div>`).join("");
   // la franja: de dónde salieron las piezas (el brief de la estrategia) y el botón para escribir todas las que faltan
   const delBrief = deSemana.filter(p => p.origen === "brief").length, porEscribir = n("escribir");
-  const paraFotos = deSemana.filter(p => pasoDe(p) === "fotos" && p.faltan_con_prompt).length, ocupado = escribiendoTodas || generandoFotos;
+  const paraFotos = deSemana.filter(p => pasoDe(p) === "fotos" && p.faltan_con_prompt).length, ocupado = escribiendoTodas || !!(ZONA_TRAB.iniEstado || []).length;
   $("iniFranja").hidden = !delBrief && !porEscribir && !paraFotos && !ocupado;
   $("iniFranjaTexto").innerHTML = (delBrief ? `<b>La estrategia dejó ${plural(delBrief, "pieza", "piezas")} en el brief de la ${esc(semana.split("/")[1]?.split(" · ")[0] || "semana")}</b> y la sala las creó sola, una por día, con su tema, nivel y estilo. ` : "")
     + (porEscribir === 1 ? "Falta escribir 1: la IA le pone los textos y los prompts de Flow."
@@ -2531,7 +2713,7 @@ async function pintarInicio() {
     $("iniGenerarFotos").textContent = paraFotos === 1 ? "✦ Generar sus fotos con IA" : `✦ Generar las fotos de las ${paraFotos} con IA`;
     $("iniGenerarFotos").classList.toggle("sec", !!porEscribir);  // un solo botón azul: primero escribir, después fotos
   }
-  $("iniEscribirTodas").disabled = $("iniGenerarFotos").disabled = ocupado;
+  $("iniEscribirTodas").disabled = escribiendoTodas;  // las fotos se pueden pedir igual: esperan su turno en la fila
   $("iniDias").innerHTML = Object.keys(DIAS_C).map(d => `<div class="dia7"><h4>${DIAS_C[d]}</h4>${deSemana.filter(p => p.dia === d).map(p => ficha(p)).join("") || '<p class="muted" style="margin:0">—</p>'}</div>`).join("")
     + (deSemana.some(p => !p.dia) ? `<div class="dia7"><h4>Sin día</h4>${deSemana.filter(p => !p.dia).map(p => ficha(p)).join("")}</div>` : "");
   $("iniPedidos").innerHTML = historialPedidos(5);
@@ -2542,36 +2724,41 @@ let escribiendoTodas = false;
 async function escribirTodas() {
   const ids = (BIB?.piezas || []).filter(p => p.rel === semana && pasoDe(p) === "escribir").map(p => p.id);
   if (!ids.length || escribiendoTodas) return;
-  escribiendoTodas = true; $("iniEscribirTodas").disabled = $("iniGenerarFotos").disabled = true;
+  escribiendoTodas = true; $("iniEscribirTodas").disabled = true;
   let hechas = 0;
   try {
-    for (const [k, id] of ids.entries()) {
+    // todas a la fila de una vez: la sala las escribe una tras otra y cada guion queda guardado en su pieza
+    escribirTodas.tids = [];
+    for (const id of ids) escribirTodas.tids.push((await api("/api/claude", { accion: "escribir", id, idea: "" })).trabajo);
+    for (const [k, tid] of escribirTodas.tids.entries()) {
       if (!escribiendoTodas) break;  // tocaron «Cancelar»
-      await abrir(id);
-      await api("/api/claude", { accion: "escribir", id, idea: "" });
-      await ponerEscrito(await esperarTrabajo("iniEstado", `${k + 1} de ${ids.length} · ${C.titulo} · `));
-      await guardarAhora();
+      const t = await esperarTrabajo("iniEstado", `${k + 1} de ${ids.length} · `, tid);
       hechas++;
+      // sus textos van a las láminas y se guarda con su miniatura (si estás editando otra pieza, se ponen al abrirla)
+      if (t.id === cid) await ponerEscrito(t);
+      else if (vista !== "editor") { await abrir(t.id); await guardarAhora(); }
       await pintarInicio();
     }
     avisar(`Listo: ${plural(hechas, "pieza escrita", "piezas escritas")}. Ahora genera sus fotos en Flow con los prompts de cada lámina.`);
   } catch (e) { avisar(`IA: ${e.message}${hechas ? ` (${plural(hechas, "quedó escrita", "quedaron escritas")})` : ""}`, "err"); }
-  escribiendoTodas = false; $("iniEscribirTodas").disabled = $("iniGenerarFotos").disabled = false; $("iniEstado").hidden = true;
+  escribiendoTodas = false; $("iniEscribirTodas").disabled = false; $("iniEstado").hidden = true;
   await pintarInicio();
 }
 $("iniEscribirTodas").onclick = escribirTodas;
 // «✦ Generar fotos con IA»: la IA abre Google Flow con tu cuenta (Claude en tu Chrome, o Gemini en Antigravity), genera
 // las fotos que faltan con el prompt de cada lámina y la sala las pone en su lugar. Una pieza (editor) o varias (Inicio).
-let generandoFotos = false;
+let generandoFotos = 0, finFotos = Promise.resolve();
 async function generarFotos(ids, donde = "fotosEstado") {
-  if (generandoFotos || !ids.length) return;
-  generandoFotos = true; $("iniGenerarFotos").disabled = $("btnFotosIA").disabled = $("iniEscribirTodas").disabled = true;
+  if (!ids.length) return;
+  generandoFotos++;
   try {
     await guardarAhora();
-    await api("/api/claude", { accion: "fotos", ids });
-    await terminarFotos(await esperarTrabajo(donde), donde);
+    const r = await api("/api/claude", { accion: "fotos", ids });
+    const t = await esperarTrabajo(donde, "", r.trabajo);
+    // al terminar se abren las piezas para recortar las fotos sin fondo: de a una, aunque terminen dos pedidos juntos
+    await (finFotos = finFotos.catch(() => {}).then(() => terminarFotos(t, donde)));
   } catch (e) { $(donde).textContent = "No se pudo: " + e.message; avisar("IA: " + e.message, "err"); }
-  generandoFotos = false; $("iniGenerarFotos").disabled = $("btnFotosIA").disabled = $("iniEscribirTodas").disabled = false;
+  generandoFotos--;
   if (vista === "inicio") await pintarInicio();
   pintarGuia();
 }
@@ -2662,44 +2849,42 @@ $("crPedir").onclick = async () => {
   if (sel === "semana" && ESTADO.tiene_brief === false) return avisar("Esta semana no tiene brief: elige «Nada» o un video de la Sala de edición", "err");
   $("crPedir").disabled = true;
   try {
-    await api("/api/pedido", { texto, videos: sel === "semana", video: sel === "video" ? refVideo.ruta : "", disenos: disenosElegidos(), cuerpos });
-    await terminarPedido(await esperarTrabajo("crEstado"));
+    const r = await api("/api/pedido", { texto, videos: sel === "semana", video: sel === "video" ? refVideo.ruta : "", disenos: disenosElegidos(), cuerpos });
+    $("crPedir").disabled = false; $("crTexto").value = "";  // ya está en la fila: se puede pedir otra cosa mientras tanto
+    await terminarPedido(await esperarTrabajo("crEstado", "", r.trabajo));
   } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
   $("crPedir").disabled = false;
 };
 async function terminarPedido(t) {  // las piezas que creó Claude: se abre la primera en el editor
   const hechas = t.resultado?.piezas || [];
   BIB = null; await cargarLista();
-  $("crTexto").value = ""; $("crEstado").textContent = `Listo: ${plural(hechas.length, "pieza creada", "piezas creadas")}.`;
-  if (hechas[0]) { await abrir(hechas[0]); irA("editor"); }
+  $("crEstado").textContent = `Listo: ${plural(hechas.length, "pieza creada", "piezas creadas")}.`;
+  if (hechas[0] && vista === "crear") { await abrir(hechas[0]); irA("editor"); }  // si ya te fuiste a otra pestaña, no te saca de ahí
+  else if (vista === "inicio") await pintarInicio();
   avisar(`Listo: ${plural(hechas.length, "pieza creada", "piezas creadas")}. Genera sus fotos con los prompts de Flow.`);
 }
 // si se recarga la página mientras Claude trabaja, se sigue esperando y su resultado no se pierde
 async function retomarTrabajo() {
-  let t;
-  try { t = await api("/api/trabajo"); } catch (e) { return; }
-  if (!t.activo) return;
-  if (t.accion === "pedido") {
-    irA("crear"); $("crPedir").disabled = true; $("crEstado").textContent = t.mensaje || "La IA sigue trabajando en tu pedido…";
-    try { await terminarPedido(await esperarTrabajo("crEstado")); } catch (e) { $("crEstado").textContent = "No se pudo: " + e.message; }
-    $("crPedir").disabled = false;
-  } else if (t.accion === "revisar") {
-    $("cajaRevision").hidden = false;
-    try { ponerPropuesta(await esperarTrabajo("revEstado")); } catch (e) { $("revEstado").textContent = "No se pudo: " + e.message; }
-  } else if (t.accion === "fotos") {
-    avisar("La IA sigue generando las fotos que pediste antes de recargar. Espera, no se pierde.");
-    generandoFotos = true;
-    try { await terminarFotos(await esperarTrabajo("fotosEstado"), "fotosEstado"); } catch (e) { avisar("IA: " + e.message, "err"); }
-    generandoFotos = false; pintarGuia();
-  } else if (t.accion === "escribir" || t.accion === "rehacer") {
-    $("btnClaude").disabled = true; $("clEstado").textContent = t.mensaje || "La IA sigue escribiendo…";
-    avisar("La IA sigue trabajando en lo que pediste antes de recargar. Espera, no se pierde.");
-    try {
-      const fin = await esperarTrabajo();
+  let ts;
+  try { ts = ((await api("/api/trabajos")).trabajos || []).filter(t => t.activo).reverse(); } catch (e) { return; }  // del más viejo al más nuevo
+  vigilarProcesos();
+  if (!ts.length) return;
+  avisar(ts.length === 1 ? "La IA sigue con lo que pediste antes de recargar. Espera, no se pierde." : `La IA sigue con ${ts.length} trabajos que pediste antes de recargar (mira la tuerca ⚙). No se pierden.`);
+  ts.forEach(retomarUno);
+}
+async function retomarUno(t) {
+  try {
+    if (t.accion === "pedido") await terminarPedido(await esperarTrabajo("crEstado", "", t.id));
+    else if (t.accion === "revisar") { $("cajaRevision").hidden = false; ponerPropuesta(await esperarTrabajo("revEstado", "", t.id)); }
+    else if (t.accion === "fotos") {
+      generandoFotos++;
+      try { const fin = await esperarTrabajo("fotosEstado", "", t.id); await (finFotos = finFotos.catch(() => {}).then(() => terminarFotos(fin, "fotosEstado"))); }
+      finally { generandoFotos--; pintarGuia(); }
+    } else if (t.accion === "escribir" || t.accion === "rehacer") {
+      const fin = await esperarTrabajo("clEstado", "", t.id);
       if (fin.accion === "escribir") await ponerEscrito(fin); else await ponerRehecho(fin);
-    } catch (e) { avisar("IA: " + e.message, "err"); }
-    $("btnClaude").disabled = !C;
-  }
+    }
+  } catch (e) { avisar("IA: " + e.message, "err"); }
 }
 // Videos
 // la lista sale al instante (la última guardada); si es vieja, la sala pide la nueva a Drive por detrás y aquí se cambia sola
