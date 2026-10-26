@@ -726,6 +726,9 @@ const nombreBonito = k => NOMBRES[k] || k;
 
 // ---------- Estado ----------
 let lista = [], marca = [], C = null, cid = null, imgs = [], actual = 0, sel = null, historia = [], recortador = {};
+// la semana y la versión de la pieza abierta: cada guardado las manda, para no caer en otra semana ni pisar
+// lo que cambió por fuera (la IA, otra PC u otra ventana)
+let crel = "", crev = 0;
 const cache = new Map();
 function imagen(src) {
   const url = src.tipo === "marca" ? `/marca/${src.f.split("/").map(encodeURIComponent).join("/")}` : `/img?id=${encodeURIComponent(cid)}&f=${encodeURIComponent(src.f)}`;
@@ -771,7 +774,7 @@ const SIN_PIEZA = "Primero elige o crea una pieza";
 async function api(ruta, cuerpo) {
   const r = await fetch(ruta, cuerpo === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
   const d = await r.json();
-  if (d.ok === false) throw new Error(d.error || "Error");
+  if (d.ok === false) { const e = new Error(d.error || "Error"); e.datos = d; throw e; }
   return d;
 }
 
@@ -1089,25 +1092,54 @@ function limpio(obj) { return JSON.parse(JSON.stringify(obj, (k, v) => k.startsW
 function recordar() { historia.push(JSON.stringify(limpio(C))); if (historia.length > 60) historia.shift(); }
 function deshacer() {
   if (!historia.length) return;
-  C = JSON.parse(historia.pop()); actual = Math.min(actual, C.laminas.length - 1); sel = null;
+  const copy = $("copy").value;  // el copy no está en la historia: deshacer no lo vuelve atrás
+  C = JSON.parse(historia.pop()); C.copy = copy; actual = Math.min(actual, C.laminas.length - 1); sel = null;
   todo(); guardarLuego();
 }
-let tGuardar, pendiente = false;
+let tGuardar, pendiente = false, cambios = 0, colaGuardar = Promise.resolve();
 function guardarLuego() {
   $("guardado").textContent = "Guardando…";
-  clearTimeout(tGuardar); pendiente = true;
+  clearTimeout(tGuardar); pendiente = true; cambios++;
   tGuardar = setTimeout(async () => {
-    pendiente = false;
-    try { C.copy = $("copy").value; await api("/api/pieza", { id: cid, datos: limpio(C) }); $("guardado").textContent = "Guardado"; guardarMiniatura(); }
-    catch (e) { $("guardado").textContent = ""; avisar("No se guardó: " + e.message, "err"); }
+    const hasta = cambios;
+    try { await guardarPieza(true); if (cambios === hasta) pendiente = false; $("guardado").textContent = pendiente ? "Guardando…" : "Guardado"; guardarMiniatura(); }
+    catch (e) { $("guardado").textContent = "Sin guardar"; avisar("No se guardó: " + e.message, "err"); }  // sigue pendiente: se reintenta
   }, 600);
 }
-// guarda ya lo que falta guardar (antes de cambiar de pieza: si no, el guardado de la anterior caería en la nueva)
-async function guardarAhora() {
-  if (!C || !pendiente) return;
-  clearTimeout(tGuardar); pendiente = false;
+// los guardados van en fila (dos a la vez se pisaban) y cada uno con la semana y la versión de la pieza
+function enviarPieza(forzar) {
+  const id = cid, rel = crel;
   C.copy = $("copy").value;
-  await api("/api/pieza", { id: cid, datos: limpio(C) }); $("guardado").textContent = "Guardado";
+  const datos = limpio(C);
+  colaGuardar = colaGuardar.catch(() => {}).then(async () => {
+    const r = await api("/api/pieza", { id, rel, rev: crev, forzar: !!forzar, datos });
+    if (id === cid) crev = r.rev;
+  });
+  return colaGuardar;
+}
+// si la pieza cambió por fuera desde que se abrió, se pregunta antes de pisar nada.
+// recargar: con «Cargar la de afuera» se vuelve a abrir (no hace falta si de todos modos se abre otra)
+async function guardarPieza(recargar) {
+  try { return await enviarPieza(); }
+  catch (e) {
+    if (!e.datos?.choque) throw e;
+    const quien = e.datos.por ? ` (la guardó ${e.datos.por}${e.datos.actualizado ? " a las " + e.datos.actualizado.slice(11) : ""})` : "";
+    const mia = await preguntar(`Esta pieza cambió por fuera mientras la editabas${quien}: puede ser la IA (fotos o textos) u otra PC. ¿Cuál queda?`,
+      "Dejar la mía encima", "Cargar la de afuera");
+    if (mia) return enviarPieza(true);
+    clearTimeout(tGuardar); pendiente = false; cambios++;
+    if (recargar && cid) { const a = actual; await abrir(cid, true); actual = Math.min(a, C.laminas.length - 1); pintar(); pintarTira(); }
+    avisar("Se cargó la versión de afuera: tus últimos cambios no se guardaron");
+  }
+}
+// guarda ya lo que falta guardar (antes de cambiar de pieza o de semana: si no, caería en la otra)
+async function guardarAhora(recargar = true) {
+  if (!C || !pendiente) return;
+  clearTimeout(tGuardar);
+  const hasta = cambios;
+  await guardarPieza(recargar);
+  if (cambios === hasta) pendiente = false;
+  $("guardado").textContent = "Guardado";
   clearTimeout(tMini); await hacerMiniatura();
 }
 let tMini;
@@ -1120,8 +1152,22 @@ async function hacerMiniatura() {  // la lámina 1 en chico, para la biblioteca 
     const cv = document.createElement("canvas"); cv.width = 360; cv.height = Math.round(360 * H / W);
     const cx = cv.getContext("2d"); cx.scale(360 / W, 360 / W); dibujarLamina(cx, pieza.laminas[0], false);
     const b = await new Promise(ok => cv.toBlob(ok, "image/png"));
-    await fetch(`/api/miniatura?id=${encodeURIComponent(id)}&rel=${encodeURIComponent(semana)}`, { method: "POST", body: b });
+    await fetch(`/api/miniatura?id=${encodeURIComponent(id)}&rel=${encodeURIComponent(crel || semana)}`, { method: "POST", body: b });
   } catch (e) {}
+}
+// el guion de la IA va por posición (lámina i ↔ guion.laminas[i]: prompt de Flow, diseño, textos). Al agregar, duplicar,
+// borrar o mover láminas, el guion se mueve igual; si no, los prompts y las fotos de la IA caían en la lámina equivocada
+const GUION_VACIO = () => ({ rol: "", titulo: "", texto: "", flow: "" });
+function guionAl(n) {
+  const g = C.guion?.laminas;
+  if (!g?.length) return null;
+  while (g.length < n) g.push(GUION_VACIO());
+  return g;
+}
+function moverLamina(de, a) {
+  const g = guionAl(C.laminas.length);
+  const [l] = C.laminas.splice(de, 1); C.laminas.splice(a, 0, l);
+  if (g) { const [x] = g.splice(de, 1); g.splice(a, 0, x); }
 }
 function cambio(fn, sinHistoria) { if (!sinHistoria) recordar(); fn(); pintar(); pintarTira(); pintarGuia(); guardarLuego(); }
 function todo() {
@@ -1547,14 +1593,22 @@ async function abrirPrimero() {
   const id = lista.find(c => c.id === guardado)?.id || lista[0]?.id;
   if (id) await abrir(id); else { C = null; cid = null; imgs = []; todo(); }
 }
-async function abrir(id) {
-  await guardarAhora().catch(e => avisar("No se guardó: " + e.message, "err"));
+async function abrir(id, sinGuardar) {
+  if (!sinGuardar) {
+    try { await guardarAhora(false); }
+    catch (e) {
+      if (!await preguntar(`No se pudo guardar lo último de «${C?.titulo || cid}»: ${e.message}. Si abres otra pieza, esos cambios se pierden.`, "Abrir igual", "Quedarme"))
+        throw new Error("Te quedaste en la pieza para no perder cambios");
+      clearTimeout(tGuardar); pendiente = false;
+    }
+  }
   const d = await api("/api/pieza?id=" + encodeURIComponent(id));
   cid = id; C = d.datos; imgs = d.imagenes; actual = 0; sel = null; historia = [];
+  crel = semana; crev = C.rev || 0; pendiente = false; clearTimeout(tGuardar); $("guardado").textContent = "";
   [W, H] = (ESTADO.formatos || {})[C.formato || "4:5"] || [1080, 1350];
   $("lienzo").width = W; $("lienzo").height = H; $("lienzo").style.aspectRatio = `${W}/${H}`; ajustarLienzo();
   C.laminas.forEach(l => { if (!l.fondo.color) l.fondo.color = PALETA[1] || "#FFFFFF"; });
-  $("avisoEditando").innerHTML = d.editando ? `<div class="editando">⚠ ${esc(d.editando.quien)} la abrió a las ${esc(d.editando.hora)}. Si los dos guardan, queda lo último.</div>` : "";
+  $("avisoEditando").innerHTML = d.editando ? `<div class="editando">⚠ ${esc(d.editando.quien)} la abrió a las ${esc(d.editando.hora)}. Si los dos la cambian, la sala avisa antes de pisar nada.</div>` : "";
   try { localStorage.setItem("pieza_abierta", id); } catch (e) {}
   todo();
   if (C.guion?.laminas?.length && C.laminas.every(l => !l.capas.length)) aplicarGuion();
@@ -1681,7 +1735,7 @@ $("panelProcesos").addEventListener("click", async e => {
   const pid = t.pieza || t.resultado?.piezas?.[0];
   try {
     const p = (BIB?.piezas || []).find(x => x.id === pid) || lista.find(x => x.id === pid);
-    if (p?.rel && p.rel !== semana) { await api("/api/semana", { accion: "elegir", rel: p.rel }); await cargarLista(); }
+    if (p?.rel && p.rel !== semana) { await guardarAhora(); await api("/api/semana", { accion: "elegir", rel: p.rel }); await cargarLista(); }
     await abrir(pid); irA("editor");
     $("panelProcesos").hidden = true; $("btnProcesos").setAttribute("aria-expanded", false);
     if (t.accion === "revisar" && t.estado === "listo") { $("cajaRevision").hidden = false; ponerPropuesta({ ...t, trabajo: t.id, id: t.pieza }); resaltar($("cajaRevision")); }
@@ -1723,7 +1777,11 @@ $("gmAbrir").onclick = $("gmCopiar").onclick;
 $("gmCancelar").onclick = async () => { try { await api("/api/cancelar", {}); } catch (e) { avisar(e.message, "err"); } };  // sin número: el que corre (el de Gemini)
 // lo que hizo Claude va a su pieza: si es la abierta, en pantalla; si no (se cambió de pieza mientras esperaba), se guarda en la suya
 async function enSuPieza(t, fn) {
-  if (!t.id || t.id === cid) { if (C) { cambio(() => fn(C)); pintarGuion(); } return; }
+  if (!t.id || t.id === cid) {
+    if (!C) return;
+    if (t.resultado?.guardado) { try { crev = (await api("/api/pieza?id=" + encodeURIComponent(cid))).datos.rev || crev; } catch (e) {} }
+    cambio(() => fn(C)); pintarGuion(); return;
+  }
   // la sala ya lo guardó en su pieza (escribir, rehacer): no se vuelve a guardar
   if (t.resultado?.guardado) return avisar(`La IA terminó «${t.titulo || t.id}»: quedó guardado en su pieza`);
   const d = await api("/api/pieza?id=" + encodeURIComponent(t.id));
@@ -1751,7 +1809,7 @@ async function escribirConClaude() {
   try {
     if ($("clNivel").value) C.nivel = $("clNivel").value;
     if ($("clEstilo").value) C.estilo = $("clEstilo").value;
-    await api("/api/pieza", { id: cid, datos: limpio(C) });
+    pendiente = true; await guardarAhora();
     const r = await api("/api/claude", { accion: "escribir", id: cid, idea: $("clIdea").value });
     $("btnClaude").disabled = !C;  // ya está en la fila: se puede pedir otra pieza mientras tanto
     await ponerEscrito(await esperarTrabajo("clEstado", "", r.trabajo));
@@ -1770,7 +1828,7 @@ async function rehacerFoto(boton) {
   const capa = L().capas.find(x => x.id === sel), foto = capa?.src?.f || L().fondo.src?.f || "";
   boton.disabled = true;
   try {
-    await api("/api/pieza", { id: cid, datos: limpio(C) });
+    pendiente = true; await guardarAhora();
     const r = await api("/api/claude", { accion: "rehacer", id: cid, lamina: n, nota, foto });
     await ponerRehecho(await esperarTrabajo("clEstado", "", r.trabajo), { lamina: n, nota, foto });
   } catch (e) { avisar("IA: " + e.message, "err"); }
@@ -2156,7 +2214,8 @@ document.addEventListener("keydown", e => {  // Escape cierra los menús de gara
   $("listaGarabatos").hidden = $("listaFormas").hidden = true; $(abierto).focus();
 });
 document.addEventListener("keydown", e => {
-  if (!C || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  if (!C || vista !== "editor" || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable
+    || document.querySelector("dialog[open]") || e.target.closest?.("#pestanas, .procesos-ancla")) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); return deshacer(); }
   const c = L().capas.find(x => x.id === sel);
   if (!c) return;
@@ -2249,16 +2308,18 @@ document.addEventListener("click", async e => {
     try { await navigator.clipboard.writeText(todos); avisar("Prompts copiados (uno por lámina): pégalos en Google Flow"); } catch (er) { avisar("No pude copiarlos", "err"); }
     return;
   }
-  if (t.id === "btnLamina") { cambio(() => C.laminas.push({ fondo: { tipo: "color", color: L().fondo.color || PALETA[1] }, capas: [] })); actual = C.laminas.length - 1; sel = null; return todo(); }
-  if (t.id === "btnDuplicarL") { cambio(() => { const d = limpio(L()); d.capas.forEach(c => c.id = nuevoId()); C.laminas.splice(actual + 1, 0, d); }); actual++; return todo(); }
+  if (t.id === "btnLamina") { cambio(() => { guionAl(C.laminas.length)?.splice(C.laminas.length, 0, GUION_VACIO()); C.laminas.push({ fondo: { tipo: "color", color: L().fondo.color || PALETA[1] }, capas: [] }); }); actual = C.laminas.length - 1; sel = null; return todo(); }
+  if (t.id === "btnDuplicarL") { cambio(() => { const d = limpio(L()); d.capas.forEach(c => c.id = nuevoId());
+    const g = guionAl(C.laminas.length); if (g) { const { flow, notas, ...copia } = g[actual]; g.splice(actual + 1, 0, { ...copia, flow: "" }); }  // la copia usa las mismas fotos: no pide otra
+    C.laminas.splice(actual + 1, 0, d); }); actual++; return todo(); }
   if (t.id === "btnBorrarL") {
     if (C.laminas.length < 2) return avisar("La pieza necesita al menos una lámina", "err");
     const n = actual;
     if (!await preguntar(`¿Borrar la lámina ${n + 1}?`, "Borrar")) return;
-    cambio(() => C.laminas.splice(n, 1)); actual = Math.max(0, n - 1); sel = null; return todo();
+    cambio(() => { guionAl(C.laminas.length)?.splice(n, 1); C.laminas.splice(n, 1); }); actual = Math.max(0, n - 1); sel = null; return todo();
   }
-  if (t.id === "btnMoverI" && actual > 0) { cambio(() => { const [l] = C.laminas.splice(actual, 1); C.laminas.splice(actual - 1, 0, l); }); actual--; return todo(); }
-  if (t.id === "btnMoverD" && actual < C.laminas.length - 1) { cambio(() => { const [l] = C.laminas.splice(actual, 1); C.laminas.splice(actual + 1, 0, l); }); actual++; return todo(); }
+  if (t.id === "btnMoverI" && actual > 0) { cambio(() => moverLamina(actual, actual - 1)); actual--; return todo(); }
+  if (t.id === "btnMoverD" && actual < C.laminas.length - 1) { cambio(() => moverLamina(actual, actual + 1)); actual++; return todo(); }
 });
 document.addEventListener("input", e => {
   const t = e.target; if (!C) return;
@@ -2295,7 +2356,7 @@ $("btnNuevo").onclick = async () => {
   catch (e) { avisar(e.message, "err"); }
 };
 $("selSemana").onchange = $("iniSemana").onchange = async e => {
-  try { await api("/api/semana", { accion: "elegir", rel: e.target.value }); await cargarLista(); await abrirPrimero(); if (vista === "inicio") await pintarInicio(); }
+  try { await guardarAhora(); await api("/api/semana", { accion: "elegir", rel: e.target.value }); await cargarLista(); await abrirPrimero(); if (vista === "inicio") await pintarInicio(); }
   catch (er) { avisar(er.message, "err"); }
 };
 // «+ Nueva semana» (Inicio): esta, la próxima, en dos semanas u otra fecha, con su nombre. La sala la llama
@@ -2331,6 +2392,7 @@ $("nsCrear").onclick = async () => {
   if (!$("nsFecha").value) return avisar("Elige la semana", "err");
   $("nsCrear").disabled = true;
   try {
+    await guardarAhora();
     const r = await api("/api/semana", { accion: "crear", fecha: $("nsFecha").value, tema: $("nsTema").value.trim() });
     $("iniFormSemana").hidden = true; $("iniNuevaSemana").setAttribute("aria-expanded", false); $("nsTema").value = "";
     await cargarLista(); await abrirPrimero(); await pintarInicio();
@@ -2347,6 +2409,7 @@ $("btnCrearSemana").onclick = async () => {
     let plan = null, tema = $("semTema").value.trim();
     const f = $("semBrief").files[0];
     if (f) { const b = JSON.parse(await f.text()); plan = b.carruseles || null; }
+    await guardarAhora();
     await api("/api/semana", { accion: "crear", fecha: $("semFecha").value, tema, plan });
     $("formSemana").hidden = true; await cargarLista(); await abrirPrimero();
     avisar(plan ? `Semana creada con ${plural(plan.length, "pieza", "piezas")} del brief` : "Semana creada (si la estrategia dejó el brief en _SEMANAS, ya trae sus piezas)");
@@ -2359,11 +2422,11 @@ function marcarMini(m) {
   document.querySelectorAll(".mini.encima").forEach(x => { if (x !== m) x.classList.remove("encima"); });
   m?.classList.add("encima");
 }
-["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); zona.classList.add("encima"); marcarMini(e.target.closest?.(".mini[data-lam]")); }));
+["dragenter", "dragover"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (vista !== "editor") return; zona.classList.add("encima"); marcarMini(e.target.closest?.(".mini[data-lam]")); }));
 ["dragleave", "drop"].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || !e.relatedTarget) { zona.classList.remove("encima"); marcarMini(null); } }));
 document.addEventListener("drop", e => {
   const fs = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith("image/"));
-  if (!fs.length) return;
+  if (!fs.length || vista !== "editor" || !C) return;
   const m = e.target.closest?.(".mini[data-lam]");
   if (m) return subirALamina(fs[0], +m.dataset.lam);
   subirFotos(fs);
@@ -2572,7 +2635,12 @@ $("btnActualizar").onclick = async () => {
 };
 const latir = () => fetch("/api/latido").catch(() => {});
 setInterval(latir, 60000); latir();
-addEventListener("pagehide", () => navigator.sendBeacon("/api/adios"));
+addEventListener("pagehide", () => {
+  if (C && pendiente) {  // los últimos 600 ms sin guardar: se mandan igual (el servidor los sube a Drive al cerrar)
+    try { C.copy = $("copy").value; navigator.sendBeacon("/api/pieza", new Blob([JSON.stringify({ id: cid, rel: crel, rev: crev, datos: limpio(C) })], { type: "application/json" })); } catch (e) {}
+  }
+  navigator.sendBeacon("/api/adios");
+});
 // el alto de la cabecera y de las pestañas se mide siempre (cambian con el tamaño de la ventana y con el menú de la cuenta)
 const medirAltos = () => {
   document.documentElement.style.setProperty("--alto-cabeza", ($("cabeza").offsetHeight + 1) + "px");
@@ -2641,7 +2709,7 @@ function ficha(p) {
 // paso: «escribir» abre y pone a la IA a escribir; «fotos» y «exportar» abren e iluminan su caja
 async function abrirDesdeFicha(rel, id, paso) {
   try {
-    if (rel !== semana) { await api("/api/semana", { accion: "elegir", rel }); await cargarLista(); }
+    if (rel !== semana) { await guardarAhora(); await api("/api/semana", { accion: "elegir", rel }); await cargarLista(); }
     await abrir(id); irA("editor");
     if (paso === "escribir") { resaltar($("cajaIA")); escribirConClaude(); }
     else if (paso === "generar") { resaltar($("cajaFotos")); generarFotos([id]); }
@@ -2955,7 +3023,7 @@ const IM_TIPOS = n => /\.(png|webp|jpe?g)$/i.test(n) ? [["logos", "Logo"], ["pro
 async function subirCrudo(ruta, archivo) {
   const r = await fetch(ruta, { method: "POST", body: archivo });
   const d = await r.json();
-  if (d.ok === false) throw new Error(d.error || "Error");
+  if (d.ok === false) { const e = new Error(d.error || "Error"); e.datos = d; throw e; }
   return d;
 }
 $("mkPlantilla").onclick = async () => {
@@ -3062,7 +3130,7 @@ async function leerEntrada(entrada, base, out) {
 ["dragenter", "dragover"].forEach(t => $("mkSoltar").addEventListener(t, e => { e.preventDefault(); $("mkSoltar").classList.add("encima"); }));
 $("mkSoltar").addEventListener("dragleave", () => $("mkSoltar").classList.remove("encima"));
 $("mkSoltar").addEventListener("drop", async e => {
-  e.preventDefault(); $("mkSoltar").classList.remove("encima");
+  e.preventDefault(); e.stopPropagation(); $("mkSoltar").classList.remove("encima");
   const entradas = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean), out = [];
   if (entradas.length) { for (const en of entradas) await leerEntrada(en, "", out); }
   else [...e.dataTransfer.files].forEach(f => out.push({ file: f, ruta: f.name }));

@@ -156,31 +156,31 @@ def hay_trabajo():
     return any(t["activo"] for t in TRABAJOS)
 
 
-def escribir_y_guardar(pid, idea, avance):
+def escribir_y_guardar(pid, idea, avance, rel=None):
     """La IA escribe la pieza y el guion queda guardado en ella aunque la página ya no esté esperando
-    (al abrir la pieza, sus textos van a las láminas vacías)."""
-    pieza, _ = piezas.leer(pid)
+    (al abrir la pieza, sus textos van a las láminas vacías). rel: la semana donde se pidió."""
+    pieza, _ = piezas.leer(pid, rel)
     r = asistente.escribir_pieza(pieza, idea, marca.datos(), avance)
-    pieza, _ = piezas.leer(pid)  # la de ahora: pudo cambiar mientras la IA escribía
+    pieza, _ = piezas.leer(pid, rel)  # la de ahora: pudo cambiar mientras la IA escribía
     pieza["guion"] = r
     if not (pieza.get("copy") or "").strip():
         pieza["copy"] = r.get("copy", "")
-    piezas.guardar(pid, pieza)
-    piezas.subir(pid)
+    piezas.guardar(pid, pieza, rel)
+    piezas.subir(pid, rel)
     return {**r, "guardado": True}
 
 
-def rehacer_y_guardar(pid, n, nota, foto, avance):
+def rehacer_y_guardar(pid, n, nota, foto, avance, rel=None):
     """El prompt nuevo de Flow va a su lámina, con la nota del equipo, aunque la página ya no esté esperando."""
-    r = asistente.rehacer_foto(piezas.leer(pid)[0], n, nota, marca.datos(), avance)
-    pieza, _ = piezas.leer(pid)
+    r = asistente.rehacer_foto(piezas.leer(pid, rel)[0], n, nota, marca.datos(), avance)
+    pieza, _ = piezas.leer(pid, rel)
     g = pieza.setdefault("guion", {"laminas": [], "copy": pieza.get("copy", "")})
     while len(g["laminas"]) <= n:
         g["laminas"].append({"rol": "", "titulo": "", "texto": "", "flow": ""})
     g["laminas"][n]["flow"] = r.get("flow", "")
     g["laminas"][n].setdefault("notas", []).append({"fecha": time.strftime("%d/%m/%y %H:%M"), "quien": piezas.quien(), "nota": nota, "foto": foto})
-    piezas.guardar(pid, pieza)
-    piezas.subir(pid)
+    piezas.guardar(pid, pieza, rel)
+    piezas.subir(pid, rel)
     return {**r, "guardado": True}
 
 
@@ -246,6 +246,7 @@ def al_cerrar_ventana():
         while hay_trabajo():
             time.sleep(2)
         if LATIDO["ultimo"] <= marca_t:
+            piezas.subir_pendientes()  # lo editado a mano que aún no subió
             os._exit(0)
     threading.Thread(target=esperar, daemon=True).start()
 
@@ -415,9 +416,16 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": True, "id": pid, "datos": datos})
             elif u.path == "/api/pieza":
                 b = self._cuerpo()
-                datos = piezas.guardar(b["id"], b["datos"])
-                piezas.marcar_editando(b["id"])
-                self._json({"ok": True, "datos": datos})
+                rel = b.get("rel") or None
+                try:
+                    datos = piezas.guardar(b["id"], b["datos"], rel=rel, rev=None if b.get("forzar") else b.get("rev"), de_la_pagina=True)
+                except piezas.Choque as ch:  # la página pregunta: cargar la de afuera o dejar la suya encima
+                    return self._json({"ok": False, "choque": True, "error": str(ch), "por": ch.datos.get("por", ""),
+                                       "actualizado": ch.datos.get("actualizado", "")}, 409)
+                if not rel or rel == piezas.semana_actual():
+                    piezas.marcar_editando(b["id"])
+                piezas.subir_luego(b["id"], rel)
+                self._json({"ok": True, "rev": datos["rev"]})
             elif u.path == "/api/imagen":  # cuerpo: la foto tal cual (?id=&nombre=)
                 archivo = piezas.guardar_imagen(q["id"][0], q["nombre"][0], self._crudo(40 * 1024 * 1024))
                 piezas.subir(q["id"][0])
@@ -447,13 +455,13 @@ class H(BaseHTTPRequestHandler):
                     return self._json({"ok": True, "abierto": gemini.abrir(), "copiado": gemini.copiar_mensaje()})
                 elif b.get("accion") == "escribir":  # la pieza se lee cuando le toca (puede esperar en la fila)
                     pid, idea = b["id"], str(b.get("idea", ""))[:2000]
-                    tid = lanzar("escribir", lambda av: escribir_y_guardar(pid, idea, av), pid=pid)
+                    tid = lanzar("escribir", lambda av, rel=piezas.semana_actual(): escribir_y_guardar(pid, idea, av, rel), pid=pid)
                 elif b.get("accion") == "rehacer":  # la nota del equipo sobre una foto -> el prompt de Flow nuevo de esa lámina
                     nota = str(b.get("nota", "")).strip()[:1000]
                     if len(nota) < 3:
                         raise ValueError("Escribe qué hay que cambiar en la foto")
                     pid, n, foto = b["id"], int(b.get("lamina", 0)), str(b.get("foto", ""))[:200]
-                    tid = lanzar("rehacer", lambda av: rehacer_y_guardar(pid, n, nota, foto, av), pid=pid, lamina=n, nota=nota)
+                    tid = lanzar("rehacer", lambda av, rel=piezas.semana_actual(): rehacer_y_guardar(pid, n, nota, foto, av, rel), pid=pid, lamina=n, nota=nota)
                 elif b.get("accion") == "revisar":  # «✦ Revisar con ojo de IA»: la IA mira las láminas armadas y propone cambios
                     pid = b["id"]
                     imagenes = guardar_revision(pid, b.get("laminas") or [])

@@ -1,3 +1,11 @@
+Versión 0.18.1: el editor ya no pierde ni mezcla lo que haces
+- Si cambias de semana justo después de editar, lo último se guarda en la semana de la pieza (antes caía en la otra y creaba una pieza fantasma).
+- «Deshacer» ya no borra el copy que escribiste.
+- Al agregar, duplicar, borrar o mover láminas, los prompts de Flow, los diseños y los textos de la IA se mueven con ellas: «Generar fotos con IA» y «↻ Otro» ya no usan los de otra lámina.
+- Si un guardado falla, la pieza sigue «Sin guardar» y se reintenta; antes de abrir otra pieza, la sala pregunta si quieres perder esos cambios.
+- Si la pieza cambió por fuera mientras la editabas (la IA puso fotos, u otra PC la guardó), la sala pregunta cuál queda en vez de pisarla sin avisar.
+- Lo que editas a mano se sube solo a Drive unos 20 segundos después del último cambio (antes solo subía al exportar) y lo que falte, al cerrar la sala. Lo último antes de cerrar o recargar ya no se pierde.
+- Las flechas, Supr y Ctrl+Z solo actúan en el Editor (antes movían o borraban la capa elegida desde Inicio o Biblioteca). Las fotos que sueltas en «Importar marca» ya no se suben también a la pieza abierta.
 Versión 0.18.0:
 - **Los trabajos de la IA ya no se chocan.** Antes, si pedías algo mientras la IA trabajaba, salía «Ya hay un trabajo en curso», un pedido podía recibir el resultado de otro y «Cancelar» cortaba lo que estuviera corriendo. Ahora cada pedido (escribir, generar fotos, revisar, crear con IA) tiene su número y **espera su turno en una fila**: corren de a uno porque todos usan la misma IA, el mismo Chrome para Flow y la misma semana. Puedes pedir varios seguidos y cada caja dice «En la fila: va después de…».
 - **La tuerca ⚙ (arriba a la derecha)**: dice cuántos procesos hay y gira mientras uno corre. Al tocarla se ven el que corre ahora (qué hace y hace cuánto), los que esperan en la fila (con «Quitar de la fila») y los últimos terminados (cuánto tardaron, si fallaron y por qué, con «Abrir» o «Ver propuesta»).

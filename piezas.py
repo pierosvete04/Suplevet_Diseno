@@ -15,6 +15,7 @@ import datetime as dt
 import os
 import json
 import re
+import threading
 import time
 from pathlib import Path
 
@@ -183,9 +184,9 @@ def carpeta(pid, rel=None):
     return semana_dir(rel) / _id_seguro(pid)
 
 
-def rel_drive(pid=None):
-    """Ruta dentro de Drive de la semana actual (o de una pieza), para subirla."""
-    rel = f"{CARPETA}/{semana_actual()}"
+def rel_drive(pid=None, rel=None):
+    """Ruta dentro de Drive de la semana actual o de rel (o de una pieza), para subirla."""
+    rel = f"{CARPETA}/{_rel_seguro(rel) if rel else semana_actual()}"
     return f"{rel}/{pid}" if pid else rel
 
 
@@ -215,8 +216,8 @@ def _editando(c):
     return e if e.get("quien") != quien() and time.time() - e.get("t", 0) < 600 else None
 
 
-def leer(pid):
-    c = carpeta(pid)
+def leer(pid, rel=None):
+    c = carpeta(pid, rel)
     p = json.loads((c / "pieza.json").read_text(encoding="utf-8"))
     return p, _editando(c)
 
@@ -236,19 +237,35 @@ def _con_semana(datos, c):
     return datos
 
 
-def guardar(pid, datos):
-    c = carpeta(pid)
-    _con_semana(datos, c)
-    try:  # con qué video va el post: la pantalla no lo manda de vuelta, que no se pierda al guardar
+class Choque(Exception):
+    """La pieza cambió por fuera (la IA, otra PC u otra ventana) desde que la página la abrió."""
+    def __init__(self, datos):
+        super().__init__("La pieza cambió por fuera desde que la abriste")
+        self.datos = datos
+
+
+def guardar(pid, datos, rel=None, rev=None, de_la_pagina=False):
+    """rel: la semana donde está la pieza (la página manda la suya: si se cambió de semana, no cae en la otra).
+    rev: el número de versión que tenía la página; si en el disco hay otro, es un Choque. Cada guardado sube rev en 1."""
+    c = carpeta(pid, rel)
+    antes = None
+    try:
         antes = json.loads((c / "pieza.json").read_text(encoding="utf-8"))
-        if antes.get("video") and not datos.get("video"):
-            datos["video"] = antes["video"]
-    except (FileNotFoundError, ValueError):
+    except FileNotFoundError:
+        if de_la_pagina:  # la página nunca crea piezas: si no está, se cambió de semana o se borró
+            raise ValueError("Esa pieza ya no está en su semana: vuelve a abrirla") from None
+    except ValueError:
         pass
+    if rev is not None and antes is not None and int(antes.get("rev") or 0) != int(rev):
+        raise Choque(antes)
+    _con_semana(datos, c)
+    if antes and antes.get("video") and not datos.get("video"):  # con qué video va el post: la pantalla no lo manda de vuelta
+        datos["video"] = antes["video"]
+    datos["rev"] = int((antes or {}).get("rev") or 0) + 1
     c.mkdir(parents=True, exist_ok=True)
     datos["actualizado"] = time.strftime("%Y-%m-%d %H:%M")
     datos["por"] = quien()
-    tmp = c / "pieza.json.tmp"
+    tmp = c / f"pieza.json.{threading.get_ident()}.tmp"  # dos guardados a la vez no comparten el mismo tmp
     tmp.write_text(json.dumps(datos, ensure_ascii=False, indent=1), encoding="utf-8")
     tmp.replace(c / "pieza.json")
     return datos
@@ -476,8 +493,38 @@ def sincronizar(forzar=False, esperar=False):
         conexion.en_segundo_plano(tarea)
 
 
-def subir(pid=None):
-    conexion.en_segundo_plano(conexion.subir, rel_drive(pid))
+def subir(pid=None, rel=None):
+    conexion.en_segundo_plano(conexion.subir, rel_drive(pid, rel))
+
+
+_SUBIR_LUEGO = {}
+
+
+def subir_luego(pid, rel=None, seg=20):
+    """Lo editado a mano se sube a Drive 20 s después del último cambio (no en cada tecla), para que las otras PCs
+    lo vean sin esperar a exportar. Al cerrar la sala, subir_pendientes() sube lo que quede."""
+    clave = (pid, rel or semana_actual())
+    viejo = _SUBIR_LUEGO.pop(clave, None)
+    if viejo:
+        viejo.cancel()
+
+    def tarea():
+        _SUBIR_LUEGO.pop(clave, None)
+        subir(*clave)
+    t = threading.Timer(seg, tarea)
+    t.daemon = True
+    _SUBIR_LUEGO[clave] = t
+    t.start()
+
+
+def subir_pendientes():
+    for clave, t in list(_SUBIR_LUEGO.items()):
+        t.cancel()
+        _SUBIR_LUEGO.pop(clave, None)
+        try:
+            conexion.subir(rel_drive(*clave))
+        except Exception as e:  # noqa: BLE001 — sin internet: queda en la PC y sube la próxima vez
+            print("Drive:", e, flush=True)
 
 
 # ---------- Biblioteca: todas las piezas de todas las semanas ----------
