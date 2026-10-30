@@ -1,3 +1,9 @@
+Versión 0.19.0: la ficha de marca ahora es un Excel
+- **«Plantilla de marca» trae un Excel con casillas** (en vez del Word): tu marca (qué vendes, a quién, tono, cómo te compran, tipografías), tus colores con su código (#253C61) y para qué se usa cada uno, todas tus palabras (el nombre de la marca, las del producto, las que se resaltan, las frases de compra, lo que nunca se dice y cómo la escribe mal la transcripción), las reglas de las imágenes y de la música, y tus públicos. Llénalo, guárdalo en la carpeta con tus logos y tipografías, y súbela en Marca → «Importar mi marca».
+- Lo que la ficha trae para los videos queda en la carpeta de la marca en Drive (perfil.json) y lo usa la Sala de edición: es la misma marca para las dos salas.
+- Un color con código malo avisa en vez de perderse; acepta códigos cortos (#F36); una hoja del Excel renombrada se reconoce igual. La ficha en Word de antes se sigue leyendo.
+- La pantalla dice «Antigravity» (antes decía «Gemini»).
+
 Versión 0.18.1: el editor ya no pierde ni mezcla lo que haces
 - Si cambias de semana justo después de editar, lo último se guarda en la semana de la pieza (antes caía en la otra y creaba una pieza fantasma).
 - «Deshacer» ya no borra el copy que escribiste.

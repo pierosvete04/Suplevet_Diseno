@@ -51,6 +51,7 @@ jobs:
           New-Item -ItemType Directory -Force $app | Out-Null
           Copy-Item *.py,app.html,cuenta.js,config.json,VERSION,LANZADOR_MINIMO,README.md,NOTAS_VERSION.md -Destination $app
           Copy-Item fuentes -Destination $app -Recurse
+          Copy-Item marcas -Destination $app -Recurse
           Remove-Item "$app/lanzador.py"
           Compress-Archive -Path "$app/*" -DestinationPath "app-$tag.zip"
           Compress-Archive -Path dist/SalaDiseno -DestinationPath "SalaDiseno-$tag.zip"
