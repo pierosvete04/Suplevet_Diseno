@@ -356,6 +356,21 @@ main { display: flex; flex-direction: column; overflow: hidden; }
 }
 @media (max-width: 900px) { .dos-col { grid-template-columns: 1fr; } .vista { padding: 14px; } }
 </style>
+<style id="bordes-comunes">
+/* Bordes: una sola escala, igual en la Sala de edición, la Sala de diseño y el Publicador (si se cambia aquí, se
+   cambia en las tres). 9 px las casillas para escribir o elegir y los botones · 14 px las tarjetas y cuadros ·
+   16 px las ventanas · las píldoras, redondas. */
+:root { --r-campo: 9px; --r-caja: 14px; --r-ventana: 16px; --r-chip: 999px; }
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), select:not([hidden]), textarea:not([hidden]) { border-radius: var(--r-campo); }
+input[type=color] { overflow: hidden; }
+input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
+input[type=color]::-webkit-color-swatch { border: 0; border-radius: calc(var(--r-campo) - 3px); }
+.btn { border-radius: var(--r-campo); }
+.caja { border-radius: var(--r-caja); }
+dialog:not(#dlgEditor) { border-radius: var(--r-ventana); }
+input[type=date], input[type=search], input[type=email], input[type=password], input[type=url] {
+  background: var(--bg2); border: 1px solid var(--line2); padding: 6px 9px; color: inherit; font: inherit; }
+</style>
 </head>
 <body>
 <header class="cabeza" id="cabeza">

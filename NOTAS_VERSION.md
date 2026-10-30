@@ -1,3 +1,7 @@
+Versión 0.19.1: bordes iguales en las tres apps
+- Bordes iguales en las tres apps: las casillas para escribir o elegir y los botones con esquinas de 9 px, las tarjetas de 14 px y las ventanas de 16 px. La muestra del selector de color también se ve redondeada.
+- Las casillas de fecha y de búsqueda ya tienen el estilo de la sala (antes salían con el cuadro del navegador).
+
 Versión 0.19.0: la ficha de marca ahora es un Excel
 - **«Plantilla de marca» trae un Excel con casillas** (en vez del Word): tu marca (qué vendes, a quién, tono, cómo te compran, tipografías), tus colores con su código (#253C61) y para qué se usa cada uno, todas tus palabras (el nombre de la marca, las del producto, las que se resaltan, las frases de compra, lo que nunca se dice y cómo la escribe mal la transcripción), las reglas de las imágenes y de la música, y tus públicos. Llénalo, guárdalo en la carpeta con tus logos y tipografías, y súbela en Marca → «Importar mi marca».
 - Lo que la ficha trae para los videos queda en la carpeta de la marca en Drive (perfil.json) y lo usa la Sala de edición: es la misma marca para las dos salas.
