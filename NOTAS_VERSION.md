@@ -1,3 +1,8 @@
+Versión 0.19.3: entrar con Google sin quedarse trabado
+- **Entrar con Google ya no se queda trabado.** Si la página de Google no aparece (no se abrió, quedó detrás de la app o se cerró la pestaña), la pantalla de entrar muestra «¿No ves la página de Google?» con el link para copiar y los botones «Abrir Google otra vez» y «Cancelar».
+- Un intento de entrar que quedó esperando se corta al intentar de nuevo (antes ocupaba el puerto de Google y el nuevo se quedaba esperando detrás). Si pasan 10 minutos sin aceptar, se avisa y se puede volver a intentar.
+- Si otra de las tres apps ya está esperando a Google, se avisa con claridad.
+
 Versión 0.19.2: las tres apps se ven igual
 - Las tres apps se ven y se sienten igual: el mismo bloque de estilo en la Sala de edición, la Sala de diseño y el Publicador.
 - Botones del mismo alto en las tres (36 px; los chicos, 30 px), con el texto centrado.
