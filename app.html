@@ -2639,15 +2639,13 @@ mostrarConf();
 document.querySelectorAll("#v-config .conf-menu a").forEach(a => a.onclick = e => { e.preventDefault(); irConf(a.getAttribute("href").slice(1)); });
 document.querySelectorAll("#cabeza [data-conf]").forEach(b => b.onclick = () => irConf(b.dataset.conf));
 // las opciones del menú de tu cuenta: las mismas páginas que el menú de Configuración, con sus puntitos de estado
+// El menú de tu cuenta: solo «Cuenta y dispositivos» y «Configuración» (que abre la página con todas las secciones).
+// Si hay una versión nueva, «Configuración» lleva el punto de aviso.
 function menuCuenta() {
-  const enConf = vista === "config", activa = document.querySelector("#v-config .conf-menu a.activo")?.getAttribute("href");
-  return [...document.querySelectorAll("#v-config .conf-menu a[href^='#conf']")].map(a => {
-    const id = a.getAttribute("href").slice(1), txt = a.cloneNode(true);
-    txt.querySelectorAll("span").forEach(x => x.remove());
-    const [icono, ...resto] = txt.textContent.trim().split(" ");
-    const punto = a.querySelector(".punto-estado[id]");
-    return { icono, texto: resto.join(" "), al: () => irConf(id), actual: enConf && activa === "#" + id, extra: punto ? `<span class="${punto.className}"></span>` : "" };
-  });
+  const enConf = vista === "config", act = $("confPAct");
+  const aviso = act?.classList.contains("warn") ? `<span class="${act.className}" title="Hay una versión nueva"></span>` : "";
+  return [{ icono: "👤", texto: "Cuenta y dispositivos", al: () => irConf("confCuenta"), actual: enConf && confActual === "confCuenta" },
+    { icono: "⚙", texto: "Configuración", al: () => irConf(confActual && confActual !== "confCuenta" ? confActual : "confMarca"), actual: enConf && confActual !== "confCuenta", extra: aviso }];
 }
 function cambiarTema() {
   const t = document.documentElement.dataset.tema === "claro" ? "oscuro" : "claro";

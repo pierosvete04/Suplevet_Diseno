@@ -1,3 +1,7 @@
+Versión 0.20.2: menú de la cuenta más corto
+- **Menú de tu cuenta más corto:** solo «👤 Cuenta y dispositivos» y «⚙ Configuración». Configuración abre la página con todas las secciones (Actualizaciones incluida) y lleva un punto de aviso cuando hay una versión nueva.
+- Si falla la consulta de la cuenta a Google, la app igual anota esta PC en «Dispositivos».
+
 Versión 0.20.1: otra cuenta ya no termina usando la de antes
 - **Otra cuenta ya no termina usando la cuenta de antes.** Un proceso de Drive que había empezado antes de entrar podía volver a poner la llave de la cuenta anterior (la pantalla decía la cuenta nueva, pero se trabajaba con la vieja y se veían sus sesiones y su marca). Ahora cada entrada y cada cambio de carpeta guarda la llave aparte, y eso ya no puede pasar.
 - Cada 10 minutos la app confirma con Google con qué cuenta está trabajando, y esa es la que muestra.
