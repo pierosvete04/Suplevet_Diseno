@@ -1,3 +1,8 @@
+Versión 0.20.0: cuenta nueva con marca
+- **Cuenta nueva con marca.** Al entrar por primera vez, después de elegir la carpeta, ahora hay un paso «Marca» (Entrar → Carpeta → Marca → Equipo): nombre de la marca, cómo te compran, qué vendes, a quién le vendes y dos colores. Se guarda una sola vez en el Drive del equipo y la ven las tres apps. Si la carpeta ya tiene marca, el paso no sale.
+- En las salas, el mismo paso trae «⬇ Descargar plantilla de marca» y «⬆ Subir la plantilla llena» (o una carpeta o un .zip): la app muestra lo que encontró y lo guarda con «Guardar mi marca».
+- Si Google acepta pero no se puede leer tu correo (internet que se corta), la entrada ya no se pierde.
+
 Versión 0.19.4: actualizar desde la pantalla de entrar
 - **La pantalla de entrar avisa si hay una versión nueva.** Antes el aviso salía solo después de entrar con Google, así que si entrar fallaba no había cómo recibir el arreglo. Ahora aparece «⟳ Hay una versión nueva» con el botón «Actualizar ahora» arriba de «Entrar con Google».
 

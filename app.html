@@ -3198,7 +3198,7 @@ let ARRANCO = false;
   miniaturas();
   await Cuenta.iniciar({ app: "Sala de diseño", letra: "D", fondo: "linear-gradient(135deg,#7c3aed,#ec4899 60%,#f59e0b)",
                          lugar: $("cuentaChip"), alVolver: () => location.reload(),
-                         menu: menuCuenta, version: () => ESTADO?.version, alCambiarTema: cambiarTema, avisar,
+                         menu: menuCuenta, version: () => ESTADO?.version, alCambiarTema: cambiarTema, avisar, importarMarca: true,
                          alElegirCarpeta: () => { if (ARRANCO) location.reload(); } });  // otra carpeta: se recarga todo
   ARRANCO = true;
   try {
