@@ -50,6 +50,11 @@ def listar(forzar=False):
     return _lista["datos"]
 
 
+def olvidar():
+    """La copia local cambió de carpeta (otra cuenta): la lista de la otra no se muestra más (conexion.revisar_copia_local)."""
+    _lista.update(t=0, datos=[], prods=[])
+
+
 def precalentar():
     """Al abrir la sala: si la lista guardada falta o es vieja, se pide por detrás (para cuando se entre a Videos)."""
     _cargar_guardada()

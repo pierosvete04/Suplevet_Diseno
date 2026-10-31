@@ -1,3 +1,7 @@
+Versión 0.21.0: con otra cuenta no se ve nada de la anterior
+- **Con otra cuenta ya no se ve ni se sube nada de la cuenta anterior.** La llave de Google siempre trabaja con la carpeta que elegiste: si quedó apuntando a otra (pasó en una PC con la cuenta de Mr Peanut, que veía las sesiones de Suplevet), la app la arregla sola al abrir y cada 10 minutos.
+- La copia de esta PC (marca, piezas y listas de videos y guiones) es de una sola carpeta. Si entras con otra cuenta, aunque sea desde otra de las tres apps, la copia de la anterior se guarda aparte y deja de verse; si vuelves a esa cuenta, vuelve tal cual.
+
 Versión 0.20.2: menú de la cuenta más corto
 - **Menú de tu cuenta más corto:** solo «👤 Cuenta y dispositivos» y «⚙ Configuración». Configuración abre la página con todas las secciones (Actualizaciones incluida) y lleva un punto de aviso cuando hay una versión nueva.
 - Si falla la consulta de la cuenta a Google, la app igual anota esta PC en «Dispositivos».

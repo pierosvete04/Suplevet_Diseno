@@ -342,6 +342,7 @@ class H(BaseHTTPRequestHandler):
                 ruta = videos_edicion.miniatura(q["ruta"][0])
                 self._archivo(ruta.parent, ruta.name)
             elif u.path == "/api/estado":
+                conexion.revisar_copia_local()  # si se entró con otra cuenta desde otra sala, no se ve nada de la anterior
                 piezas.sincronizar()
                 videos_edicion.precalentar()  # la lista de videos se pide ya, por detrás, para que la pestaña Videos abra al instante
                 guiones.precalentar()  # y los guiones, para «Crear con IA → Cuerpos de los guiones»
@@ -574,6 +575,10 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     print(f"Sala de diseño en http://localhost:{PUERTO}", flush=True)
     cuenta.iniciar("Sala de diseño", nucleo.VERSION)
+    try:  # antes de tocar la copia local: que sea de la carpeta elegida (ver conexion.revisar_copia_local)
+        conexion.revisar_copia_local()
+    except Exception as e:
+        print("Drive:", e, flush=True)
     try:  # al abrir, la sala va a la semana de hoy (si no existe, la crea; con el brief, sus piezas)
         piezas.crear_semana(time.strftime("%Y-%m-%d"))
     except Exception as e:

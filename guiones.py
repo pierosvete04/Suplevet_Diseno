@@ -52,6 +52,11 @@ def resumir(ruta, guion):
             "publico": str(guion.get("publico") or ""), "cuerpos": cuerpos}
 
 
+def olvidar():
+    """La copia local cambió de carpeta (otra cuenta): la lista de la otra no se muestra más (conexion.revisar_copia_local)."""
+    _lista.update(t=0, datos=[])
+
+
 def listar(forzar=False):
     """Las producciones con guion y sus cuerpos. Como la lista de videos: guardada en la PC y renovada por detrás."""
     if not _lista["datos"] and GUARDADA.is_file():
